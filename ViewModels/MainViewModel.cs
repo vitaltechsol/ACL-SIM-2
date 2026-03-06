@@ -14,14 +14,22 @@ namespace ACL_SIM_2.ViewModels
         public AxisViewModel Tiller { get; }
 
         public ICommand SetupCommand { get; }
+        public ICommand GlobalSettingsCommand { get; }
 
         public MainViewModel()
         {
             // Load per-axis persisted settings if available, otherwise use defaults.
-            var pitchSettings = Services.SettingsService.LoadAxisSettings("Pitch") ?? new AxisSettings();
-            var rollSettings = Services.SettingsService.LoadAxisSettings("Roll") ?? new AxisSettings();
-            var rudderSettings = Services.SettingsService.LoadAxisSettings("Rudder") ?? new AxisSettings();
-            var tillerSettings = Services.SettingsService.LoadAxisSettings("Tiller") ?? new AxisSettings();
+            var pitchSettings = Services.SettingsService.LoadAxisSettings("Pitch");
+            if (pitchSettings == null) pitchSettings = new AxisSettings { DriverId = 1 };
+
+            var rollSettings = Services.SettingsService.LoadAxisSettings("Roll");
+            if (rollSettings == null) rollSettings = new AxisSettings { DriverId = 2 };
+
+            var rudderSettings = Services.SettingsService.LoadAxisSettings("Rudder");
+            if (rudderSettings == null) rudderSettings = new AxisSettings { DriverId = 3 };
+
+            var tillerSettings = Services.SettingsService.LoadAxisSettings("Tiller");
+            if (tillerSettings == null) tillerSettings = new AxisSettings { DriverId = 4 };
 
             Pitch = new AxisViewModel(new Axis("Pitch", pitchSettings));
             Roll = new AxisViewModel(new Axis("Roll", rollSettings));
@@ -35,6 +43,7 @@ namespace ACL_SIM_2.ViewModels
             Tiller.EncoderPosition = 0.02;
 
             SetupCommand = new RelayCommand(OnSetup);
+            GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
         }
 
         private void OnSetup(object? parameter)
@@ -58,6 +67,14 @@ namespace ACL_SIM_2.ViewModels
             // Open the axis setup window
             var vm = new AxisSetupViewModel(axisVm);
             var win = new Views.AxisSetupWindow(vm);
+            win.Owner = Application.Current?.MainWindow;
+            win.ShowDialog();
+        }
+
+        private void OnGlobalSettings()
+        {
+            var vm = new GlobalSettingsViewModel();
+            var win = new Views.GlobalSettingsWindow(vm);
             win.Owner = Application.Current?.MainWindow;
             win.ShowDialog();
         }

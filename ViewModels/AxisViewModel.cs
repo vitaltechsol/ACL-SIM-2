@@ -102,4 +102,4 @@ namespace ACL_SIM_2.ViewModels
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-}
+}   

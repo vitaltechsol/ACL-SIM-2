@@ -119,6 +119,29 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        // Communication / driver settings
+        public string RS485Ip
+        {
+            get => Settings.RS485Ip;
+            set
+            {
+                if (Settings.RS485Ip == value) return;
+                Settings.RS485Ip = value;
+                OnPropertyChanged(nameof(RS485Ip));
+            }
+        }
+
+        public int DriverId
+        {
+            get => Settings.DriverId;
+            set
+            {
+                if (Settings.DriverId == value) return;
+                Settings.DriverId = value;
+                OnPropertyChanged(nameof(DriverId));
+            }
+        }
+
         public bool Reversed
         {
             get => Settings.ReversedMotor;
@@ -163,6 +186,10 @@ namespace ACL_SIM_2.ViewModels
                 Settings.HydraulicOffTorqueDisplay = loaded.HydraulicOffTorqueDisplay;
                 Settings.AutopilotOverridePercent = loaded.AutopilotOverridePercent;
                 Settings.Enabled = loaded.Enabled;
+                Settings.RS485Ip = loaded.RS485Ip;
+                Settings.DriverId = loaded.DriverId;
+                Settings.AirspeedAdditionalTorquePercent = loaded.AirspeedAdditionalTorquePercent;
+                Settings.StallAdditionalTorquePercent = loaded.StallAdditionalTorquePercent;
 
                 OnPropertyChanged(string.Empty);
             }

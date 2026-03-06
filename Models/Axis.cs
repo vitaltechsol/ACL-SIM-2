@@ -30,6 +30,14 @@ namespace ACL_SIM_2.Models
         // Persisted flag whether this axis is enabled for user interaction
         public bool Enabled { get; set; } = true;
 
+        // Communication / driver settings for this axis
+        public string RS485Ip { get; set; } = "127.0.0.1";
+        public int DriverId { get; set; } = 1;
+
+        // Pitch-specific tuning
+        public double AirspeedAdditionalTorquePercent { get; set; } = 10.0; // 1..100
+        public double StallAdditionalTorquePercent { get; set; } = 10.0; // 1..100
+
         public double ConvertTorqueDisplayToActual(double display)
         {
             var clamped = Math.Max(0, Math.Min(TorqueDisplayMax, display));

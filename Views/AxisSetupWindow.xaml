@@ -23,6 +23,27 @@
                 <TextBlock Text="{Binding EncoderPosition}"/>
             </StackPanel>
 
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                <TextBlock Text="RS485 IP:" Width="80" VerticalAlignment="Center" />
+                <TextBox Text="{Binding RS485Ip}" Width="200" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                <TextBlock Text="Driver ID:" Width="80" VerticalAlignment="Center" />
+                <ComboBox SelectedValue="{Binding DriverId}" Width="80">
+                    <ComboBoxItem Content="1" />
+                    <ComboBoxItem Content="2" />
+                    <ComboBoxItem Content="3" />
+                    <ComboBoxItem Content="4" />
+                    <ComboBoxItem Content="5" />
+                    <ComboBoxItem Content="6" />
+                    <ComboBoxItem Content="7" />
+                    <ComboBoxItem Content="8" />
+                    <ComboBoxItem Content="9" />
+                    <ComboBoxItem Content="10" />
+                </ComboBox>
+            </StackPanel>
+
             <GroupBox Header="Position Calibration" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
@@ -66,6 +87,25 @@
                     <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorqueDisplay}"/>
                     <TextBlock Text="Autopilot override (%)" Margin="0,8,0,0"/>
                     <Slider Minimum="1" Maximum="100" Value="{Binding AutopilotOverridePercent}"/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Pitch extras" Margin="0,8,0,8">
+                <GroupBox.Style>
+                    <Style TargetType="GroupBox">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </GroupBox.Style>
+                <StackPanel Margin="6">
+                    <TextBlock Text="Airspeed additional torque (%)"/>
+                    <Slider Minimum="1" Maximum="100" Value="{Binding Settings.AirspeedAdditionalTorquePercent}"/>
+                    <TextBlock Text="Stall additional torque (%)" Margin="0,8,0,0"/>
+                    <Slider Minimum="1" Maximum="100" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
                 </StackPanel>
             </GroupBox>
         </StackPanel>

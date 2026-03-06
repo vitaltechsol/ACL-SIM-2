@@ -35,5 +35,27 @@ namespace ACL_SIM_2.Services
                 return null;
             }
         }
+
+        public static void SaveGlobalSettings(GlobalSettings settings)
+        {
+            var path = Path.Combine(GetFolder(), "global-settings.json");
+            var opts = new JsonSerializerOptions { WriteIndented = true };
+            File.WriteAllText(path, JsonSerializer.Serialize(settings, opts));
+        }
+
+        public static GlobalSettings? LoadGlobalSettings()
+        {
+            var path = Path.Combine(GetFolder(), "global-settings.json");
+            if (!File.Exists(path)) return null;
+            try
+            {
+                var txt = File.ReadAllText(path);
+                return JsonSerializer.Deserialize<GlobalSettings>(txt);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
