@@ -1,0 +1,78 @@
+<Window x:Class="ACL_SIM_2.Views.AxisSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Axis Setup" Height="520" Width="600"
+        Background="#1e1e1e" Foreground="White">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Axis Setup" FontSize="18" FontWeight="SemiBold" />
+        <StackPanel Grid.Row="1" Margin="0,12,0,12">
+            <TextBlock Text="Axis:"/>
+            <TextBlock Text="{Binding AxisName}" FontWeight="Bold" Margin="0,0,0,8"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                <TextBlock Text="Encoder:" Width="80"/>
+                <TextBlock Text="{Binding EncoderPosition}"/>
+            </StackPanel>
+
+            <GroupBox Header="Position Calibration" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
+                        <Button Content="Set Max" Width="100" Margin="0,0,8,0" Command="{Binding SetMaxCommand}" />
+                        <Button Content="Set Min" Width="100" Command="{Binding SetMinCommand}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed}" Command="{Binding ToggleReversedCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Torque Settings (display 0..100)" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <TextBlock Text="Min Torque"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MinTorqueDisplay}"/>
+                    <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MaxTorqueDisplay}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Start Movement Test" Width="140" Command="{Binding StartMovementTestCommand}" />
+                        <Button Content="Verify" Width="80" Margin="8,0,0,0" Command="{Binding VerifyMovementTestCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Self Centering / Movement" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <TextBlock Text="Self centering speed"/>
+                    <Slider Minimum="1" Maximum="100" Value="{Binding SelfCenteringSpeed}"/>
+                    <TextBlock Text="Movement torque" Margin="0,8,0,0"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MovingTorqueDisplay}"/>
+                    <TextBlock Text="Dampening" Margin="0,8,0,0"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Hydraulics / Autopilot" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <TextBlock Text="Hydraulic off torque"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorqueDisplay}"/>
+                    <TextBlock Text="Autopilot override (%)" Margin="0,8,0,0"/>
+                    <Slider Minimum="1" Maximum="100" Value="{Binding AutopilotOverridePercent}"/>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Save" Width="100" Margin="0,0,8,0" Command="{Binding SaveCommand}" />
+            <Button Content="Close" Width="100" Command="{Binding CloseCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

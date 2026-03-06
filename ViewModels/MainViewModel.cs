@@ -36,9 +36,27 @@ namespace ACL_SIM_2.ViewModels
 
         private void OnSetup(object? parameter)
         {
-            var axisName = parameter?.ToString() ?? "";
-            // TODO: Open setup dialog for the selected axis. For now, show a simple message box.
-            MessageBox.Show($"Open setup for {axisName}", "Setup", MessageBoxButton.OK, MessageBoxImage.Information);
+            var axisName = parameter?.ToString() ?? string.Empty;
+            AxisViewModel? axisVm = axisName switch
+            {
+                "Pitch" => Pitch,
+                "Roll" => Roll,
+                "Rudder" => Rudder,
+                "Tiller" => Tiller,
+                _ => null
+            };
+
+            if (axisVm == null)
+            {
+                MessageBox.Show($"Unknown axis: {axisName}", "Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Open the axis setup window
+            var vm = new AxisSetupViewModel(axisVm);
+            var win = new Views.AxisSetupWindow(vm);
+            win.Owner = Application.Current?.MainWindow;
+            win.ShowDialog();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
