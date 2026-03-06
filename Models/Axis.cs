@@ -27,6 +27,8 @@ namespace ACL_SIM_2.Models
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
         public double TorqueDisplayMax { get; set; } = 100.0;
         public double TorqueActualMax { get; set; } = 300.0;
+        // Persisted flag whether this axis is enabled for user interaction
+        public bool Enabled { get; set; } = true;
 
         public double ConvertTorqueDisplayToActual(double display)
         {

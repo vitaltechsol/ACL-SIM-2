@@ -162,6 +162,7 @@ namespace ACL_SIM_2.ViewModels
                 Settings.Dampening = loaded.Dampening;
                 Settings.HydraulicOffTorqueDisplay = loaded.HydraulicOffTorqueDisplay;
                 Settings.AutopilotOverridePercent = loaded.AutopilotOverridePercent;
+                Settings.Enabled = loaded.Enabled;
 
                 OnPropertyChanged(string.Empty);
             }

@@ -17,13 +17,16 @@ namespace ACL_SIM_2.ViewModels
 
         public MainViewModel()
         {
-            // Create default settings once and reuse for each axis (could be loaded from persistent storage)
-            var defaultSettings = new AxisSettings();
+            // Load per-axis persisted settings if available, otherwise use defaults.
+            var pitchSettings = Services.SettingsService.LoadAxisSettings("Pitch") ?? new AxisSettings();
+            var rollSettings = Services.SettingsService.LoadAxisSettings("Roll") ?? new AxisSettings();
+            var rudderSettings = Services.SettingsService.LoadAxisSettings("Rudder") ?? new AxisSettings();
+            var tillerSettings = Services.SettingsService.LoadAxisSettings("Tiller") ?? new AxisSettings();
 
-            Pitch = new AxisViewModel(new Axis("Pitch", defaultSettings));
-            Roll = new AxisViewModel(new Axis("Roll", defaultSettings));
-            Rudder = new AxisViewModel(new Axis("Rudder", defaultSettings));
-            Tiller = new AxisViewModel(new Axis("Tiller", defaultSettings));
+            Pitch = new AxisViewModel(new Axis("Pitch", pitchSettings));
+            Roll = new AxisViewModel(new Axis("Roll", rollSettings));
+            Rudder = new AxisViewModel(new Axis("Rudder", rudderSettings));
+            Tiller = new AxisViewModel(new Axis("Tiller", tillerSettings));
 
             // Populate with some initial demo values so UI appears active.
             Pitch.EncoderPosition = 0;

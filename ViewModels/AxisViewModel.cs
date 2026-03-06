@@ -23,13 +23,22 @@ namespace ACL_SIM_2.ViewModels
                 _axis.UpdateFromEncoder(value);
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderPosition)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderNormalized)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Torque)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
             }
         }
 
         public double AxisPosition => _axis.AxisPosition;
 
         public double Torque => _axis.TorqueTarget;
+
+        // UI-friendly status properties
+        public bool IsActive => _axis.TorqueTarget > 0.0;
+
+        public bool HydraulicsOn => _axis.HydraulicsOn;
+
+        public bool AutopilotOn => _axis.AutopilotOn;
 
         // Normalized values for UI (0..1)
         public double EncoderNormalized
@@ -85,6 +94,7 @@ namespace ACL_SIM_2.ViewModels
                 _axis.TorqueTarget = newTorque;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Torque)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
             }
         }
 

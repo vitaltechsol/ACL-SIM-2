@@ -20,52 +20,282 @@
             <!-- Axis panels bound to ViewModel -->
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
-                    <TextBlock Text="Pitch" FontSize="16" FontWeight="Bold" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Pitch" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <!-- Enable checkbox -->
+                            <CheckBox x:Name="PitchEnableChk" Tag="Pitch" IsChecked="{Binding Pitch.Underlying.Settings.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Checked="AxisEnable_Checked" Unchecked="AxisEnable_Unchecked" />
+
+                            <!-- Hydraulics -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Pitch.HydraulicsOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Autopilot (pitch only) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Pitch.AutopilotOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="Encoder:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding IsChecked, ElementName=PitchEnableChk}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecked, ElementName=PitchEnableChk}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <TextBlock Text="Torque:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalized}" IsEnabled="{Binding IsChecked, ElementName=PitchEnableChk}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecked, ElementName=PitchEnableChk}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
-                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch"/>
+                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch" IsEnabled="{Binding IsChecked, ElementName=PitchEnableChk}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
-                    <TextBlock Text="Roll" FontSize="16" FontWeight="Bold" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Roll" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <!-- Enable checkbox -->
+                            <CheckBox Tag="Roll" IsChecked="{Binding Roll.Underlying.Settings.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Checked="AxisEnable_Checked" Unchecked="AxisEnable_Unchecked" />
+
+                            <!-- Hydraulics -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Roll.HydraulicsOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Autopilot (roll only) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Roll.AutopilotOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="Encoder:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Roll.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <TextBlock Text="Torque:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalized}" IsEnabled="{Binding Roll.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Roll.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
-                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click"/>
+                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click" IsEnabled="{Binding Roll.Underlying.Settings.Enabled}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
-                    <TextBlock Text="Rudder" FontSize="16" FontWeight="Bold" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Rudder" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <!-- Enable checkbox -->
+                            <CheckBox Tag="Rudder" IsChecked="{Binding Rudder.Underlying.Settings.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Checked="AxisEnable_Checked" Unchecked="AxisEnable_Unchecked" />
+
+                            <!-- Hydraulics -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Rudder.HydraulicsOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="Encoder:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Rudder.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <TextBlock Text="Torque:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalized}" IsEnabled="{Binding Rudder.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Rudder.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
-                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder"/>
+                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder" IsEnabled="{Binding Rudder.Underlying.Settings.Enabled}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
-                    <TextBlock Text="Tiller" FontSize="16" FontWeight="Bold" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Tiller" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <!-- Enable checkbox -->
+                            <CheckBox Tag="Tiller" IsChecked="{Binding Tiller.Underlying.Settings.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Checked="AxisEnable_Checked" Unchecked="AxisEnable_Unchecked" />
+
+                            <!-- Hydraulics -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Tiller.HydraulicsOn}" Value="True">
+                                                    <Setter Property="Fill" Value="LimeGreen" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="Encoder:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Tiller.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <TextBlock Text="Torque:" Margin="0,8,0,0" />
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalized}" />
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalized}" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Tiller.Underlying.Settings.Enabled}" Value="False">
+                                        <Setter Property="Value" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
-                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller"/>
+                        <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
