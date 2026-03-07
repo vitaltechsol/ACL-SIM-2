@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EasyModbus;
 using System.Windows;
+using System.Diagnostics;
 
 namespace ACL_SIM_2.Services
 {
@@ -20,6 +21,17 @@ namespace ACL_SIM_2.Services
         private int _currentValue;
         private readonly object _sync = new object();
         private Task? _loopTask;
+        private bool _wasConnected;
+
+        /// <summary>
+        /// Raised when a new encoder value is read (may be raised on background thread).
+        /// </summary>
+        public event Action<int>? ValueUpdated;
+
+        /// <summary>
+        /// Raised when connection state changes. Argument is true when connected.
+        /// </summary>
+        public event Action<bool>? ConnectionChanged;
 
         public AxisEncoder(ModbusClient modbusClient, int encoderAddress = 387, int pollIntervalMs = 200)
         {
@@ -57,17 +69,27 @@ namespace ACL_SIM_2.Services
                             try { _mbc.Connect(); } catch { }
                         }
 
-                        if (_mbc.Connected)
+                        // connection state changed?
+                        var nowConnected = _mbc.Connected;
+                        if (nowConnected != _wasConnected)
+                        {
+                            _wasConnected = nowConnected;
+                            try { ConnectionChanged?.Invoke(nowConnected); } catch { }
+                        }
+
+                        if (nowConnected)
                         {
                             try
                             {
                                 var regs = _mbc.ReadHoldingRegisters(_encoderAddress, 1);
+                                Debug.WriteLine("encoder read: " + regs[0]);
                                 if (regs != null && regs.Length > 0)
                                 {
                                     lock (_sync)
                                     {
                                         _currentValue = regs[0];
                                     }
+                                    try { ValueUpdated?.Invoke(_currentValue); } catch { }
                                 }
                             }
                             catch
@@ -113,6 +135,11 @@ namespace ACL_SIM_2.Services
         /// Async-friendly getter that returns the latest value.
         /// </summary>
         public Task<int> GetValueAsync() => Task.FromResult(CurrentValue);
+
+        /// <summary>
+        /// Returns whether the underlying Modbus client is currently connected.
+        /// </summary>
+        public bool IsConnected => _mbc != null && _mbc.Connected;
 
         public void Dispose()
         {

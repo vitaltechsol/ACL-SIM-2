@@ -1,26 +1,62 @@
 using System.ComponentModel;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Windows.Media;
 using ACL_SIM_2.Models;
-
-using ACL_SIM_2.Services;
 
 namespace ACL_SIM_2.ViewModels
 {
     public partial class AxisViewModel : INotifyPropertyChanged
     {
+        public enum EncoderConnectionState
+        {
+            NotConfigured,
+            Connected,
+            Failed
+        }
+
         private readonly Axis _axis;
-        private CancellationTokenSource? _encoderCts;
-        private Task? _encoderTask;
+        private EncoderConnectionState _connectionState = EncoderConnectionState.NotConfigured;
 
         public AxisViewModel(Axis axis)
         {
             _axis = axis;
             // initialize enabled from persisted settings if present
             try { _enabled = _axis.Settings.Enabled; } catch { }
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(_axis.Settings.RS485Ip))
+                    _connectionState = EncoderConnectionState.Failed; // will be updated by EncoderManager
+            }
+            catch { }
         }
 
         public string Name => _axis.Name;
+
+        public EncoderConnectionState ConnectionState
+        {
+            get => _connectionState;
+            set
+            {
+                if (_connectionState == value) return;
+                _connectionState = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ConnectionState)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ConnectionBrush)));
+            }
+        }
+
+        // UI-friendly brush for binding to an Ellipse.Fill
+        public Brush ConnectionBrush
+        {
+            get
+            {
+                return _connectionState switch
+                {
+                    EncoderConnectionState.Connected => Brushes.Green,
+                    EncoderConnectionState.Failed => Brushes.Red,
+                    _ => Brushes.Gray,
+                };
+            }
+        }
 
         public double EncoderPosition
         {
@@ -60,16 +96,10 @@ namespace ACL_SIM_2.ViewModels
             }
             set
             {
-                // Clamp input to 0..1 to avoid invalid values
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-
                 var center = 0.0;
                 var range = System.Math.Max(1e-6, System.Math.Max(System.Math.Abs(_axis.Settings.MinPosition - center), System.Math.Abs(_axis.Settings.MaxPosition - center)));
-
-                // map 0..1 -> -1..1
                 var v = (normalized * 2.0) - 1.0;
-
-                // convert back to encoder units and assign using existing setter
                 var encoder = (v * range) + center;
                 EncoderPosition = encoder;
             }
@@ -85,13 +115,10 @@ namespace ACL_SIM_2.ViewModels
             }
             set
             {
-                // Clamp input to 0..1 to avoid invalid values
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-
                 var max = _axis.Settings.TorqueActualMax;
                 if (max <= 0)
                 {
-                    // Nothing to set if max invalid; still notify UI in case it expects update
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
                     return;
                 }
@@ -108,51 +135,6 @@ namespace ACL_SIM_2.ViewModels
 
         public Axis Underlying => _axis;
 
-        /// <summary>
-        /// Attach an AxisEncoder to this view model. The VM will poll the encoder asynchronously
-        /// and update its EncoderPosition property so the UI updates in real-time.
-        /// </summary>
-        public void AttachEncoder(AxisEncoder encoder, int pollMs = 100)
-        {
-            DetachEncoder();
-            if (encoder == null) return;
-
-            _encoderCts = new CancellationTokenSource();
-            var ct = _encoderCts.Token;
-            _encoderTask = Task.Run(async () =>
-            {
-                while (!ct.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var val = await encoder.GetValueAsync().ConfigureAwait(false);
-                        // marshal to UI by setting the EncoderPosition property (which raises PropertyChanged)
-                        // Use Task.Run to ensure we don't block the encoder loop. EncoderPosition setter uses model update.
-                        EncoderPosition = val;
-                    }
-                    catch
-                    {
-                        // ignore per-iteration errors
-                    }
-
-                    try { await Task.Delay(Math.Max(10, pollMs), ct).ConfigureAwait(false); } catch { break; }
-                }
-            }, ct);
-        }
-
-        public void DetachEncoder()
-        {
-            try
-            {
-                _encoderCts?.Cancel();
-            }
-            catch { }
-            try { _encoderTask?.Wait(200); } catch { }
-            _encoderTask = null;
-            _encoderCts?.Dispose();
-            _encoderCts = null;
-        }
-
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-}   
+}
