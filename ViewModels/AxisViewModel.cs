@@ -89,19 +89,21 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                // Calculate center from calibrated min/max positions to support absolute encoder values
-                var center = _axis.Settings.CenterPosition;
-                var range = System.Math.Max(1e-6, System.Math.Max(System.Math.Abs(_axis.Settings.MinPosition - center), System.Math.Abs(_axis.Settings.MaxPosition - center)));
-                var v = (_axis.EncoderPosition - center) / range; // approx -1..1
-                return (v + 1) / 2.0;
+                // Map encoder position to 0-1 range using actual min/max positions (supports asymmetric ranges)
+                var actualMin = _axis.Settings.CenterPosition + _axis.Settings.MinPosition;
+                var actualMax = _axis.Settings.CenterPosition + _axis.Settings.MaxPosition;
+                var range = System.Math.Max(1e-6, actualMax - actualMin);
+                var normalized = (_axis.EncoderPosition - actualMin) / range;
+                return System.Math.Max(0.0, System.Math.Min(1.0, normalized)); // clamp to 0-1
             }
             set
             {
+                // Convert normalized 0-1 value back to absolute encoder position
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var center = _axis.Settings.CenterPosition;
-                var range = System.Math.Max(1e-6, System.Math.Max(System.Math.Abs(_axis.Settings.MinPosition - center), System.Math.Abs(_axis.Settings.MaxPosition - center)));
-                var v = (normalized * 2.0) - 1.0;
-                var encoder = (v * range) + center;
+                var actualMin = _axis.Settings.CenterPosition + _axis.Settings.MinPosition;
+                var actualMax = _axis.Settings.CenterPosition + _axis.Settings.MaxPosition;
+                var range = actualMax - actualMin;
+                var encoder = actualMin + (normalized * range);
                 EncoderPosition = encoder;
             }
         }
