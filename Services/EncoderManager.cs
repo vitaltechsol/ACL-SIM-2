@@ -23,6 +23,8 @@ namespace ACL_SIM_2.Services
 
         private readonly List<Entry> _entries = new List<Entry>();
 
+        public Action<string>? OnError { get; set; }
+
         public EncoderManager()
         {
             // AxisEncoder instances manage their own loops; subscribe to app exit for cleanup.

@@ -30,17 +30,17 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
                 <TextBlock Text="Driver ID:" Width="80" VerticalAlignment="Center" />
-                <ComboBox SelectedValue="{Binding DriverId}" Width="80">
-                    <ComboBoxItem Content="1" />
-                    <ComboBoxItem Content="2" />
-                    <ComboBoxItem Content="3" />
-                    <ComboBoxItem Content="4" />
-                    <ComboBoxItem Content="5" />
-                    <ComboBoxItem Content="6" />
-                    <ComboBoxItem Content="7" />
-                    <ComboBoxItem Content="8" />
-                    <ComboBoxItem Content="9" />
-                    <ComboBoxItem Content="10" />
+                <ComboBox SelectedItem="{Binding DriverId}" Width="80">
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">1</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">2</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">3</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">4</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">5</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">6</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">7</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">8</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">9</sys:Int32>
+                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">10</sys:Int32>
                 </ComboBox>
             </StackPanel>
 

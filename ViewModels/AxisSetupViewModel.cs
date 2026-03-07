@@ -165,6 +165,8 @@ namespace ACL_SIM_2.ViewModels
         // An action the Window can set to close itself when VM requests
         public Action? CloseAction { get; set; }
 
+        public event Action<string, string>? OnSettingsSaved; // axis name, RS485 IP
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -198,6 +200,10 @@ namespace ACL_SIM_2.ViewModels
         private void Save()
         {
             SettingsService.SaveAxisSettings(AxisName, Settings);
+
+            // Notify that settings have changed (especially RS485 IP or DriverId)
+            OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip);
+
             MessageBox.Show("Settings saved.", "Save", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 

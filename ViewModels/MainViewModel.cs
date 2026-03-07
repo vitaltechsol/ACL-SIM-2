@@ -39,14 +39,25 @@ namespace ACL_SIM_2.ViewModels
             Rudder = new AxisViewModel(new Axis("Rudder", rudderSettings));
             Tiller = new AxisViewModel(new Axis("Tiller", tillerSettings));
 
+            // Subscribe to Enabled property changes to dynamically register/unregister encoders
+            Pitch.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Pitch", Pitch, pitchSettings.RS485Ip, e);
+            Roll.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Roll", Roll, rollSettings.RS485Ip, e);
+            Rudder.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Rudder", Rudder, rudderSettings.RS485Ip, e);
+            Tiller.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Tiller", Tiller, tillerSettings.RS485Ip, e);
+
             // Register encoders with a centralized manager so polling logic lives in one place.
+            // Only register axes that are enabled.
             try
             {
                 _encoderManager = new Services.EncoderManager();
-                if (!string.IsNullOrWhiteSpace(pitchSettings.RS485Ip)) _encoderManager.RegisterAxis("Pitch", Pitch, pitchSettings.RS485Ip);
-                if (!string.IsNullOrWhiteSpace(rollSettings.RS485Ip)) _encoderManager.RegisterAxis("Roll", Roll, rollSettings.RS485Ip);
-                if (!string.IsNullOrWhiteSpace(rudderSettings.RS485Ip)) _encoderManager.RegisterAxis("Rudder", Rudder, rudderSettings.RS485Ip);
-                if (!string.IsNullOrWhiteSpace(tillerSettings.RS485Ip)) _encoderManager.RegisterAxis("Tiller", Tiller, tillerSettings.RS485Ip);
+                if (Pitch.Enabled && !string.IsNullOrWhiteSpace(pitchSettings.RS485Ip)) 
+                    _encoderManager.RegisterAxis("Pitch", Pitch, pitchSettings.RS485Ip);
+                if (Roll.Enabled && !string.IsNullOrWhiteSpace(rollSettings.RS485Ip)) 
+                    _encoderManager.RegisterAxis("Roll", Roll, rollSettings.RS485Ip);
+                if (Rudder.Enabled && !string.IsNullOrWhiteSpace(rudderSettings.RS485Ip)) 
+                    _encoderManager.RegisterAxis("Rudder", Rudder, rudderSettings.RS485Ip);
+                if (Tiller.Enabled && !string.IsNullOrWhiteSpace(tillerSettings.RS485Ip)) 
+                    _encoderManager.RegisterAxis("Tiller", Tiller, tillerSettings.RS485Ip);
             }
             catch
             {
@@ -98,12 +109,45 @@ namespace ACL_SIM_2.ViewModels
 
         public void LogError(string message)
         {
-            var timestamped = $"{DateTime.Now:HH:mm:ss} - {message}";
+            var timestamped = $"{System.DateTime.Now:HH:mm:ss} - {message}";
             ErrorLog.Insert(0, timestamped);
             // Keep only last 100 entries
             while (ErrorLog.Count > 100)
             {
                 ErrorLog.RemoveAt(ErrorLog.Count - 1);
+            }
+        }
+
+        private void HandleAxisEnabledChanged(string axisName, AxisViewModel vm, string rs485Ip, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(AxisViewModel.Enabled) && _encoderManager != null)
+            {
+                if (vm.Enabled && !string.IsNullOrWhiteSpace(rs485Ip))
+                {
+                    // Re-register encoder when enabled
+                    try
+                    {
+                        _encoderManager.RegisterAxis(axisName, vm, rs485Ip);
+                        LogError($"[{axisName}] Encoder enabled");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"[{axisName}] Failed to enable encoder: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    // Unregister encoder when disabled
+                    try
+                    {
+                        _encoderManager.UnregisterAxis(axisName);
+                        LogError($"[{axisName}] Encoder disabled");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"[{axisName}] Failed to disable encoder: {ex.Message}");
+                    }
+                }
             }
         }
 
