@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="120"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="ACL 2.0" FontSize="20" FontWeight="SemiBold" />
@@ -339,5 +340,21 @@
             <Button Content="Open Setup" Width="120" Height="32" Command="{Binding SetupCommand}" />
             <Button Content="Global Settings" Width="140" Height="32" Margin="8,0,0,0" Command="{Binding GlobalSettingsCommand}" />
         </StackPanel>
+
+        <!-- Error Log Area -->
+        <Border Grid.Row="3" Background="#1a1a1a" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+            <DockPanel>
+                <TextBlock Text="Error Log" FontSize="12" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,4" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding ErrorLog}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="10" Foreground="#ff6b6b" TextWrapping="Wrap" Margin="0,1" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
     </Grid>
 </Window>

@@ -22,6 +22,7 @@ namespace ACL_SIM_2.Services
         private readonly object _sync = new object();
         private Task? _loopTask;
         private bool _wasConnected;
+        private readonly string _name;
 
         /// <summary>
         /// Raised when a new encoder value is read (may be raised on background thread).
@@ -33,9 +34,15 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public event Action<bool>? ConnectionChanged;
 
-        public AxisEncoder(ModbusClient modbusClient, int encoderAddress = 387, int pollIntervalMs = 200)
+        /// <summary>
+        /// Raised when an error occurs (connection failure, read error). Argument is error message.
+        /// </summary>
+        public event Action<string>? ErrorOccurred;
+
+        public AxisEncoder(ModbusClient modbusClient, string name, int encoderAddress = 387, int pollIntervalMs = 200)
         {
             _mbc = modbusClient ?? throw new ArgumentNullException(nameof(modbusClient));
+            _name = name ?? "Unknown";
             _encoderAddress = encoderAddress;
             _pollIntervalMs = Math.Max(10, pollIntervalMs);
 
@@ -66,7 +73,14 @@ namespace ACL_SIM_2.Services
                     {
                         if (!_mbc.Connected)
                         {
-                            try { _mbc.Connect(); } catch { }
+                            try 
+                            { 
+                                _mbc.Connect(); 
+                            } 
+                            catch (Exception ex)
+                            {
+                                try { ErrorOccurred?.Invoke($"[{_name}] Connection failed: {ex.Message}"); } catch { }
+                            }
                         }
 
                         // connection state changed?
@@ -75,6 +89,10 @@ namespace ACL_SIM_2.Services
                         {
                             _wasConnected = nowConnected;
                             try { ConnectionChanged?.Invoke(nowConnected); } catch { }
+                            if (!nowConnected)
+                            {
+                                try { ErrorOccurred?.Invoke($"[{_name}] Connection lost"); } catch { }
+                            }
                         }
 
                         if (nowConnected)
@@ -92,9 +110,9 @@ namespace ACL_SIM_2.Services
                                     try { ValueUpdated?.Invoke(_currentValue); } catch { }
                                 }
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // ignore read errors; will retry next loop
+                                try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message}"); } catch { }
                             }
                         }
                     }

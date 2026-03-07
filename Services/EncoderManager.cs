@@ -37,7 +37,8 @@ namespace ACL_SIM_2.Services
             try
             {
                 var mb = new ModbusClient(rs485Ip, 502);
-                var encoder = new AxisEncoder(mb, encoderAddress, Math.Max(10, pollMs));
+                mb.UnitIdentifier = (byte)vm.Underlying.Settings.DriverId;
+                var encoder = new AxisEncoder(mb, name, encoderAddress, Math.Max(10, pollMs));
                 var entry = new Entry { Name = name, Vm = vm, Encoder = encoder, Address = encoderAddress, PollMs = Math.Max(10, pollMs) };
 
                 // subscribe to encoder events and marshal updates to UI
@@ -60,6 +61,25 @@ namespace ACL_SIM_2.Services
                         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                         {
                             try { entry.Vm.ConnectionState = connected ? AxisViewModel.EncoderConnectionState.Connected : AxisViewModel.EncoderConnectionState.Failed; } catch { }
+                        }));
+                    }
+                    catch { }
+                };
+
+                encoder.ErrorOccurred += (errorMsg) =>
+                {
+                    try
+                    {
+                        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try 
+                            { 
+                                if (Application.Current?.MainWindow?.DataContext is ViewModels.MainViewModel mainVm)
+                                {
+                                    mainVm.LogError(errorMsg);
+                                }
+                            } 
+                            catch { }
                         }));
                     }
                     catch { }

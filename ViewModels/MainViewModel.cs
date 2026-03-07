@@ -14,6 +14,8 @@ namespace ACL_SIM_2.ViewModels
         public AxisViewModel Rudder { get; }
         public AxisViewModel Tiller { get; }
 
+        public ObservableCollection<string> ErrorLog { get; } = new ObservableCollection<string>();
+
         public ICommand SetupCommand { get; }
         public ICommand GlobalSettingsCommand { get; }
 
@@ -92,6 +94,17 @@ namespace ACL_SIM_2.ViewModels
             var win = new Views.GlobalSettingsWindow(vm);
             win.Owner = Application.Current?.MainWindow;
             win.ShowDialog();
+        }
+
+        public void LogError(string message)
+        {
+            var timestamped = $"{DateTime.Now:HH:mm:ss} - {message}";
+            ErrorLog.Insert(0, timestamped);
+            // Keep only last 100 entries
+            while (ErrorLog.Count > 100)
+            {
+                ErrorLog.RemoveAt(ErrorLog.Count - 1);
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
