@@ -1,7 +1,5 @@
 using System;
-using System.Reflection;
 using System.Windows;
-using System.IO.Ports;
 using EasyModbus;
 
 namespace ACL_SIM_2.Services
@@ -9,127 +7,36 @@ namespace ACL_SIM_2.Services
     /// <summary>
     /// Controls motor torque via Modbus TCP (RS485 gateway) using EasyModbus.
     /// When constructed with enabled==false the class is inert and will not attempt connections.
+    /// Accepts an external shared ModbusClient to avoid multiple connections per axis.
     /// </summary>
     public class AxisTorqueControl : IDisposable
     {
         private readonly bool _enabled;
         private readonly int _driverId;
-        private readonly string _rs485Ip;
-        private ModbusClient? _mbc;
+        private readonly ModbusClient _mbc; // Shared external client managed by EncoderManager
         private readonly object _sync = new object();
 
-        // Fixed params requested
-        private const int Baudrate = 115200;
-        // Use numeric values for stopbits/parity to avoid direct dependency on System.IO.Ports types
-        private const int StopBitsVal = 1; // StopBits.One
-        private const int ParityVal = 0; // Parity.None
-        private const int ConnectionTimeoutMs = 4000;
-        private const int Port = 502;
-
-        public AxisTorqueControl(bool enabled, int driverId, string rs485Ip)
+        /// <summary>
+        /// Constructor that accepts a shared external ModbusClient managed by EncoderManager.
+        /// </summary>
+        public AxisTorqueControl(bool enabled, int driverId, ModbusClient sharedClient)
         {
             _enabled = enabled;
             _driverId = driverId;
-            _rs485Ip = rs485Ip ?? throw new ArgumentNullException(nameof(rs485Ip));
+            _mbc = sharedClient ?? throw new ArgumentNullException(nameof(sharedClient));
 
             if (_enabled)
             {
-                Start();
-                // Disconnect on application exit
                 try
                 {
                     if (Application.Current != null)
                         Application.Current.Exit += OnAppExit;
                 }
-                catch
-                {
-                    // ignore when Application not available (unit tests, etc.)
-                }
+                catch { }
             }
         }
 
-        private void Start()
-        {
-            if (!_enabled) return;
-
-            lock (_sync)
-            {
-                try
-                {
-                    if (_mbc == null)
-                    {
-                        // create Modbus TCP client
-                        _mbc = new ModbusClient(_rs485Ip, Port);
-
-                        // set timeout if available
-                        try
-                        {
-                            _mbc.ConnectionTimeout = ConnectionTimeoutMs;
-                        }
-                        catch { }
-
-                        // Some EasyModbus builds expose serial transport properties when using RTU over TCP gateways.
-                        // Set baud/parity/stopbits via reflection if those properties exist to satisfy the requirement without breaking compilation.
-                        TrySetPropertyIfExists(_mbc, "Baudrate", Baudrate);
-                        TrySetPropertyIfExists(_mbc, "StopBits", StopBitsVal);
-                        TrySetPropertyIfExists(_mbc, "Parity", ParityVal);
-                    }
-
-                    if (!_mbc.Connected)
-                    {
-                        _mbc.Connect();
-                    }
-                }
-                catch
-                {
-                    // swallow - callers may retry when writing registers
-                }
-            }
-        }
-
-        private void TrySetPropertyIfExists(object target, string propName, object value)
-        {
-            try
-            {
-                var t = target.GetType();
-                var p = t.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
-                if (p != null && p.CanWrite)
-                {
-                    var propType = p.PropertyType;
-                    if (propType.IsEnum && value is int intVal)
-                    {
-                        var enumVal = Enum.ToObject(propType, intVal);
-                        p.SetValue(target, enumVal);
-                    }
-                    else
-                    {
-                        p.SetValue(target, value);
-                    }
-                }
-            }
-            catch
-            {
-                // ignore if property not present or set fails
-            }
-        }
-
-        private void EnsureConnected()
-        {
-            if (!_enabled) return;
-
-            lock (_sync)
-            {
-                if (_mbc == null)
-                {
-                    Start();
-                }
-
-                if (_mbc != null && !_mbc.Connected)
-                {
-                    try { _mbc.Connect(); } catch { }
-                }
-            }
-        }
+        // Connection is managed by EncoderManager, no need for EnsureConnected()
 
         /// <summary>
         /// Set forward torque register for the configured driver.
@@ -137,11 +44,10 @@ namespace ACL_SIM_2.Services
         public void SetTorqueForward(int fwrdVal)
         {
             if (!_enabled) return;
-            EnsureConnected();
 
             lock (_sync)
             {
-                if (_mbc == null || !_mbc.Connected) return;
+                if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
                 _mbc.WriteSingleRegister(8, fwrdVal);
             }
@@ -153,11 +59,10 @@ namespace ACL_SIM_2.Services
         public void SetTorqueBackward(int backWrd)
         {
             if (!_enabled) return;
-            EnsureConnected();
 
             lock (_sync)
             {
-                if (_mbc == null || !_mbc.Connected) return;
+                if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
                 _mbc.WriteSingleRegister(9, backWrd * -1);
             }
@@ -169,11 +74,10 @@ namespace ACL_SIM_2.Services
         public void SetTorqueBoth(int fwrdVal, int backWrd)
         {
             if (!_enabled) return;
-            EnsureConnected();
 
             lock (_sync)
             {
-                if (_mbc == null || !_mbc.Connected) return;
+                if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
                 _mbc.WriteSingleRegister(8, fwrdVal);
                 _mbc.WriteSingleRegister(9, backWrd * -1);
@@ -181,28 +85,11 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Disconnects and disposes the underlying client.
+        /// Disconnect is not called - shared ModbusClient is managed by EncoderManager.
         /// </summary>
         public void Disconnect()
         {
-            lock (_sync)
-            {
-                try
-                {
-                    if (_mbc != null && _mbc.Connected)
-                    {
-                        _mbc.Disconnect();
-                    }
-                }
-                catch
-                {
-                    // ignore
-                }
-                finally
-                {
-                    _mbc = null;
-                }
-            }
+            // External client managed by EncoderManager - do nothing
         }
 
         private void OnAppExit(object? sender, ExitEventArgs e)

@@ -25,7 +25,7 @@ namespace ACL_SIM_2.Services
         private readonly string _name;
 
         // Encoder rollover tracking
-        private const int ENCODER_MAX = 10000; // Maximum encoder value before rollover
+        private const int ENCODER_MAX = 9999; // Maximum encoder value before rollover
         private int _loopCount = 0; // Number of times encoder has rolled over
         private int _previousRawValue = 0; // Previous raw encoder reading
 
