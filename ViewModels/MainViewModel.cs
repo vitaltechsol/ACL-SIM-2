@@ -94,6 +94,31 @@ namespace ACL_SIM_2.ViewModels
 
             // Open the axis setup window
             var vm = new AxisSetupViewModel(axisVm);
+
+            // Subscribe to settings saved event to update encoder registration
+            vm.OnSettingsSaved += (savedAxisName, rs485Ip) =>
+            {
+                if (_encoderManager != null && axisVm.Enabled)
+                {
+                    try
+                    {
+                        // Unregister old encoder
+                        _encoderManager.UnregisterAxis(savedAxisName);
+
+                        // Re-register with new settings if IP is configured
+                        if (!string.IsNullOrWhiteSpace(rs485Ip))
+                        {
+                            _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
+                            LogError($"[{savedAxisName}] Encoder re-registered with new settings");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogError($"[{savedAxisName}] Failed to update encoder: {ex.Message}");
+                    }
+                }
+            };
+
             var win = new Views.AxisSetupWindow(vm);
             win.Owner = Application.Current?.MainWindow;
             win.ShowDialog();

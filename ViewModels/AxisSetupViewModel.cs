@@ -20,6 +20,15 @@ namespace ACL_SIM_2.ViewModels
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             AxisName = _axisVm.Name;
 
+            // Subscribe to AxisViewModel PropertyChanged to update encoder position in real-time
+            _axisVm.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(AxisViewModel.EncoderPosition))
+                {
+                    OnPropertyChanged(nameof(EncoderPosition));
+                }
+            };
+
             // Initialize values from underlying settings
             LoadSettings();
 
