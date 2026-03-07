@@ -89,7 +89,8 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                var center = 0.0;
+                // Calculate center from calibrated min/max positions to support absolute encoder values
+                var center = _axis.Settings.CenterPosition;
                 var range = System.Math.Max(1e-6, System.Math.Max(System.Math.Abs(_axis.Settings.MinPosition - center), System.Math.Abs(_axis.Settings.MaxPosition - center)));
                 var v = (_axis.EncoderPosition - center) / range; // approx -1..1
                 return (v + 1) / 2.0;
@@ -97,7 +98,7 @@ namespace ACL_SIM_2.ViewModels
             set
             {
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var center = 0.0;
+                var center = _axis.Settings.CenterPosition;
                 var range = System.Math.Max(1e-6, System.Math.Max(System.Math.Abs(_axis.Settings.MinPosition - center), System.Math.Abs(_axis.Settings.MaxPosition - center)));
                 var v = (normalized * 2.0) - 1.0;
                 var encoder = (v * range) + center;

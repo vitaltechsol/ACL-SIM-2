@@ -219,6 +219,8 @@ namespace ACL_SIM_2.ViewModels
         private void SetCenter()
         {
             _centerEncoder = _axisVm.EncoderPosition;
+            Settings.CenterPosition = _centerEncoder;
+            OnPropertyChanged(nameof(Settings));
             MessageBox.Show($"Center set to encoder {_centerEncoder}", "Center", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 

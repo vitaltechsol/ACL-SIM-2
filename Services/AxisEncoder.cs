@@ -24,6 +24,11 @@ namespace ACL_SIM_2.Services
         private bool _wasConnected;
         private readonly string _name;
 
+        // Encoder rollover tracking
+        private const int ENCODER_MAX = 10000; // Maximum encoder value before rollover
+        private int _loopCount = 0; // Number of times encoder has rolled over
+        private int _previousRawValue = 0; // Previous raw encoder reading
+
         /// <summary>
         /// Raised when a new encoder value is read (may be raised on background thread).
         /// </summary>
@@ -100,14 +105,44 @@ namespace ACL_SIM_2.Services
                             try
                             {
                                 var regs = _mbc.ReadHoldingRegisters(_encoderAddress, 1);
-                                Debug.WriteLine("encoder read: " + regs[0]);
                                 if (regs != null && regs.Length > 0)
                                 {
+                                    var rawValue = regs[0];
+
+                                    // Detect rollover by looking at the difference between readings
+                                    // If difference is very large (more than half the range), we crossed the boundary
+                                    var delta = rawValue - _previousRawValue;
+                                    const int HALF_RANGE = ENCODER_MAX / 2;
+
+                                    if (delta > HALF_RANGE)
+                                    {
+                                        // Large positive jump: we wrapped backward (0 → 9900)
+                                        // Example: prev=100, curr=9900, delta=9800 (>5000) → going backward, decrement
+                                        _loopCount--;
+                                        Debug.WriteLine($"[{_name}] Backward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
+                                        try { ErrorOccurred?.Invoke($"[{_name}] Backward wrap. Loop count: {_loopCount}"); } catch { }
+                                    }
+                                    else if (delta < -HALF_RANGE)
+                                    {
+                                        // Large negative jump: we wrapped forward (9900 → 0)
+                                        // Example: prev=9900, curr=100, delta=-9800 (<-5000) → going forward, increment
+                                        _loopCount++;
+                                        Debug.WriteLine($"[{_name}] Forward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
+                                        try { ErrorOccurred?.Invoke($"[{_name}] Forward wrap. Loop count: {_loopCount}"); } catch { }
+                                    }
+
+                                    _previousRawValue = rawValue;
+
+                                    // Calculate absolute position including loops (supports negative loop counts)
+                                    var absolutePosition = (_loopCount * ENCODER_MAX) + rawValue;
+
                                     lock (_sync)
                                     {
-                                        _currentValue = regs[0];
+                                        _currentValue = absolutePosition;
                                     }
-                                    try { ValueUpdated?.Invoke(_currentValue); } catch { }
+
+                                  //  Debug.WriteLine($"[{_name}] Raw: {rawValue}, Loops: {_loopCount}, Absolute: {absolutePosition}");
+                                    try { ValueUpdated?.Invoke(absolutePosition); } catch { }
                                 }
                             }
                             catch (Exception ex)
@@ -158,6 +193,35 @@ namespace ACL_SIM_2.Services
         /// Returns whether the underlying Modbus client is currently connected.
         /// </summary>
         public bool IsConnected => _mbc != null && _mbc.Connected;
+
+        /// <summary>
+        /// Gets the current loop/rollover count.
+        /// </summary>
+        public int LoopCount
+        {
+            get { lock (_sync) { return _loopCount; } }
+        }
+
+        /// <summary>
+        /// Gets the last raw encoder value (before loop calculation).
+        /// </summary>
+        public int RawValue
+        {
+            get { lock (_sync) { return _previousRawValue; } }
+        }
+
+        /// <summary>
+        /// Resets the loop count to zero. Use this to re-calibrate when setting center position.
+        /// </summary>
+        public void ResetLoopCount()
+        {
+            lock (_sync)
+            {
+                _loopCount = 0;
+                _currentValue = _previousRawValue; // Update current value to raw value only
+            }
+            try { ErrorOccurred?.Invoke($"[{_name}] Loop count reset to 0"); } catch { }
+        }
 
         public void Dispose()
         {

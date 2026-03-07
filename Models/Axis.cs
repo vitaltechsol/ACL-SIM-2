@@ -5,6 +5,8 @@ namespace ACL_SIM_2.Models
     // Settings that can be persisted and adjusted by the user.
     public class AxisSettings
     {
+        // Encoder position calibration (absolute encoder values with rollover tracking)
+        public double CenterPosition { get; set; } = 0.0; // absolute encoder value at center
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
         public double MinPosition { get; set; } = -30.0; // degrees relative to center
         public double MaxPosition { get; set; } = 30.0;
@@ -69,9 +71,9 @@ namespace ACL_SIM_2.Models
         // Update calculation of torque target based on encoder position and settings.
         public void RecalculateTorqueTarget()
         {
-            // Normalize encoder position relative to center -> -1 .. 1
-            var center = 0.0;
-            var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.MinPosition - center), Math.Abs(Settings.MaxPosition - center)));
+            // Normalize encoder position relative to calibrated center -> -1 .. 1
+            var center = Settings.CenterPosition;
+            var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.MinPosition), Math.Abs(Settings.MaxPosition)));
             var pos = (EncoderPosition - center) / range; // approx -1..1
             if (Settings.ReversedMotor) pos = -pos;
 
