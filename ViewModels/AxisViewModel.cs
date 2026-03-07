@@ -1,15 +1,23 @@
 using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
 using ACL_SIM_2.Models;
+
+using ACL_SIM_2.Services;
 
 namespace ACL_SIM_2.ViewModels
 {
-    public class AxisViewModel : INotifyPropertyChanged
+    public partial class AxisViewModel : INotifyPropertyChanged
     {
         private readonly Axis _axis;
+        private CancellationTokenSource? _encoderCts;
+        private Task? _encoderTask;
 
         public AxisViewModel(Axis axis)
         {
             _axis = axis;
+            // initialize enabled from persisted settings if present
+            try { _enabled = _axis.Settings.Enabled; } catch { }
         }
 
         public string Name => _axis.Name;
@@ -99,6 +107,51 @@ namespace ACL_SIM_2.ViewModels
         }
 
         public Axis Underlying => _axis;
+
+        /// <summary>
+        /// Attach an AxisEncoder to this view model. The VM will poll the encoder asynchronously
+        /// and update its EncoderPosition property so the UI updates in real-time.
+        /// </summary>
+        public void AttachEncoder(AxisEncoder encoder, int pollMs = 100)
+        {
+            DetachEncoder();
+            if (encoder == null) return;
+
+            _encoderCts = new CancellationTokenSource();
+            var ct = _encoderCts.Token;
+            _encoderTask = Task.Run(async () =>
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var val = await encoder.GetValueAsync().ConfigureAwait(false);
+                        // marshal to UI by setting the EncoderPosition property (which raises PropertyChanged)
+                        // Use Task.Run to ensure we don't block the encoder loop. EncoderPosition setter uses model update.
+                        EncoderPosition = val;
+                    }
+                    catch
+                    {
+                        // ignore per-iteration errors
+                    }
+
+                    try { await Task.Delay(Math.Max(10, pollMs), ct).ConfigureAwait(false); } catch { break; }
+                }
+            }, ct);
+        }
+
+        public void DetachEncoder()
+        {
+            try
+            {
+                _encoderCts?.Cancel();
+            }
+            catch { }
+            try { _encoderTask?.Wait(200); } catch { }
+            _encoderTask = null;
+            _encoderCts?.Dispose();
+            _encoderCts = null;
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }

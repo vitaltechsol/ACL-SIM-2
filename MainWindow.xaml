@@ -67,7 +67,10 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Encoder:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Encoder:" />
+                        <TextBlock Text="{Binding Pitch.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -146,7 +149,10 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Encoder:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Encoder:" />
+                        <TextBlock Text="{Binding Roll.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -208,7 +214,10 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Encoder:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Encoder:" />
+                        <TextBlock Text="{Binding Rudder.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -270,7 +279,10 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Encoder:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Encoder:" />
+                        <TextBlock Text="{Binding Tiller.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">

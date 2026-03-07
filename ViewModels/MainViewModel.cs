@@ -8,6 +8,7 @@ namespace ACL_SIM_2.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
+        private readonly Services.EncoderManager? _encoderManager;
         public AxisViewModel Pitch { get; }
         public AxisViewModel Roll { get; }
         public AxisViewModel Rudder { get; }
@@ -35,6 +36,20 @@ namespace ACL_SIM_2.ViewModels
             Roll = new AxisViewModel(new Axis("Roll", rollSettings));
             Rudder = new AxisViewModel(new Axis("Rudder", rudderSettings));
             Tiller = new AxisViewModel(new Axis("Tiller", tillerSettings));
+
+            // Register encoders with a centralized manager so polling logic lives in one place.
+            try
+            {
+                _encoderManager = new Services.EncoderManager();
+                if (!string.IsNullOrWhiteSpace(pitchSettings.RS485Ip)) _encoderManager.RegisterAxis("Pitch", Pitch, pitchSettings.RS485Ip);
+                if (!string.IsNullOrWhiteSpace(rollSettings.RS485Ip)) _encoderManager.RegisterAxis("Roll", Roll, rollSettings.RS485Ip);
+                if (!string.IsNullOrWhiteSpace(rudderSettings.RS485Ip)) _encoderManager.RegisterAxis("Rudder", Rudder, rudderSettings.RS485Ip);
+                if (!string.IsNullOrWhiteSpace(tillerSettings.RS485Ip)) _encoderManager.RegisterAxis("Tiller", Tiller, tillerSettings.RS485Ip);
+            }
+            catch
+            {
+                // ignore if Modbus client cannot be created at startup
+            }
 
             // Populate with some initial demo values so UI appears active.
             Pitch.EncoderPosition = 0;
