@@ -9,6 +9,11 @@ namespace ACL_SIM_2.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly Services.EncoderManager? _encoderManager;
+        private Services.AxisManager? _pitchManager;
+        private Services.AxisManager? _rollManager;
+        private Services.AxisManager? _rudderManager;
+        private Services.AxisManager? _tillerManager;
+
         public AxisViewModel Pitch { get; }
         public AxisViewModel Roll { get; }
         public AxisViewModel Rudder { get; }
@@ -64,6 +69,42 @@ namespace ACL_SIM_2.ViewModels
                 // ignore if Modbus client cannot be created at startup
             }
 
+            // Initialize AxisManagers for torque control
+            try
+            {
+                if (Pitch.Enabled && _encoderManager != null)
+                {
+                    var modbusClient = _encoderManager.GetModbusClient("Pitch");
+                    if (modbusClient != null)
+                        _pitchManager = new Services.AxisManager("Pitch", Pitch, modbusClient);
+                }
+
+                if (Roll.Enabled && _encoderManager != null)
+                {
+                    var modbusClient = _encoderManager.GetModbusClient("Roll");
+                    if (modbusClient != null)
+                        _rollManager = new Services.AxisManager("Roll", Roll, modbusClient);
+                }
+
+                if (Rudder.Enabled && _encoderManager != null)
+                {
+                    var modbusClient = _encoderManager.GetModbusClient("Rudder");
+                    if (modbusClient != null)
+                        _rudderManager = new Services.AxisManager("Rudder", Rudder, modbusClient);
+                }
+
+                if (Tiller.Enabled && _encoderManager != null)
+                {
+                    var modbusClient = _encoderManager.GetModbusClient("Tiller");
+                    if (modbusClient != null)
+                        _tillerManager = new Services.AxisManager("Tiller", Tiller, modbusClient);
+                }
+            }
+            catch
+            {
+                // ignore if AxisManager creation fails
+            }
+
             // Populate with some initial demo values so UI appears active.
             Pitch.EncoderPosition = 0;
             Roll.EncoderPosition = 0.1;
@@ -105,11 +146,35 @@ namespace ACL_SIM_2.ViewModels
                         // Unregister old encoder
                         _encoderManager.UnregisterAxis(savedAxisName);
 
+                        // Dispose old AxisManager
+                        switch (savedAxisName)
+                        {
+                            case "Pitch": _pitchManager?.Dispose(); break;
+                            case "Roll": _rollManager?.Dispose(); break;
+                            case "Rudder": _rudderManager?.Dispose(); break;
+                            case "Tiller": _tillerManager?.Dispose(); break;
+                        }
+
                         // Re-register with new settings if IP is configured
                         if (!string.IsNullOrWhiteSpace(rs485Ip))
                         {
                             _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
-                            LogError($"[{savedAxisName}] Encoder re-registered with new settings");
+
+                            // Recreate AxisManager with new ModbusClient
+                            var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
+                            if (modbusClient != null)
+                            {
+                                var newManager = new Services.AxisManager(savedAxisName, axisVm, modbusClient);
+                                switch (savedAxisName)
+                                {
+                                    case "Pitch": _pitchManager = newManager; break;
+                                    case "Roll": _rollManager = newManager; break;
+                                    case "Rudder": _rudderManager = newManager; break;
+                                    case "Tiller": _tillerManager = newManager; break;
+                                }
+                            }
+
+                            LogError($"[{savedAxisName}] Encoder and torque control re-registered with new settings");
                         }
                     }
                     catch (System.Exception ex)
@@ -153,7 +218,22 @@ namespace ACL_SIM_2.ViewModels
                     try
                     {
                         _encoderManager.RegisterAxis(axisName, vm, rs485Ip);
-                        LogError($"[{axisName}] Encoder enabled");
+
+                        // Create AxisManager for torque control
+                        var modbusClient = _encoderManager.GetModbusClient(axisName);
+                        if (modbusClient != null)
+                        {
+                            var newManager = new Services.AxisManager(axisName, vm, modbusClient);
+                            switch (axisName)
+                            {
+                                case "Pitch": _pitchManager = newManager; break;
+                                case "Roll": _rollManager = newManager; break;
+                                case "Rudder": _rudderManager = newManager; break;
+                                case "Tiller": _tillerManager = newManager; break;
+                            }
+                        }
+
+                        LogError($"[{axisName}] Encoder and torque control enabled");
                     }
                     catch (Exception ex)
                     {
@@ -162,11 +242,21 @@ namespace ACL_SIM_2.ViewModels
                 }
                 else
                 {
-                    // Unregister encoder when disabled
+                    // Unregister encoder and dispose AxisManager when disabled
                     try
                     {
                         _encoderManager.UnregisterAxis(axisName);
-                        LogError($"[{axisName}] Encoder disabled");
+
+                        // Dispose AxisManager
+                        switch (axisName)
+                        {
+                            case "Pitch": _pitchManager?.Dispose(); _pitchManager = null; break;
+                            case "Roll": _rollManager?.Dispose(); _rollManager = null; break;
+                            case "Rudder": _rudderManager?.Dispose(); _rudderManager = null; break;
+                            case "Tiller": _tillerManager?.Dispose(); _tillerManager = null; break;
+                        }
+
+                        LogError($"[{axisName}] Encoder and torque control disabled");
                     }
                     catch (Exception ex)
                     {

@@ -77,6 +77,21 @@ namespace ACL_SIM_2.ViewModels
 
         public double Torque => _axis.TorqueTarget;
 
+        private double _currentTorque;
+        /// <summary>
+        /// Current torque value managed by AxisManager (calculated from encoder position).
+        /// </summary>
+        public double CurrentTorque
+        {
+            get => _currentTorque;
+            set
+            {
+                if (Math.Abs(_currentTorque - value) < 1e-6) return;
+                _currentTorque = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentTorque)));
+            }
+        }
+
         // UI-friendly status properties
         public bool IsActive => _axis.TorqueTarget > 0.0;
 

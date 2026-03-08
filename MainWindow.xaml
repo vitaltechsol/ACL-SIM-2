@@ -101,6 +101,10 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Current Torque:" FontSize="11" />
+                        <TextBlock Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch" IsEnabled="{Binding Pitch.Enabled}" />
                     </StackPanel>
@@ -189,6 +193,10 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Current Torque:" FontSize="11" />
+                        <TextBlock Text="{Binding Roll.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click" IsEnabled="{Binding Roll.Enabled}" />
                     </StackPanel>
@@ -259,6 +267,10 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Current Torque:" FontSize="11" />
+                        <TextBlock Text="{Binding Rudder.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder" IsEnabled="{Binding Rudder.Enabled}" />
                     </StackPanel>
@@ -329,6 +341,10 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Current Torque:" FontSize="11" />
+                        <TextBlock Text="{Binding Tiller.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}" />
                     </StackPanel>
