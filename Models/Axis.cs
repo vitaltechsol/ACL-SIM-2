@@ -75,7 +75,6 @@ namespace ACL_SIM_2.Models
             var center = Settings.CenterPosition;
             var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.FullLeftPosition), Math.Abs(Settings.FullRightPosition)));
             var pos = (EncoderPosition - center) / range; // approx -1..1
-            if (Settings.ReversedMotor) pos = -pos;
 
             // Map pos 0..1 magnitude from center
             var magnitude = Math.Min(1.0, Math.Abs(pos));

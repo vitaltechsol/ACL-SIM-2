@@ -124,6 +124,8 @@ namespace ACL_SIM_2.ViewModels
         // UI-friendly status properties
         public bool IsActive => _axis.TorqueTarget > 0.0;
 
+        public bool IsReversed => _axis.Settings.ReversedMotor;
+
         public bool HydraulicsOn => _axis.HydraulicsOn;
 
         public bool AutopilotOn => _axis.AutopilotOn;

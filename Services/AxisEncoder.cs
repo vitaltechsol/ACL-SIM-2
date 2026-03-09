@@ -23,6 +23,7 @@ namespace ACL_SIM_2.Services
         private Task? _loopTask;
         private bool _wasConnected;
         private readonly string _name;
+        private readonly Func<bool> _isReversedFunc; // Function to check if motor is reversed
 
         // Encoder rollover tracking
         private const int ENCODER_MAX = 9999; // Maximum encoder value before rollover
@@ -44,11 +45,11 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public event Action<string>? ErrorOccurred;
 
-        public AxisEncoder(ModbusClient modbusClient, string name, int encoderAddress = 387, int pollIntervalMs = 200)
+        public AxisEncoder(ModbusClient modbusClient, string name, Func<bool> isReversedFunc, int pollIntervalMs = 200)
         {
             _mbc = modbusClient ?? throw new ArgumentNullException(nameof(modbusClient));
             _name = name ?? "Unknown";
-            _encoderAddress = encoderAddress;
+            _isReversedFunc = isReversedFunc ?? (() => false);
             _pollIntervalMs = Math.Max(10, pollIntervalMs);
 
             // start the read loop
@@ -135,6 +136,12 @@ namespace ACL_SIM_2.Services
 
                                     // Calculate absolute position including loops (supports negative loop counts)
                                     var absolutePosition = (_loopCount * ENCODER_MAX) + rawValue;
+
+                                    // Apply reversal if motor is reversed - single point of normalization
+                                    if (_isReversedFunc())
+                                    {
+                                        absolutePosition = -absolutePosition;
+                                    }
 
                                     lock (_sync)
                                     {

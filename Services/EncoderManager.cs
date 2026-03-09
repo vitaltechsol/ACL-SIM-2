@@ -32,7 +32,7 @@ namespace ACL_SIM_2.Services
             try { if (Application.Current != null) Application.Current.Exit += OnAppExit; } catch { }
         }
 
-        public void RegisterAxis(string name, AxisViewModel vm, string rs485Ip, int encoderAddress = 387, int pollMs = 10)
+        public void RegisterAxis(string name, AxisViewModel vm, string rs485Ip, int pollMs = 10)
         {
             if (vm == null) throw new ArgumentNullException(nameof(vm));
             if (string.IsNullOrWhiteSpace(rs485Ip)) return;
@@ -43,11 +43,11 @@ namespace ACL_SIM_2.Services
                 var mb = new ModbusClient(rs485Ip, 502);
                 mb.UnitIdentifier = (byte)vm.Underlying.Settings.DriverId;
 
-                // Pass shared client to AxisEncoder
-                var encoder = new AxisEncoder(mb, name, encoderAddress, Math.Max(10, pollMs));
+                // Pass shared client to AxisEncoder with IsReversed as a function delegate
+                var encoder = new AxisEncoder(mb, name, () => vm.IsReversed, Math.Max(10, pollMs));
 
                 // Store the shared ModbusClient in the entry
-                var entry = new Entry { Name = name, Vm = vm, Encoder = encoder, ModbusClient = mb, Address = encoderAddress, PollMs = Math.Max(10, pollMs) };
+                var entry = new Entry { Name = name, Vm = vm, Encoder = encoder, ModbusClient = mb, PollMs = Math.Max(10, pollMs) };
 
                 // subscribe to encoder events and marshal updates to UI
                 encoder.ValueUpdated += (val) =>

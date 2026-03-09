@@ -65,7 +65,7 @@
                         <Button Content="Set Full Left" Width="120" Command="{Binding SetFullLeftCommand}" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed}" Command="{Binding ToggleReversedCommand}" />
+                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White" />
                     </StackPanel>
                 </StackPanel>
             </GroupBox>
