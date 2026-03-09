@@ -98,7 +98,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalized}" IsEnabled="{Binding Pitch.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -194,7 +194,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalized}" IsEnabled="{Binding Roll.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Roll.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -272,7 +272,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalized}" IsEnabled="{Binding Rudder.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Rudder.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -350,7 +350,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalized}" IsEnabled="{Binding Tiller.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Tiller.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>

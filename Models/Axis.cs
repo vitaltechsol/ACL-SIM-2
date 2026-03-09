@@ -54,6 +54,40 @@ namespace ACL_SIM_2.Models
         /// </summary>
         public double DeadbandDegrees { get; set; } = 0.02;
 
+        // Servo motor position control settings
+
+        /// <summary>
+        /// Pulses per encoder unit conversion factor.
+        /// Used to convert encoder positions to motor pulses.
+        /// Example: If encoder is in degrees and motor needs pulses, this converts degrees to pulses.
+        /// </summary>
+        public double PulsesPerEncoderUnit { get; set; } = 100.0;
+
+        /// <summary>
+        /// Motor speed in RPM for position movements.
+        /// Range: 0-3000 rpm. Higher values = faster movement.
+        /// </summary>
+        public int MotorSpeedRpm { get; set; } = 500;
+
+        /// <summary>
+        /// Motor acceleration mode: 0=None, 1=Linear, 2=S-Curve
+        /// </summary>
+        public int MotorAccelMode { get; set; } = 1; // Linear by default
+
+        /// <summary>
+        /// Motor acceleration parameter 1 (ms).
+        /// Linear mode: time constant (5-500ms)
+        /// S-Curve mode: Ta parameter (5-340ms)
+        /// </summary>
+        public int MotorAccelParam1Ms { get; set; } = 50;
+
+        /// <summary>
+        /// Motor acceleration parameter 2 (ms).
+        /// S-Curve mode only: Ts parameter (5-150ms)
+        /// Ignored for None/Linear modes.
+        /// </summary>
+        public int MotorAccelParam2Ms { get; set; } = 30;
+
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
         public double TorqueDisplayMax { get; set; } = 100.0;
         public double TorqueActualMax { get; set; } = 300.0;

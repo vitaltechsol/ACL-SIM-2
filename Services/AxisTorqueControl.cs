@@ -41,7 +41,7 @@ namespace ACL_SIM_2.Services
         /// <summary>
         /// Set forward torque register for the configured driver.
         /// </summary>
-        public void SetTorqueForward(int fwrdVal)
+        public void SetTorqueRight(int fwrdVal)
         {
             if (!_enabled) return;
 
@@ -56,7 +56,7 @@ namespace ACL_SIM_2.Services
         /// <summary>
         /// Set backward torque register for the configured driver (written negated).
         /// </summary>
-        public void SetTorqueBackward(int backWrd)
+        public void SetTorqueLeft(int backWrd)
         {
             if (!_enabled) return;
 

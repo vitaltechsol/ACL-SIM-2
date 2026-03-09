@@ -23,9 +23,6 @@ namespace ACL_SIM_2.Services
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
 
-            // Create axis movement controller
-            _axisMovement = new AxisMovement(axisVm.Underlying);
-
             // Create torque control if ModbusClient is provided
             if (modbusClient != null && !string.IsNullOrWhiteSpace(axisVm.Underlying.Settings.RS485Ip))
             {
@@ -42,6 +39,9 @@ namespace ACL_SIM_2.Services
                     // Torque control creation failed, will operate without it
                 }
             }
+
+            // Create axis movement controller with ModbusClient and TorqueControl for servo control
+            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl);
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
@@ -112,15 +112,15 @@ namespace ACL_SIM_2.Services
                         var torqueInt = (int)Math.Round(targetTorqueActual);
 
                         // Send to appropriate register based on direction
-                        if (offsetFromCenter <= 0)
+                        if (offsetFromCenter >= 0)
                         {
-                            // Positive offset: use forward register (register 8)
-                            _torqueControl.SetTorqueForward(torqueInt);
+                            // Positive offset (right direction): use right register (register 8)
+                            _torqueControl.SetTorqueRight(torqueInt);
                         }
                         else
                         {
-                            // Negative offset: use backward register (register 9)
-                            _torqueControl.SetTorqueBackward(torqueInt);
+                            // Negative offset (left direction): use left register (register 9)
+                            _torqueControl.SetTorqueLeft(torqueInt);
                         }
                     }
                     catch

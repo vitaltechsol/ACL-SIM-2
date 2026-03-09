@@ -90,6 +90,7 @@ namespace ACL_SIM_2.ViewModels
                 if (Math.Abs(_currentTorque - value) < 1e-6) return;
                 _currentTorque = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentTorque)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalizedFromCurrent)));
             }
         }
 
@@ -179,6 +180,20 @@ namespace ACL_SIM_2.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Torque)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+            }
+        }
+
+        /// <summary>
+        /// Normalized torque value (0-300) based on CurrentTorque for UI display.
+        /// CurrentTorque is in display scale (0-100), so we normalize it to 0-1.
+        /// </summary>
+        public double TorqueNormalizedFromCurrent
+        {
+            get
+            {
+                var maxDisplay = _axis.Settings.MaxTorqueDisplay;
+                if (maxDisplay <= 0) return 0;
+                return System.Math.Max(0, System.Math.Min(1.0, _currentTorque / maxDisplay));
             }
         }
 
