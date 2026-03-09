@@ -89,7 +89,15 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <TextBlock Text="Torque:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                            <Run Text=" (" />
+                            <Run Text="{Binding Pitch.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
+                            <Run Text="% from center)" />
+                        </TextBlock>
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalized}" IsEnabled="{Binding Pitch.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -101,10 +109,6 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Current Torque:" FontSize="11" />
-                        <TextBlock Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
-                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch" IsEnabled="{Binding Pitch.Enabled}" />
                     </StackPanel>
@@ -181,7 +185,15 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <TextBlock Text="Torque:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Roll.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                            <Run Text=" (" />
+                            <Run Text="{Binding Roll.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
+                            <Run Text="% from center)" />
+                        </TextBlock>
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalized}" IsEnabled="{Binding Roll.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -193,10 +205,6 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Current Torque:" FontSize="11" />
-                        <TextBlock Text="{Binding Roll.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
-                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click" IsEnabled="{Binding Roll.Enabled}" />
                     </StackPanel>
@@ -255,7 +263,15 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <TextBlock Text="Torque:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Rudder.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                            <Run Text=" (" />
+                            <Run Text="{Binding Rudder.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
+                            <Run Text="% from center)" />
+                        </TextBlock>
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalized}" IsEnabled="{Binding Rudder.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -267,10 +283,6 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Current Torque:" FontSize="11" />
-                        <TextBlock Text="{Binding Rudder.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
-                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder" IsEnabled="{Binding Rudder.Enabled}" />
                     </StackPanel>
@@ -329,7 +341,15 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <TextBlock Text="Torque:" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Tiller.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                            <Run Text=" (" />
+                            <Run Text="{Binding Tiller.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
+                            <Run Text="% from center)" />
+                        </TextBlock>
+                    </StackPanel>
                     <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalized}" IsEnabled="{Binding Tiller.Enabled}">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
@@ -341,10 +361,6 @@
                             </Style>
                         </ProgressBar.Style>
                     </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Current Torque:" FontSize="11" />
-                        <TextBlock Text="{Binding Tiller.CurrentTorque, StringFormat={}{0:F1}}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="#00D9FF" />
-                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                         <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}" />
                     </StackPanel>

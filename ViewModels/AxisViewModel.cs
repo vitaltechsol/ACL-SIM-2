@@ -70,6 +70,7 @@ namespace ACL_SIM_2.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Torque)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderPercentage)));
             }
         }
 
@@ -89,6 +90,34 @@ namespace ACL_SIM_2.ViewModels
                 if (Math.Abs(_currentTorque - value) < 1e-6) return;
                 _currentTorque = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentTorque)));
+            }
+        }
+
+        /// <summary>
+        /// Encoder position as percentage from center (0-100%), using direction-aware normalization.
+        /// </summary>
+        public double EncoderPercentage
+        {
+            get
+            {
+                var centerPosition = _axis.Settings.CenterPosition;
+                var offsetFromCenter = _axis.EncoderPosition - centerPosition;
+
+                double normalizedDistance;
+                if (offsetFromCenter >= 0)
+                {
+                    // Positive: use MaxPosition denominator
+                    var maxPositive = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.MaxPosition));
+                    normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxPositive);
+                }
+                else
+                {
+                    // Negative: use MinPosition denominator
+                    var maxNegative = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.MinPosition));
+                    normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxNegative);
+                }
+
+                return normalizedDistance * 100.0; // Convert to percentage
             }
         }
 

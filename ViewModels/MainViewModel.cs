@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
@@ -9,15 +10,23 @@ namespace ACL_SIM_2.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly Services.EncoderManager? _encoderManager;
-        private Services.AxisManager? _pitchManager;
-        private Services.AxisManager? _rollManager;
-        private Services.AxisManager? _rudderManager;
-        private Services.AxisManager? _tillerManager;
+        private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
+        private readonly Dictionary<string, AxisViewModel> _axes = new Dictionary<string, AxisViewModel>();
+        private readonly Dictionary<string, AxisSettings> _axisSettings = new Dictionary<string, AxisSettings>();
+        private static readonly string[] AxisNames = { "Pitch", "Roll", "Rudder", "Tiller" };
+        private static readonly Dictionary<string, int> DefaultDriverIds = new Dictionary<string, int>
+        {
+            { "Pitch", 1 },
+            { "Roll", 2 },
+            { "Rudder", 3 },
+            { "Tiller", 4 }
+        };
 
-        public AxisViewModel Pitch { get; }
-        public AxisViewModel Roll { get; }
-        public AxisViewModel Rudder { get; }
-        public AxisViewModel Tiller { get; }
+        // Public properties for XAML binding
+        public AxisViewModel Pitch => _axes["Pitch"];
+        public AxisViewModel Roll => _axes["Roll"];
+        public AxisViewModel Rudder => _axes["Rudder"];
+        public AxisViewModel Tiller => _axes["Tiller"];
 
         public ObservableCollection<string> ErrorLog { get; } = new ObservableCollection<string>();
 
@@ -26,43 +35,33 @@ namespace ACL_SIM_2.ViewModels
 
         public MainViewModel()
         {
-            // Load per-axis persisted settings if available, otherwise use defaults.
-            var pitchSettings = Services.SettingsService.LoadAxisSettings("Pitch");
-            if (pitchSettings == null) pitchSettings = new AxisSettings { DriverId = 1 };
+            // Load settings and create ViewModels for all axes
+            foreach (var axisName in AxisNames)
+            {
+                var settings = Services.SettingsService.LoadAxisSettings(axisName) 
+                    ?? new AxisSettings { DriverId = DefaultDriverIds[axisName] };
 
-            var rollSettings = Services.SettingsService.LoadAxisSettings("Roll");
-            if (rollSettings == null) rollSettings = new AxisSettings { DriverId = 2 };
+                _axisSettings[axisName] = settings;
+                var axisVm = new AxisViewModel(new Axis(axisName, settings));
+                _axes[axisName] = axisVm;
 
-            var rudderSettings = Services.SettingsService.LoadAxisSettings("Rudder");
-            if (rudderSettings == null) rudderSettings = new AxisSettings { DriverId = 3 };
+                // Subscribe to Enabled property changes
+                axisVm.PropertyChanged += (s, e) => HandleAxisEnabledChanged(axisName, axisVm, settings.RS485Ip, e);
+            }
 
-            var tillerSettings = Services.SettingsService.LoadAxisSettings("Tiller");
-            if (tillerSettings == null) tillerSettings = new AxisSettings { DriverId = 4 };
-
-            Pitch = new AxisViewModel(new Axis("Pitch", pitchSettings));
-            Roll = new AxisViewModel(new Axis("Roll", rollSettings));
-            Rudder = new AxisViewModel(new Axis("Rudder", rudderSettings));
-            Tiller = new AxisViewModel(new Axis("Tiller", tillerSettings));
-
-            // Subscribe to Enabled property changes to dynamically register/unregister encoders
-            Pitch.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Pitch", Pitch, pitchSettings.RS485Ip, e);
-            Roll.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Roll", Roll, rollSettings.RS485Ip, e);
-            Rudder.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Rudder", Rudder, rudderSettings.RS485Ip, e);
-            Tiller.PropertyChanged += (s, e) => HandleAxisEnabledChanged("Tiller", Tiller, tillerSettings.RS485Ip, e);
-
-            // Register encoders with a centralized manager so polling logic lives in one place.
-            // Only register axes that are enabled.
+            // Register encoders with centralized manager
             try
             {
                 _encoderManager = new Services.EncoderManager();
-                if (Pitch.Enabled && !string.IsNullOrWhiteSpace(pitchSettings.RS485Ip)) 
-                    _encoderManager.RegisterAxis("Pitch", Pitch, pitchSettings.RS485Ip);
-                if (Roll.Enabled && !string.IsNullOrWhiteSpace(rollSettings.RS485Ip)) 
-                    _encoderManager.RegisterAxis("Roll", Roll, rollSettings.RS485Ip);
-                if (Rudder.Enabled && !string.IsNullOrWhiteSpace(rudderSettings.RS485Ip)) 
-                    _encoderManager.RegisterAxis("Rudder", Rudder, rudderSettings.RS485Ip);
-                if (Tiller.Enabled && !string.IsNullOrWhiteSpace(tillerSettings.RS485Ip)) 
-                    _encoderManager.RegisterAxis("Tiller", Tiller, tillerSettings.RS485Ip);
+                foreach (var axisName in AxisNames)
+                {
+                    var axisVm = _axes[axisName];
+                    var settings = _axisSettings[axisName];
+                    if (axisVm.Enabled && !string.IsNullOrWhiteSpace(settings.RS485Ip))
+                    {
+                        _encoderManager.RegisterAxis(axisName, axisVm, settings.RS485Ip);
+                    }
+                }
             }
             catch
             {
@@ -72,32 +71,20 @@ namespace ACL_SIM_2.ViewModels
             // Initialize AxisManagers for torque control
             try
             {
-                if (Pitch.Enabled && _encoderManager != null)
+                if (_encoderManager != null)
                 {
-                    var modbusClient = _encoderManager.GetModbusClient("Pitch");
-                    if (modbusClient != null)
-                        _pitchManager = new Services.AxisManager("Pitch", Pitch, modbusClient);
-                }
-
-                if (Roll.Enabled && _encoderManager != null)
-                {
-                    var modbusClient = _encoderManager.GetModbusClient("Roll");
-                    if (modbusClient != null)
-                        _rollManager = new Services.AxisManager("Roll", Roll, modbusClient);
-                }
-
-                if (Rudder.Enabled && _encoderManager != null)
-                {
-                    var modbusClient = _encoderManager.GetModbusClient("Rudder");
-                    if (modbusClient != null)
-                        _rudderManager = new Services.AxisManager("Rudder", Rudder, modbusClient);
-                }
-
-                if (Tiller.Enabled && _encoderManager != null)
-                {
-                    var modbusClient = _encoderManager.GetModbusClient("Tiller");
-                    if (modbusClient != null)
-                        _tillerManager = new Services.AxisManager("Tiller", Tiller, modbusClient);
+                    foreach (var axisName in AxisNames)
+                    {
+                        var axisVm = _axes[axisName];
+                        if (axisVm.Enabled)
+                        {
+                            var modbusClient = _encoderManager.GetModbusClient(axisName);
+                            if (modbusClient != null)
+                            {
+                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient);
+                            }
+                        }
+                    }
                 }
             }
             catch
@@ -105,7 +92,7 @@ namespace ACL_SIM_2.ViewModels
                 // ignore if AxisManager creation fails
             }
 
-            // Populate with some initial demo values so UI appears active.
+            // Populate with some initial demo values so UI appears active
             Pitch.EncoderPosition = 0;
             Roll.EncoderPosition = 0.1;
             Rudder.EncoderPosition = -0.05;
@@ -118,16 +105,8 @@ namespace ACL_SIM_2.ViewModels
         private void OnSetup(object? parameter)
         {
             var axisName = parameter?.ToString() ?? string.Empty;
-            AxisViewModel? axisVm = axisName switch
-            {
-                "Pitch" => Pitch,
-                "Roll" => Roll,
-                "Rudder" => Rudder,
-                "Tiller" => Tiller,
-                _ => null
-            };
 
-            if (axisVm == null)
+            if (!_axes.TryGetValue(axisName, out var axisVm))
             {
                 MessageBox.Show($"Unknown axis: {axisName}", "Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -147,12 +126,10 @@ namespace ACL_SIM_2.ViewModels
                         _encoderManager.UnregisterAxis(savedAxisName);
 
                         // Dispose old AxisManager
-                        switch (savedAxisName)
+                        if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
                         {
-                            case "Pitch": _pitchManager?.Dispose(); break;
-                            case "Roll": _rollManager?.Dispose(); break;
-                            case "Rudder": _rudderManager?.Dispose(); break;
-                            case "Tiller": _tillerManager?.Dispose(); break;
+                            oldManager?.Dispose();
+                            _axisManagers[savedAxisName] = null;
                         }
 
                         // Re-register with new settings if IP is configured
@@ -164,14 +141,7 @@ namespace ACL_SIM_2.ViewModels
                             var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
                             if (modbusClient != null)
                             {
-                                var newManager = new Services.AxisManager(savedAxisName, axisVm, modbusClient);
-                                switch (savedAxisName)
-                                {
-                                    case "Pitch": _pitchManager = newManager; break;
-                                    case "Roll": _rollManager = newManager; break;
-                                    case "Rudder": _rudderManager = newManager; break;
-                                    case "Tiller": _tillerManager = newManager; break;
-                                }
+                                _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient);
                             }
 
                             LogError($"[{savedAxisName}] Encoder and torque control re-registered with new settings");
@@ -223,14 +193,7 @@ namespace ACL_SIM_2.ViewModels
                         var modbusClient = _encoderManager.GetModbusClient(axisName);
                         if (modbusClient != null)
                         {
-                            var newManager = new Services.AxisManager(axisName, vm, modbusClient);
-                            switch (axisName)
-                            {
-                                case "Pitch": _pitchManager = newManager; break;
-                                case "Roll": _rollManager = newManager; break;
-                                case "Rudder": _rudderManager = newManager; break;
-                                case "Tiller": _tillerManager = newManager; break;
-                            }
+                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient);
                         }
 
                         LogError($"[{axisName}] Encoder and torque control enabled");
@@ -248,12 +211,10 @@ namespace ACL_SIM_2.ViewModels
                         _encoderManager.UnregisterAxis(axisName);
 
                         // Dispose AxisManager
-                        switch (axisName)
+                        if (_axisManagers.TryGetValue(axisName, out var manager))
                         {
-                            case "Pitch": _pitchManager?.Dispose(); _pitchManager = null; break;
-                            case "Roll": _rollManager?.Dispose(); _rollManager = null; break;
-                            case "Rudder": _rudderManager?.Dispose(); _rudderManager = null; break;
-                            case "Tiller": _tillerManager?.Dispose(); _tillerManager = null; break;
+                            manager?.Dispose();
+                            _axisManagers[axisName] = null;
                         }
 
                         LogError($"[{axisName}] Encoder and torque control disabled");
