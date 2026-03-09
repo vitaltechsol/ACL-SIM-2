@@ -33,8 +33,8 @@ namespace ACL_SIM_2.ViewModels
             LoadSettings();
 
             SetCenterCommand = new RelayCommand(_ => SetCenter());
-            SetMaxCommand = new RelayCommand(_ => SetMax());
-            SetMinCommand = new RelayCommand(_ => SetMin());
+            SetFullRightCommand = new RelayCommand(_ => SetFullRight());
+            SetFullLeftCommand = new RelayCommand(_ => SetFullLeft());
             ToggleReversedCommand = new RelayCommand(_ => ToggleReversed());
             SaveCommand = new RelayCommand(_ => Save());
             StartMovementTestCommand = new RelayCommand(_ => StartMovementTest());
@@ -163,8 +163,8 @@ namespace ACL_SIM_2.ViewModels
         }
 
         public ICommand SetCenterCommand { get; }
-        public ICommand SetMaxCommand { get; }
-        public ICommand SetMinCommand { get; }
+        public ICommand SetFullRightCommand { get; }
+        public ICommand SetFullLeftCommand { get; }
         public ICommand ToggleReversedCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand StartMovementTestCommand { get; }
@@ -186,8 +186,8 @@ namespace ACL_SIM_2.ViewModels
             if (loaded != null)
             {
                 // copy loaded values into existing settings instance
-                Settings.MinPosition = loaded.MinPosition;
-                Settings.MaxPosition = loaded.MaxPosition;
+                Settings.FullLeftPosition = loaded.FullLeftPosition;
+                Settings.FullRightPosition = loaded.FullRightPosition;
                 Settings.MinTorqueDisplay = loaded.MinTorqueDisplay;
                 Settings.MaxTorqueDisplay = loaded.MaxTorqueDisplay;
                 Settings.ReversedMotor = loaded.ReversedMotor;
@@ -224,23 +224,23 @@ namespace ACL_SIM_2.ViewModels
             MessageBox.Show($"Center set to encoder {_centerEncoder}", "Center", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void SetMax()
+        private void SetFullRight()
         {
             var val = _axisVm.EncoderPosition - _centerEncoder;
-            Settings.MaxPosition = val;
-            // If max is less than min, mark reversed
-            if (Settings.MaxPosition < Settings.MinPosition) Settings.ReversedMotor = true;
+            Settings.FullRightPosition = val;
+            // If right is less than left, mark reversed
+            if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
-            MessageBox.Show($"Max position saved: {Settings.MaxPosition}", "Max", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Full right position saved: {Settings.FullRightPosition}", "Full Right", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void SetMin()
+        private void SetFullLeft()
         {
             var val = _axisVm.EncoderPosition - _centerEncoder;
-            Settings.MinPosition = val;
-            if (Settings.MaxPosition < Settings.MinPosition) Settings.ReversedMotor = true;
+            Settings.FullLeftPosition = val;
+            if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
-            MessageBox.Show($"Min position saved: {Settings.MinPosition}", "Min", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Full left position saved: {Settings.FullLeftPosition}", "Full Left", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void ToggleReversed()

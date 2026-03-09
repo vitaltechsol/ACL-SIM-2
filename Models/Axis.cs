@@ -8,8 +8,8 @@ namespace ACL_SIM_2.Models
         // Encoder position calibration (absolute encoder values with rollover tracking)
         public double CenterPosition { get; set; } = 0.0; // absolute encoder value at center
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
-        public double MinPosition { get; set; } = -30.0; // degrees relative to center
-        public double MaxPosition { get; set; } = 30.0;
+        public double FullLeftPosition { get; set; } = -30.0; // degrees relative to center (left/negative direction)
+        public double FullRightPosition { get; set; } = 30.0; // degrees relative to center (right/positive direction)
         public double MinTorqueDisplay { get; set; } = 0; // 0..100
         public double MaxTorqueDisplay { get; set; } = 100; // 0..100
         public bool ReversedMotor { get; set; } = false;
@@ -73,7 +73,7 @@ namespace ACL_SIM_2.Models
         {
             // Normalize encoder position relative to calibrated center -> -1 .. 1
             var center = Settings.CenterPosition;
-            var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.MinPosition), Math.Abs(Settings.MaxPosition)));
+            var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.FullLeftPosition), Math.Abs(Settings.FullRightPosition)));
             var pos = (EncoderPosition - center) / range; // approx -1..1
             if (Settings.ReversedMotor) pos = -pos;
 

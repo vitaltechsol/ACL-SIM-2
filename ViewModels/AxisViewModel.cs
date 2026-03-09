@@ -106,14 +106,14 @@ namespace ACL_SIM_2.ViewModels
                 double normalizedDistance;
                 if (offsetFromCenter >= 0)
                 {
-                    // Positive: use MaxPosition denominator
-                    var maxPositive = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.MaxPosition));
+                    // Positive (right): use FullRightPosition denominator
+                    var maxPositive = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.FullRightPosition));
                     normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxPositive);
                 }
                 else
                 {
-                    // Negative: use MinPosition denominator
-                    var maxNegative = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.MinPosition));
+                    // Negative (left): use FullLeftPosition denominator
+                    var maxNegative = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.FullLeftPosition));
                     normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxNegative);
                 }
 
@@ -133,21 +133,21 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                // Map encoder position to 0-1 range using actual min/max positions (supports asymmetric ranges)
-                var actualMin = _axis.Settings.CenterPosition + _axis.Settings.MinPosition;
-                var actualMax = _axis.Settings.CenterPosition + _axis.Settings.MaxPosition;
-                var range = System.Math.Max(1e-6, actualMax - actualMin);
-                var normalized = (_axis.EncoderPosition - actualMin) / range;
+                // Map encoder position to 0-1 range using actual full left/right positions (supports asymmetric ranges)
+                var actualLeft = _axis.Settings.CenterPosition + _axis.Settings.FullLeftPosition;
+                var actualRight = _axis.Settings.CenterPosition + _axis.Settings.FullRightPosition;
+                var range = System.Math.Max(1e-6, actualRight - actualLeft);
+                var normalized = (_axis.EncoderPosition - actualLeft) / range;
                 return System.Math.Max(0.0, System.Math.Min(1.0, normalized)); // clamp to 0-1
             }
             set
             {
                 // Convert normalized 0-1 value back to absolute encoder position
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var actualMin = _axis.Settings.CenterPosition + _axis.Settings.MinPosition;
-                var actualMax = _axis.Settings.CenterPosition + _axis.Settings.MaxPosition;
-                var range = actualMax - actualMin;
-                var encoder = actualMin + (normalized * range);
+                var actualLeft = _axis.Settings.CenterPosition + _axis.Settings.FullLeftPosition;
+                var actualRight = _axis.Settings.CenterPosition + _axis.Settings.FullRightPosition;
+                var range = actualRight - actualLeft;
+                var encoder = actualLeft + (normalized * range);
                 EncoderPosition = encoder;
             }
         }

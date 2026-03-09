@@ -77,14 +77,14 @@ namespace ACL_SIM_2.Services
 
                     if (offsetFromCenter >= 0)
                     {
-                        // Moving in positive direction
-                        var maxPositive = Math.Max(1e-6, Math.Abs(settings.MaxPosition));
+                        // Moving in positive (right) direction
+                        var maxPositive = Math.Max(1e-6, Math.Abs(settings.FullRightPosition));
                         normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxPositive);
                     }
                     else
                     {
-                        // Moving in negative direction
-                        var maxNegative = Math.Max(1e-6, Math.Abs(settings.MinPosition));
+                        // Moving in negative (left) direction
+                        var maxNegative = Math.Max(1e-6, Math.Abs(settings.FullLeftPosition));
                         normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxNegative);
                     }
 
