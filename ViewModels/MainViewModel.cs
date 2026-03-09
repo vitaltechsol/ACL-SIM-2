@@ -30,8 +30,23 @@ namespace ACL_SIM_2.ViewModels
 
         public ObservableCollection<string> ErrorLog { get; } = new ObservableCollection<string>();
 
+        private string _errorLogText = string.Empty;
+        public string ErrorLogText
+        {
+            get => _errorLogText;
+            set
+            {
+                if (_errorLogText != value)
+                {
+                    _errorLogText = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ErrorLogText)));
+                }
+            }
+        }
+
         public ICommand SetupCommand { get; }
         public ICommand GlobalSettingsCommand { get; }
+        public ICommand ClearErrorLogCommand { get; }
 
         public MainViewModel()
         {
@@ -79,9 +94,10 @@ namespace ACL_SIM_2.ViewModels
                         if (axisVm.Enabled)
                         {
                             var modbusClient = _encoderManager.GetModbusClient(axisName);
-                            if (modbusClient != null)
+                            var modbusLock = _encoderManager.GetModbusLock(axisName);
+                            if (modbusClient != null && modbusLock != null)
                             {
-                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient);
+                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock);
                             }
                         }
                     }
@@ -100,6 +116,21 @@ namespace ACL_SIM_2.ViewModels
 
             SetupCommand = new RelayCommand(OnSetup);
             GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
+            ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
+
+            // Subscribe to ErrorLog collection changes to update ErrorLogText
+            ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
+        }
+
+        private void UpdateErrorLogText()
+        {
+            ErrorLogText = string.Join(System.Environment.NewLine, ErrorLog);
+        }
+
+        private void ClearErrorLog()
+        {
+            ErrorLog.Clear();
+            ErrorLogText = string.Empty;
         }
 
         private void OnSetup(object? parameter)

@@ -85,6 +85,10 @@ namespace ACL_SIM_2.ViewModels
             {
                 if (Settings.MovingTorqueDisplay == value) return;
                 Settings.MovingTorqueDisplay = value;
+
+                // Update actual motor value (0-300) based on display value (0-100)
+                Settings.MovingTorque = Settings.ConvertTorqueDisplayToActual(value);
+
                 OnPropertyChanged(nameof(MovingTorqueDisplay));
             }
         }
@@ -176,6 +180,9 @@ namespace ACL_SIM_2.ViewModels
                 if (_isPositionTestEnabled == value) return;
                 _isPositionTestEnabled = value;
                 OnPropertyChanged(nameof(IsPositionTestEnabled));
+
+                // Set AutopilotOn flag to use fixed MovingTorqueDisplay during test mode
+                _axisVm.Underlying.AutopilotOn = value;
 
                 // Reset target to 0 when disabled
                 if (!value)

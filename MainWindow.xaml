@@ -376,16 +376,21 @@
         <!-- Error Log Area -->
         <Border Grid.Row="3" Background="#1a1a1a" CornerRadius="4" Padding="8" Margin="0,8,0,0">
             <DockPanel>
-                <TextBlock Text="Error Log" FontSize="12" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,4" />
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding ErrorLog}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" FontSize="10" Foreground="#ff6b6b" TextWrapping="Wrap" Margin="0,1" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                    <TextBlock Text="Error Log" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                    <Button Content="Clear" FontSize="10" Padding="4,2" HorizontalAlignment="Right" Command="{Binding ClearErrorLogCommand}" />
+                </Grid>
+                <TextBox Text="{Binding ErrorLogText, Mode=OneWay}" 
+                         IsReadOnly="True" 
+                         TextWrapping="Wrap" 
+                         VerticalScrollBarVisibility="Auto" 
+                         HorizontalScrollBarVisibility="Disabled"
+                         FontSize="10" 
+                         Foreground="#ff6b6b" 
+                         Background="Transparent" 
+                         BorderThickness="0"
+                         Padding="0"
+                         IsReadOnlyCaretVisible="True" />
             </DockPanel>
         </Border>
     </Grid>

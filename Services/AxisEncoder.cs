@@ -20,6 +20,7 @@ namespace ACL_SIM_2.Services
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private int _currentValue;
         private readonly object _sync = new object();
+        private readonly object _modbusLock; // Shared lock for thread-safe Modbus access
         private Task? _loopTask;
         private bool _wasConnected;
         private readonly string _name;
@@ -45,11 +46,12 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public event Action<string>? ErrorOccurred;
 
-        public AxisEncoder(ModbusClient modbusClient, string name, Func<bool> isReversedFunc, int pollIntervalMs = 200)
+        public AxisEncoder(ModbusClient modbusClient, string name, Func<bool> isReversedFunc, object modbusLock, int pollIntervalMs = 200)
         {
             _mbc = modbusClient ?? throw new ArgumentNullException(nameof(modbusClient));
             _name = name ?? "Unknown";
             _isReversedFunc = isReversedFunc ?? (() => false);
+            _modbusLock = modbusLock ?? throw new ArgumentNullException(nameof(modbusLock));
             _pollIntervalMs = Math.Max(10, pollIntervalMs);
 
             // start the read loop
@@ -77,35 +79,37 @@ namespace ACL_SIM_2.Services
                 {
                     if (_mbc != null)
                     {
-                        if (!_mbc.Connected)
+                        lock (_modbusLock)
                         {
-                            try 
-                            { 
-                                _mbc.Connect(); 
-                            } 
-                            catch (Exception ex)
+                            if (!_mbc.Connected)
                             {
-                                try { ErrorOccurred?.Invoke($"[{_name}] Connection failed: {ex.Message}"); } catch { }
+                                try 
+                                { 
+                                    _mbc.Connect(); 
+                                } 
+                                catch (Exception ex)
+                                {
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection failed: {ex.Message}"); } catch { }
+                                }
                             }
-                        }
 
-                        // connection state changed?
-                        var nowConnected = _mbc.Connected;
-                        if (nowConnected != _wasConnected)
-                        {
-                            _wasConnected = nowConnected;
-                            try { ConnectionChanged?.Invoke(nowConnected); } catch { }
-                            if (!nowConnected)
+                            // connection state changed?
+                            var nowConnected = _mbc.Connected;
+                            if (nowConnected != _wasConnected)
                             {
-                                try { ErrorOccurred?.Invoke($"[{_name}] Connection lost"); } catch { }
+                                _wasConnected = nowConnected;
+                                try { ConnectionChanged?.Invoke(nowConnected); } catch { }
+                                if (!nowConnected)
+                                {
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection lost"); } catch { }
+                                }
                             }
-                        }
 
-                        if (nowConnected)
-                        {
-                            try
+                            if (nowConnected)
                             {
-                                var regs = _mbc.ReadHoldingRegisters(_encoderAddress, 1);
+                                try
+                                {
+                                    var regs = _mbc.ReadHoldingRegisters(_encoderAddress, 1);
                                 if (regs != null && regs.Length > 0)
                                 {
                                     var rawValue = regs[0];
@@ -156,6 +160,7 @@ namespace ACL_SIM_2.Services
                             {
                                 try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message}"); } catch { }
                             }
+                        }
                         }
                     }
                 }

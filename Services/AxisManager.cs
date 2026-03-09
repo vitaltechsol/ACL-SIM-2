@@ -18,7 +18,7 @@ namespace ACL_SIM_2.Services
         private readonly string _name;
         private bool _isDisposed;
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null, object? modbusLock = null)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
@@ -28,11 +28,15 @@ namespace ACL_SIM_2.Services
             {
                 try
                 {
-                    _torqueControl = new AxisTorqueControl(
-                        enabled: axisVm.Enabled,
-                        driverId: axisVm.Underlying.Settings.DriverId,
-                        sharedClient: modbusClient
-                    );
+                    if (modbusLock != null)
+                    {
+                        _torqueControl = new AxisTorqueControl(
+                            enabled: axisVm.Enabled,
+                            driverId: axisVm.Underlying.Settings.DriverId,
+                            sharedClient: modbusClient,
+                            modbusLock: modbusLock
+                        );
+                    }
                 }
                 catch
                 {
@@ -40,8 +44,8 @@ namespace ACL_SIM_2.Services
                 }
             }
 
-            // Create axis movement controller with ModbusClient and TorqueControl for servo control
-            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl);
+            // Create axis movement controller with ModbusClient, TorqueControl and shared lock for servo control
+            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock);
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
@@ -60,10 +64,42 @@ namespace ACL_SIM_2.Services
         /// Calculates torque based on encoder position relative to center.
         /// Torque increases as distance from center increases.
         /// Min torque at center (0), max torque at either limit.
+        /// When AutopilotOn (test mode), uses MovingTorqueDisplay for both directions.
         /// </summary>
         private async Task UpdateTorqueAsync()
         {
             if (_isDisposed || _torqueControl == null) return;
+
+            // If AutopilotOn (position test mode), use fixed MovingTorque for both directions
+            if (_axisVm.Underlying.AutopilotOn)
+            {
+                await Task.Run(() =>
+                {
+                    var settings = _axisVm.Underlying.Settings;
+
+                    // Convert MovingTorqueDisplay (0-100) to actual motor torque (0-300)
+                    var torqueActual = settings.ConvertTorqueDisplayToActual(settings.MovingTorqueDisplay);
+                    var torqueInt = (int)Math.Round(torqueActual);
+
+                    // Clamp to valid range (0-300)
+                    torqueInt = Math.Max(0, Math.Min(300, torqueInt));
+
+                    // Set same torque for both directions during test mode
+                    try
+                    {
+                        _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
+
+                        // Update ViewModel display value
+                        _axisVm.CurrentTorque = settings.MovingTorqueDisplay;
+                    }
+                    catch
+                    {
+                        // Motor write failed, continue
+                    }
+                });
+
+                return;
+            }
 
             try
             {

@@ -18,6 +18,7 @@ namespace ACL_SIM_2.Services
             public AxisViewModel Vm { get; set; } = null!;
             public AxisEncoder Encoder { get; set; } = null!;
             public ModbusClient ModbusClient { get; set; } = null!; // Shared ModbusClient for this axis
+            public object ModbusLock { get; set; } = new object(); // Shared lock for thread-safe Modbus access
             public int Address { get; set; }
             public int PollMs { get; set; }
         }
@@ -43,11 +44,12 @@ namespace ACL_SIM_2.Services
                 var mb = new ModbusClient(rs485Ip, 502);
                 mb.UnitIdentifier = (byte)vm.Underlying.Settings.DriverId;
 
-                // Pass shared client to AxisEncoder with IsReversed as a function delegate
-                var encoder = new AxisEncoder(mb, name, () => vm.IsReversed, Math.Max(10, pollMs));
+                // Create entry with shared ModbusLock
+                var entry = new Entry { Name = name, Vm = vm, ModbusClient = mb, PollMs = Math.Max(10, pollMs) };
 
-                // Store the shared ModbusClient in the entry
-                var entry = new Entry { Name = name, Vm = vm, Encoder = encoder, ModbusClient = mb, PollMs = Math.Max(10, pollMs) };
+                // Pass shared client AND shared lock to AxisEncoder
+                var encoder = new AxisEncoder(mb, name, () => vm.IsReversed, entry.ModbusLock, Math.Max(10, pollMs));
+                entry.Encoder = encoder;
 
                 // subscribe to encoder events and marshal updates to UI
                 encoder.ValueUpdated += (val) =>
@@ -126,6 +128,18 @@ namespace ACL_SIM_2.Services
             lock (_entries)
             {
                 return _entries.FirstOrDefault(x => x.Name == name)?.ModbusClient;
+            }
+        }
+
+        /// <summary>
+        /// Gets the shared ModbusLock for an axis. Returns null if axis is not registered.
+        /// This allows other services to synchronize their Modbus operations.
+        /// </summary>
+        public object? GetModbusLock(string name)
+        {
+            lock (_entries)
+            {
+                return _entries.FirstOrDefault(x => x.Name == name)?.ModbusLock;
             }
         }
         // Per-axis polling is handled by AxisEncoder instances.

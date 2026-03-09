@@ -25,12 +25,13 @@ namespace ACL_SIM_2.Services
         private readonly ModbusClient? _modbusClient;
         private readonly AxisTorqueControl? _torqueControl;
         private readonly object _servoLock = new object();
+        private readonly object? _modbusLock; // Shared lock for thread-safe Modbus access
         private bool _servoInitialized = false;
 
-        // Timing constants for servo control
-        private const int SERVO_TRIGGER_PULSE_MS = 30;
-        private const int SERVO_TRIGGER_SETUP_MS = 5;
-        private const int SERVO_STOP_PULSE_MS = 20;
+        // Timing constants for servo control (minimized for fast response)
+        private const int SERVO_TRIGGER_PULSE_MS = 10;  // Reduced from 30ms to 10ms (minimum required)
+        private const int SERVO_TRIGGER_SETUP_MS = 2;   // Reduced from 5ms to 2ms
+        private const int SERVO_STOP_PULSE_MS = 10;     // Reduced from 20ms to 10ms
         private const int MIN_TRIGGER_PULSE_MS = 10;
 
         // AASD Servo Pn parameters
@@ -65,14 +66,17 @@ namespace ACL_SIM_2.Services
         // Motion control state
         private double _filteredTarget = 0.0; // Smoothed target position
         private double _currentOutput = 0.0; // Current output position
+        private double _lastCommandedPosition = 0.0; // Last position we commanded the motor to move to
         private DateTime _lastOutputUpdate = DateTime.MinValue;
         private DateTime _lastInputUpdate = DateTime.MinValue;
+        private DateTime _lastMotorCommand = DateTime.MinValue; // Track last time motor command was sent
 
-        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null)
+        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
         {
             _axis = axis ?? throw new ArgumentNullException(nameof(axis));
             _modbusClient = modbusClient;
             _torqueControl = torqueControl;
+            _modbusLock = modbusLock;
         }
 
         /// <summary>
@@ -92,53 +96,16 @@ namespace ACL_SIM_2.Services
             // Convert percentage to absolute encoder position
             var targetEncoderPosition = PercentToEncoderPosition(targetPercent);
 
-            // Apply target smoothing filter (low-pass filter)
-            var now = DateTime.UtcNow;
-            if ((now - _lastInputUpdate).TotalMilliseconds >= _axis.Settings.InputIntervalMs)
-            {
-                _filteredTarget = ApplyTargetFilter(_filteredTarget, targetEncoderPosition);
-                _lastInputUpdate = now;
-            }
+            // Apply safety limits: clamp target to valid encoder range
+            var centerPosition = _axis.Settings.CenterPosition;
+            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;  // FullLeftPosition is negative
+            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition; // FullRightPosition is positive
+            targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
 
-            // Get current encoder position and normalize to percentage
-            var currentEncoderPosition = _axis.EncoderPosition;
-            var currentPercent = EncoderPositionToPercent(currentEncoderPosition);
+            // Store target without filtering
+            _filteredTarget = targetEncoderPosition;
 
-            // Calculate error (difference between filtered target and current position)
-            var targetPercent_normalized = EncoderPositionToPercent(_filteredTarget);
-            var error = targetPercent_normalized - currentPercent;
-
-            // Apply deadband filter - ignore small changes to prevent jitter
-            // DeadbandDegrees: Minimum change required before reacting (noise filter).
-            // Prevents micro-jitter when the aircraft is stable.
-            // Increase if you see small constant twitching. Decrease if fine movements feel unresponsive.
-            if (Math.Abs(error) < _axis.Settings.DeadbandDegrees)
-            {
-                // Within deadband - no movement needed
-                return;
-            }
-
-            // Check if it's time to update output
-            // OutputIntervalMs: Output update rate (milliseconds). Controls how often the output value is sent to the motor.
-            // 10 ms = 100 updates per second (100 Hz).
-            if ((now - _lastOutputUpdate).TotalMilliseconds < _axis.Settings.OutputIntervalMs)
-            {
-                // Not time to update yet
-                return;
-            }
-            _lastOutputUpdate = now;
-
-            // Apply speed rate limiting
-            // SpeedRateLimitPercent: Maximum needle movement (percentage of maximum speed). Limits how fast the axis can move.
-            var maxChange = _axis.Settings.SpeedRateLimitPercent * (_axis.Settings.OutputIntervalMs / 1000.0);
-            var desiredChange = error;
-            var limitedChange = Math.Max(-maxChange, Math.Min(maxChange, desiredChange));
-
-            // Calculate new output position
-            _currentOutput = currentPercent + limitedChange;
-            _currentOutput = Math.Max(-100.0, Math.Min(100.0, _currentOutput));
-
-            // Send output to motor controller
+            // Send output to motor controller (NO throttling - send every call)
             if (_modbusClient != null)
             {
                 try
@@ -157,19 +124,37 @@ namespace ACL_SIM_2.Services
                             InitServo();
                             _servoInitialized = true;
                         }
-                        else
-                        {
-                            // Update torque limit in case settings changed
-                            SetMovingTorqueLimit();
-                        }
                     }
 
-                    // Convert target encoder position to motor pulses
-                    var targetEncoderPos = PercentToEncoderPosition(_currentOutput);
-                    var pulses = (int)Math.Round(targetEncoderPos * _axis.Settings.PulsesPerEncoderUnit);
+                    // Get current encoder position and calculate error (delta)
+                    // Apply motor direction reversal if configured
+                    var currentEncoderPos = _axis.Settings.ReversedMotor ? -_axis.EncoderPosition : _axis.EncoderPosition;
+                    var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
+
+                    // Skip command if we're close enough to target (tolerance threshold)
+                    var toleranceUnits = 10.0;
+                    if (Math.Abs(deltaEncoderUnits) < toleranceUnits)
+                    {
+                        return;
+                    }
+
+                    // Apply motor pulse scaling to convert encoder units to motor pulses
+                    var scaledDelta = deltaEncoderUnits * _axis.Settings.MotorPulseScale;
+                    var pulses = (int)Math.Round(scaledDelta);
+
+                    // Skip command if movement is too small
+                    if (Math.Abs(pulses) < 1)
+                    {
+                        return;
+                    }
+
+                    // Use constant RPM from settings (no speed scaling)
+                    var rpm = _axis.Settings.MotorSpeedRpm;
+
+                    // Debug logging
+                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Target: {targetPercent:F1}% → TargetEnc: {targetEncoderPosition:F0}, CurrentEnc: {currentEncoderPos:F0}, Error: {deltaEncoderUnits:F0} → Pulses: {pulses}, RPM: {rpm}");
 
                     // Get motor parameters from settings
-                    var rpm = _axis.Settings.MotorSpeedRpm;
                     var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
                     var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
                     var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
@@ -179,7 +164,6 @@ namespace ACL_SIM_2.Services
                 }
                 catch (Exception ex)
                 {
-                    // Log error but continue - system can operate with encoder feedback even if motor control fails
                     System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Motor command failed: {ex.Message}");
                 }
             }
@@ -195,16 +179,18 @@ namespace ACL_SIM_2.Services
             if (percent >= 0)
             {
                 // Moving right (positive direction)
+                // FullRightPosition is in encoder units relative to center (positive, e.g., +2000)
                 var fullRightPosition = _axis.Settings.FullRightPosition;
-                var range = Math.Abs(fullRightPosition);
-                return centerPosition + (percent / 100.0) * range;
+                return centerPosition + (percent / 100.0) * fullRightPosition;
             }
             else
             {
                 // Moving left (negative direction)
+                // FullLeftPosition is in encoder units relative to center (negative, e.g., -2000)
                 var fullLeftPosition = _axis.Settings.FullLeftPosition;
-                var range = Math.Abs(fullLeftPosition);
-                return centerPosition + (percent / 100.0) * range;
+                // percent is negative (-100 to 0), fullLeftPosition is negative (e.g., -2000)
+                // So (percent/100) * Math.Abs(fullLeftPosition) gives correct negative offset
+                return centerPosition + (percent / 100.0) * Math.Abs(fullLeftPosition);
             }
         }
 
@@ -219,14 +205,16 @@ namespace ACL_SIM_2.Services
             if (offset >= 0)
             {
                 // Right side (positive)
+                // FullRightPosition is positive encoder units from center (e.g., +2000)
                 var fullRightPosition = _axis.Settings.FullRightPosition;
-                var range = Math.Max(1e-6, Math.Abs(fullRightPosition));
-                var normalized = Math.Min(1.0, Math.Abs(offset) / range);
+                var range = Math.Max(1e-6, fullRightPosition);
+                var normalized = Math.Min(1.0, offset / range);
                 return normalized * 100.0;
             }
             else
             {
                 // Left side (negative)
+                // FullLeftPosition is negative encoder units from center (e.g., -2000)
                 var fullLeftPosition = _axis.Settings.FullLeftPosition;
                 var range = Math.Max(1e-6, Math.Abs(fullLeftPosition));
                 var normalized = Math.Min(1.0, Math.Abs(offset) / range);
@@ -267,10 +255,22 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public void Reset()
         {
+            // Set filtered target to current encoder position
             _filteredTarget = _axis.EncoderPosition;
+
+            // Apply safety limits to ensure initial target is within valid range
+            var centerPosition = _axis.Settings.CenterPosition;
+            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;
+            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition;
+            _filteredTarget = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, _filteredTarget));
+
+            // Initialize last commanded position to current encoder position
+            _lastCommandedPosition = _axis.EncoderPosition;
+
             _currentOutput = EncoderPositionToPercent(_axis.EncoderPosition);
             _lastOutputUpdate = DateTime.MinValue;
             _lastInputUpdate = DateTime.MinValue;
+            _lastMotorCommand = DateTime.MinValue;
         }
 
         /// <summary>
@@ -296,12 +296,6 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private bool ValidateMotorSettings()
         {
-            if (_axis.Settings.PulsesPerEncoderUnit <= 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Invalid PulsesPerEncoderUnit: {_axis.Settings.PulsesPerEncoderUnit}");
-                return false;
-            }
-
             if (_axis.Settings.MotorSpeedRpm < 0 || _axis.Settings.MotorSpeedRpm > 3000)
             {
                 System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Invalid MotorSpeedRpm: {_axis.Settings.MotorSpeedRpm}");
@@ -318,6 +312,13 @@ namespace ACL_SIM_2.Services
             if (_modbusClient == null)
                 throw new InvalidOperationException("ModbusClient is not available");
 
+            if (_modbusLock != null)
+            {
+                lock (_modbusLock)
+                {
+                    return unchecked((ushort)_modbusClient.ReadHoldingRegisters(pn, 1)[0]);
+                }
+            }
             return unchecked((ushort)_modbusClient.ReadHoldingRegisters(pn, 1)[0]);
         }
 
@@ -326,7 +327,17 @@ namespace ACL_SIM_2.Services
             if (_modbusClient == null)
                 throw new InvalidOperationException("ModbusClient is not available");
 
-            _modbusClient.WriteSingleRegister(pn, val);
+            if (_modbusLock != null)
+            {
+                lock (_modbusLock)
+                {
+                    _modbusClient.WriteSingleRegister(pn, val);
+                }
+            }
+            else
+            {
+                _modbusClient.WriteSingleRegister(pn, val);
+            }
         }
 
         private void SetBitLow(int pn, int bit)

@@ -8,12 +8,13 @@ namespace ACL_SIM_2.Models
         // Encoder position calibration (absolute encoder values with rollover tracking)
         public double CenterPosition { get; set; } = 0.0; // absolute encoder value at center
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
-        public double FullLeftPosition { get; set; } = -30.0; // degrees relative to center (left/negative direction)
-        public double FullRightPosition { get; set; } = 30.0; // degrees relative to center (right/positive direction)
+        public double FullLeftPosition { get; set; } = -2000; // encoder relative to center (left/negative direction)
+        public double FullRightPosition { get; set; } = 2000; // encoder relative to center (right/positive direction)
         public double MinTorqueDisplay { get; set; } = 0; // 0..100
         public double MaxTorqueDisplay { get; set; } = 100; // 0..100
         public bool ReversedMotor { get; set; } = false;
-        public double MovingTorqueDisplay { get; set; } = 10; // 0..100
+        public double MovingTorqueDisplay { get; set; } = 10; // 0..100 (display value for UI slider)
+        public double MovingTorque { get; set; } = 30.0; // 0..300 (actual motor value)
         public double SelfCenteringSpeed { get; set; } = 50; // 1..100
         public double Dampening { get; set; } = 10; // 0..100
         public double HydraulicOffTorqueDisplay { get; set; } = 80; // 0..100
@@ -42,32 +43,38 @@ namespace ACL_SIM_2.Models
         /// <summary>
         /// Target smoothing factor (0–1). Low-pass filter applied to incoming data before the axis moves toward it.
         /// 0.0 = no smoothing (instant response), 1.0 = maximum smoothing (slow response).
-        /// Recommended: 0.1 - 0.5 for smooth motion.
+        /// For slider control: Use high value (0.8-1.0) for immediate response
+        /// For simulator data: Use low value (0.1-0.3) for smooth motion
         /// </summary>
-        public double TargetFilterAlpha { get; set; } = 0.25;
+        public double TargetFilterAlpha { get; set; } = 0.9;
 
         /// <summary>
-        /// Minimum change required before reacting (noise filter). Changes smaller than this are ignored.
-        /// Prevents micro-jitter when the aircraft is stable.
-        /// Increase if you see small constant twitching. Decrease if fine movements feel unresponsive.
-        /// Units: degrees
+        /// Minimum time between motor commands (milliseconds). Prevents overwhelming the servo with commands.
+        /// When slider moves rapidly, commands are throttled to this interval.
+        /// Lower = more responsive, Higher = more stable
+        /// Recommended: 50ms for closed-loop feedback control
         /// </summary>
-        public double DeadbandDegrees { get; set; } = 0.02;
+        public int MinMotorCommandIntervalMs { get; set; } = 50;
+
+        /// <summary>
+        /// Motor pulse scaling factor. Converts encoder units to motor pulses.
+        /// If motor moves too much: DECREASE this value (e.g., 0.1, 0.05)
+        /// If motor moves too little: INCREASE this value (e.g., 2.0, 5.0)
+        /// 
+        /// Calibration: If X% slider movement causes 100% motor movement, set this to X/100
+        /// Example: If 12% slider moves motor to 100%, set to 0.12
+        /// Default 0.12 based on typical AASD servo pulse requirements
+        /// </summary>
+        public double MotorPulseScale { get; set; } = 0.12;
 
         // Servo motor position control settings
 
         /// <summary>
-        /// Pulses per encoder unit conversion factor.
-        /// Used to convert encoder positions to motor pulses.
-        /// Example: If encoder is in degrees and motor needs pulses, this converts degrees to pulses.
-        /// </summary>
-        public double PulsesPerEncoderUnit { get; set; } = 100.0;
-
-        /// <summary>
         /// Motor speed in RPM for position movements.
         /// Range: 0-3000 rpm. Higher values = faster movement.
+        /// Default: 50 RPM for very smooth, controlled movements.
         /// </summary>
-        public int MotorSpeedRpm { get; set; } = 500;
+        public int MotorSpeedRpm { get; set; } = 50;
 
         /// <summary>
         /// Motor acceleration mode: 0=None, 1=Linear, 2=S-Curve
@@ -116,7 +123,7 @@ namespace ACL_SIM_2.Models
         public AxisSettings Settings { get; }
 
         // Dynamic values
-        public double EncoderPosition { get; set; } // raw encoder units or degrees
+        public double EncoderPosition { get; set; } // raw encoder units
         public double AxisPosition { get; set; } // simulator axis position (degrees)
         public bool AutopilotOn { get; set; }
         public double AutopilotTarget { get; set; }
@@ -133,6 +140,13 @@ namespace ACL_SIM_2.Models
         // Update calculation of torque target based on encoder position and settings.
         public void RecalculateTorqueTarget()
         {
+            // If AutopilotOn (test mode), use fixed MovingTorque (actual motor value 0-300)
+            if (AutopilotOn)
+            {
+                TorqueTarget = Settings.MovingTorque;
+                return;
+            }
+
             // Normalize encoder position relative to calibrated center -> -1 .. 1
             var center = Settings.CenterPosition;
             var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.FullLeftPosition), Math.Abs(Settings.FullRightPosition)));

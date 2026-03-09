@@ -14,16 +14,17 @@ namespace ACL_SIM_2.Services
         private readonly bool _enabled;
         private readonly int _driverId;
         private readonly ModbusClient _mbc; // Shared external client managed by EncoderManager
-        private readonly object _sync = new object();
+        private readonly object _modbusLock; // Shared lock for thread-safe Modbus access
 
         /// <summary>
         /// Constructor that accepts a shared external ModbusClient managed by EncoderManager.
         /// </summary>
-        public AxisTorqueControl(bool enabled, int driverId, ModbusClient sharedClient)
+        public AxisTorqueControl(bool enabled, int driverId, ModbusClient sharedClient, object modbusLock)
         {
             _enabled = enabled;
             _driverId = driverId;
             _mbc = sharedClient ?? throw new ArgumentNullException(nameof(sharedClient));
+            _modbusLock = modbusLock ?? throw new ArgumentNullException(nameof(modbusLock));
 
             if (_enabled)
             {
@@ -45,7 +46,7 @@ namespace ACL_SIM_2.Services
         {
             if (!_enabled) return;
 
-            lock (_sync)
+            lock (_modbusLock)
             {
                 if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
@@ -60,7 +61,7 @@ namespace ACL_SIM_2.Services
         {
             if (!_enabled) return;
 
-            lock (_sync)
+            lock (_modbusLock)
             {
                 if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
@@ -75,7 +76,7 @@ namespace ACL_SIM_2.Services
         {
             if (!_enabled) return;
 
-            lock (_sync)
+            lock (_modbusLock)
             {
                 if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
