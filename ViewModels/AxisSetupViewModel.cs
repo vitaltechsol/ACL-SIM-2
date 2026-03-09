@@ -11,13 +11,17 @@ namespace ACL_SIM_2.ViewModels
     public class AxisSetupViewModel : INotifyPropertyChanged
     {
         private readonly AxisViewModel _axisVm;
+        private readonly AxisManager? _axisManager;
         private double _centerEncoder;
         private double _testStartEncoder;
         private bool _isTesting;
+        private bool _isPositionTestEnabled;
+        private double _targetPosition = 0.0;
 
-        public AxisSetupViewModel(AxisViewModel axisVm)
+        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null)
         {
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
+            _axisManager = axisManager;
             AxisName = _axisVm.Name;
 
             // Subscribe to AxisViewModel PropertyChanged to update encoder position in real-time
@@ -39,6 +43,7 @@ namespace ACL_SIM_2.ViewModels
             SaveCommand = new RelayCommand(_ => Save());
             StartMovementTestCommand = new RelayCommand(_ => StartMovementTest());
             VerifyMovementTestCommand = new RelayCommand(_ => VerifyMovementTest());
+            TogglePositionTestCommand = new RelayCommand(_ => TogglePositionTest());
             CloseCommand = new RelayCommand(o => CloseAction?.Invoke());
         }
 
@@ -162,6 +167,41 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        // Position test mode properties
+        public bool IsPositionTestEnabled
+        {
+            get => _isPositionTestEnabled;
+            set
+            {
+                if (_isPositionTestEnabled == value) return;
+                _isPositionTestEnabled = value;
+                OnPropertyChanged(nameof(IsPositionTestEnabled));
+
+                // Reset target to 0 when disabled
+                if (!value)
+                {
+                    TargetPosition = 0.0;
+                }
+            }
+        }
+
+        public double TargetPosition
+        {
+            get => _targetPosition;
+            set
+            {
+                if (Math.Abs(_targetPosition - value) < 0.01) return;
+                _targetPosition = value;
+                OnPropertyChanged(nameof(TargetPosition));
+
+                // Call GoToPosition when slider changes (if test mode enabled and AxisManager available)
+                if (IsPositionTestEnabled && _axisManager != null)
+                {
+                    _axisManager.GoToPosition(_targetPosition);
+                }
+            }
+        }
+
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
         public ICommand SetFullLeftCommand { get; }
@@ -169,6 +209,7 @@ namespace ACL_SIM_2.ViewModels
         public ICommand SaveCommand { get; }
         public ICommand StartMovementTestCommand { get; }
         public ICommand VerifyMovementTestCommand { get; }
+        public ICommand TogglePositionTestCommand { get; }
         public ICommand CloseCommand { get; }
 
         // An action the Window can set to close itself when VM requests
@@ -281,6 +322,11 @@ namespace ACL_SIM_2.ViewModels
             {
                 MessageBox.Show($"Encoder changed by {delta}. Movement detected.", "Test Result", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private void TogglePositionTest()
+        {
+            IsPositionTestEnabled = !IsPositionTestEnabled;
         }
     }
 }

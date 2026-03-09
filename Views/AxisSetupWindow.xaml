@@ -103,6 +103,49 @@
                 </StackPanel>
             </GroupBox>
 
+            <GroupBox Header="Position Movement Test" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Test" Width="80" Margin="0,0,8,0" Command="{Binding TogglePositionTestCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#2d2d30"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPositionTestEnabled}" Value="True">
+                                            <Setter Property="Background" Value="#007acc"/>
+                                            <Setter Property="Content" Value="Done"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <TextBlock Text="Move to Target" VerticalAlignment="Center" Foreground="White"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                        <TextBlock Text="Full Left" Width="35" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Right"/>
+                        <Slider 
+                            Minimum="-100" 
+                            Maximum="100" 
+                            Value="{Binding TargetPosition, Mode=TwoWay}"
+                            IsEnabled="{Binding IsPositionTestEnabled}"
+                            Width="400"
+                            TickFrequency="10"
+                            TickPlacement="BottomRight"
+                            Margin="8,0,8,0"/>
+                        <TextBlock Text="Full Right" Width="35" VerticalAlignment="Center" Foreground="Gray"/>
+                    </StackPanel>
+
+                    <TextBlock 
+                        Text="{Binding TargetPosition, StringFormat='Target: {0:F1}%'}" 
+                        HorizontalAlignment="Center" 
+                        Margin="0,4,0,0"
+                        Foreground="LightGray"
+                        FontWeight="SemiBold"/>
+                </StackPanel>
+            </GroupBox>
+
             <GroupBox Header="Pitch extras" Margin="0,8,0,8">
                 <GroupBox.Style>
                     <Style TargetType="GroupBox">

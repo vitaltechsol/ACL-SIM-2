@@ -112,8 +112,11 @@ namespace ACL_SIM_2.ViewModels
                 return;
             }
 
-            // Open the axis setup window
-            var vm = new AxisSetupViewModel(axisVm);
+            // Get the AxisManager for this axis (if available)
+            _axisManagers.TryGetValue(axisName, out var axisManager);
+
+            // Open the axis setup window with AxisManager for position testing
+            var vm = new AxisSetupViewModel(axisVm, axisManager);
 
             // Subscribe to settings saved event to update encoder registration
             vm.OnSettingsSaved += (savedAxisName, rs485Ip) =>
