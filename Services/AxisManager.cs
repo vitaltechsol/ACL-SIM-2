@@ -14,6 +14,7 @@ namespace ACL_SIM_2.Services
     {
         private readonly AxisViewModel _axisVm;
         private readonly AxisTorqueControl? _torqueControl;
+        private readonly AxisMovement _axisMovement;
         private readonly string _name;
         private bool _isDisposed;
 
@@ -21,6 +22,9 @@ namespace ACL_SIM_2.Services
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
+
+            // Create axis movement controller
+            _axisMovement = new AxisMovement(axisVm.Underlying);
 
             // Create torque control if ModbusClient is provided
             if (modbusClient != null && !string.IsNullOrWhiteSpace(axisVm.Underlying.Settings.RS485Ip))
@@ -132,14 +136,23 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// TODO: Manage axis position control
-        /// Will handle position commands and feedback in future implementation.
+        /// Move axis to a target position using advanced motion control.
         /// </summary>
-        public void SetTargetPosition(double position)
+        /// <param name="targetPercent">
+        /// Target position as percentage:
+        /// -100 = Full left position
+        /// 0 = Center position
+        /// +100 = Full right position
+        /// </param>
+        public void GoToPosition(double targetPercent)
         {
-            // TODO: Implement position control logic
-            throw new NotImplementedException("Position control will be implemented in future update");
+            _axisMovement.GoToPosition(targetPercent);
         }
+
+        /// <summary>
+        /// Gets the axis movement controller for direct access to advanced features.
+        /// </summary>
+        public AxisMovement Movement => _axisMovement;
 
         public void Dispose()
         {

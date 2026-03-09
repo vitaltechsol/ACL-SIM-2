@@ -19,11 +19,39 @@ namespace ACL_SIM_2.Models
         public double HydraulicOffTorqueDisplay { get; set; } = 80; // 0..100
         public double AutopilotOverridePercent { get; set; } = 5; // 1..100 (only meaningful for pitch/roll)
 
-        // Advanced motion tweak settings
+        // Advanced motion tweak settings - used by AxisMovement service
+
+        /// <summary>
+        /// Output update rate (milliseconds). Controls how often the output value is sent to the motor.
+        /// 10 ms = 100 updates per second (100 Hz).
+        /// </summary>
         public int OutputIntervalMs { get; set; } = 10;
+
+        /// <summary>
+        /// Maximum needle movement (percentage of maximum speed). Limits how fast the axis can move.
+        /// Range: 0-100. Higher values = faster movement.
+        /// </summary>
         public int SpeedRateLimitPercent { get; set; } = 50;
+
+        /// <summary>
+        /// How often the system samples new target values (milliseconds).
+        /// 10 ms = 100 Hz target updates.
+        /// </summary>
         public int InputIntervalMs { get; set; } = 10;
+
+        /// <summary>
+        /// Target smoothing factor (0–1). Low-pass filter applied to incoming data before the axis moves toward it.
+        /// 0.0 = no smoothing (instant response), 1.0 = maximum smoothing (slow response).
+        /// Recommended: 0.1 - 0.5 for smooth motion.
+        /// </summary>
         public double TargetFilterAlpha { get; set; } = 0.25;
+
+        /// <summary>
+        /// Minimum change required before reacting (noise filter). Changes smaller than this are ignored.
+        /// Prevents micro-jitter when the aircraft is stable.
+        /// Increase if you see small constant twitching. Decrease if fine movements feel unresponsive.
+        /// Units: degrees
+        /// </summary>
         public double DeadbandDegrees { get; set; } = 0.02;
 
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
