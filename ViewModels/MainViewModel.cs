@@ -150,41 +150,63 @@ namespace ACL_SIM_2.ViewModels
             var vm = new AxisSetupViewModel(axisVm, axisManager);
 
             // Subscribe to settings saved event to update encoder registration
-            vm.OnSettingsSaved += (savedAxisName, rs485Ip) =>
+            vm.OnSettingsSaved += (savedAxisName, rs485Ip, connectionSettingsChanged) =>
             {
                 if (_encoderManager != null && axisVm.Enabled)
                 {
                     try
                     {
-                        // Unregister old encoder
-                        _encoderManager.UnregisterAxis(savedAxisName);
-
-                        // Dispose old AxisManager
-                        if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
+                        // Only do full reconnection if connection settings (RS485 IP or Driver ID) changed
+                        if (connectionSettingsChanged)
                         {
-                            oldManager?.Dispose();
-                            _axisManagers[savedAxisName] = null;
+                            // Unregister old encoder
+                            _encoderManager.UnregisterAxis(savedAxisName);
+
+                            // Dispose old AxisManager
+                            if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
+                            {
+                                oldManager?.Dispose();
+                                _axisManagers[savedAxisName] = null;
+                            }
+
+                            // Re-register with new settings if IP is configured
+                            if (!string.IsNullOrWhiteSpace(rs485Ip))
+                            {
+                                _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
+
+                                // Recreate AxisManager with new ModbusClient and shared lock
+                                var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
+                                var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
+                                if (modbusClient != null && modbusLock != null)
+                                {
+                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock);
+                                }
+
+                                LogError($"[{savedAxisName}] Connection settings changed - encoder and torque control reconnected");
+                            }
                         }
-
-                        // Re-register with new settings if IP is configured
-                        if (!string.IsNullOrWhiteSpace(rs485Ip))
+                        else
                         {
-                            _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
+                            // Connection settings didn't change - just recreate AxisManager with existing ModbusClient
+                            // This allows settings like RPM, torque, etc. to be updated without reconnecting
+                            if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
+                            {
+                                oldManager?.Dispose();
+                                _axisManagers[savedAxisName] = null;
+                            }
 
-                            // Recreate AxisManager with new ModbusClient and shared lock
                             var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
                             var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
                             if (modbusClient != null && modbusLock != null)
                             {
                                 _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock);
+                                LogError($"[{savedAxisName}] Settings updated (no reconnection needed)");
                             }
-
-                            LogError($"[{savedAxisName}] Encoder and torque control re-registered with new settings");
                         }
                     }
                     catch (System.Exception ex)
                     {
-                        LogError($"[{savedAxisName}] Failed to update encoder: {ex.Message}");
+                        LogError($"[{savedAxisName}] Failed to update settings: {ex.Message}");
                     }
                 }
             };

@@ -17,12 +17,18 @@ namespace ACL_SIM_2.ViewModels
         private bool _isTesting;
         private bool _isPositionTestEnabled;
         private double _targetPosition = 0.0;
+        private readonly string _originalRS485Ip;
+        private readonly int _originalDriverId;
 
         public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null)
         {
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _axisManager = axisManager;
             AxisName = _axisVm.Name;
+
+            // Store original connection settings to detect changes
+            _originalRS485Ip = _axisVm.Underlying.Settings.RS485Ip;
+            _originalDriverId = _axisVm.Underlying.Settings.DriverId;
 
             // Subscribe to AxisViewModel PropertyChanged to update encoder position in real-time
             _axisVm.PropertyChanged += (s, e) =>
@@ -262,7 +268,7 @@ namespace ACL_SIM_2.ViewModels
         // An action the Window can set to close itself when VM requests
         public Action? CloseAction { get; set; }
 
-        public event Action<string, string>? OnSettingsSaved; // axis name, RS485 IP
+        public event Action<string, string, bool>? OnSettingsSaved; // axis name, RS485 IP, connectionSettingsChanged
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -298,8 +304,11 @@ namespace ACL_SIM_2.ViewModels
         {
             SettingsService.SaveAxisSettings(AxisName, Settings);
 
-            // Notify that settings have changed (especially RS485 IP or DriverId)
-            OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip);
+            // Check if connection-related settings changed
+            var connectionSettingsChanged = Settings.RS485Ip != _originalRS485Ip || Settings.DriverId != _originalDriverId;
+
+            // Notify that settings have changed
+            OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip, connectionSettingsChanged);
 
             MessageBox.Show("Settings saved.", "Save", MessageBoxButton.OK, MessageBoxImage.Information);
         }
