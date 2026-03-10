@@ -139,7 +139,7 @@ namespace ACL_SIM_2.Services
                     }
 
                     // Apply motor pulse scaling to convert encoder units to motor pulses
-                    var scaledDelta = deltaEncoderUnits * _axis.Settings.MotorPulseScale;
+                    var scaledDelta = deltaEncoderUnits * 0.10;
                     var pulses = (int)Math.Round(scaledDelta);
 
                     // Skip command if movement is too small

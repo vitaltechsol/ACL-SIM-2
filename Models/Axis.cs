@@ -56,25 +56,14 @@ namespace ACL_SIM_2.Models
         /// </summary>
         public int MinMotorCommandIntervalMs { get; set; } = 50;
 
-        /// <summary>
-        /// Motor pulse scaling factor. Converts encoder units to motor pulses.
-        /// If motor moves too much: DECREASE this value (e.g., 0.1, 0.05)
-        /// If motor moves too little: INCREASE this value (e.g., 2.0, 5.0)
-        /// 
-        /// Calibration: If X% slider movement causes 100% motor movement, set this to X/100
-        /// Example: If 12% slider moves motor to 100%, set to 0.12
-        /// Default 0.12 based on typical AASD servo pulse requirements
-        /// </summary>
-        public double MotorPulseScale { get; set; } = 0.12;
-
         // Servo motor position control settings
 
         /// <summary>
         /// Motor speed in RPM for position movements.
         /// Range: 0-3000 rpm. Higher values = faster movement.
-        /// Default: 50 RPM for very smooth, controlled movements.
+        /// Default: 10 RPM for very smooth, controlled movements.
         /// </summary>
-        public int MotorSpeedRpm { get; set; } = 50;
+        public int MotorSpeedRpm { get; set; } = 10;
 
         /// <summary>
         /// Motor acceleration mode: 0=None, 1=Linear, 2=S-Curve
