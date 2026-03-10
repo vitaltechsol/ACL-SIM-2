@@ -129,7 +129,6 @@
                             Minimum="-100" 
                             Maximum="100" 
                             Value="{Binding TargetPosition, Mode=TwoWay}"
-                            IsEnabled="{Binding IsPositionTestEnabled}"
                             Width="400"
                             TickFrequency="10"
                             TickPlacement="BottomRight"

@@ -28,6 +28,11 @@ namespace ACL_SIM_2.Services
         private readonly object? _modbusLock; // Shared lock for thread-safe Modbus access
         private bool _servoInitialized = false;
 
+        // Closed-loop control state
+        private CancellationTokenSource? _controlLoopCts;
+        private double _currentTarget = 0.0;
+        private readonly object _targetLock = new object();
+
         // Timing constants for servo control (minimized for fast response)
         private const int SERVO_TRIGGER_PULSE_MS = 10;  // Reduced from 30ms to 10ms (minimum required)
         private const int SERVO_TRIGGER_SETUP_MS = 2;   // Reduced from 5ms to 2ms
@@ -81,6 +86,8 @@ namespace ACL_SIM_2.Services
 
         /// <summary>
         /// Move the axis to a target position specified as a percentage.
+        /// Uses the servo's built-in positioning - calculates pulse distance and sends single command.
+        /// Calling this method again with a new target will cancel the previous movement.
         /// </summary>
         /// <param name="targetPercent">
         /// Target position as percentage:
@@ -93,79 +100,137 @@ namespace ACL_SIM_2.Services
             // Clamp input to valid range
             targetPercent = Math.Max(-100.0, Math.Min(100.0, targetPercent));
 
+            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition called: {targetPercent:F1}%");
+
+            if (_modbusClient == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: ModbusClient is null! Cannot move motor.");
+                return;
+            }
+
+            // Validate settings
+            if (!ValidateMotorSettings())
+            {
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: Motor settings validation failed!");
+                return;
+            }
+
+            // Cancel any existing movement (stops servo)
+            if (_controlLoopCts != null)
+            {
+                _controlLoopCts.Cancel();
+                try
+                {
+                    ServoStop();
+                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Previous movement cancelled");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
+                }
+                _controlLoopCts.Dispose();
+            }
+
+            // Create new cancellation token for this movement
+            _controlLoopCts = new CancellationTokenSource();
+
+            // Initialize servo on first use
+            lock (_servoLock)
+            {
+                if (!_servoInitialized)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Initializing servo for first use...");
+                    try
+                    {
+                        InitServo();
+                        _servoInitialized = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Servo initialization failed: {ex.Message}");
+                        return;
+                    }
+                }
+            }
+
             // Convert percentage to absolute encoder position
             var targetEncoderPosition = PercentToEncoderPosition(targetPercent);
 
             // Apply safety limits: clamp target to valid encoder range
             var centerPosition = _axis.Settings.CenterPosition;
-            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;  // FullLeftPosition is negative
-            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition; // FullRightPosition is positive
+            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;
+            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition;
             targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
 
-            // Store target without filtering
-            _filteredTarget = targetEncoderPosition;
+            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Target encoder: {targetEncoderPosition:F0}, Range: [{minEncoderPosition:F0}, {maxEncoderPosition:F0}]");
 
-            // Send output to motor controller (NO throttling - send every call)
-            if (_modbusClient != null)
+            // Calculate distance to target (always in absolute encoder frame)
+            var currentEncoderPos = _axis.EncoderPosition;
+            var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
+
+            // Check if already at target (within tolerance)
+            var toleranceUnits = 10.0;
+            if (Math.Abs(deltaEncoderUnits) < toleranceUnits)
             {
-                try
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Already at target: {targetPercent:F1}%");
+                return;
+            }
+
+            // Convert to motor pulses (1:1 relationship between encoder units and motor pulses)
+            var pulses = (int)Math.Round(deltaEncoderUnits);
+
+            // Reverse motor direction if configured
+            if (_axis.Settings.ReversedMotor)
+            {
+                pulses = -pulses;
+            }
+
+            if (Math.Abs(pulses) < 1)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement too small, skipping");
+                return;
+            }
+
+            // Get motor parameters
+            var rpm = _axis.Settings.MotorSpeedRpm;
+            var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
+            var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
+            var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
+
+            // Debug logging
+            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving to {targetPercent:F1}% → TargetEnc: {targetEncoderPosition:F0}, CurrentEnc: {currentEncoderPos:F0}, Distance: {deltaEncoderUnits:F0} units ({pulses} pulses) @ {rpm} RPM");
+
+            // Send command to servo - let servo's internal controller handle the movement
+            try
+            {
+                ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Command sent successfully");
+
+                // Log final position after movement should be complete
+                // Estimate time based on distance and speed: time = (pulses / pulsesPerRevolution) / (rpm / 60)
+                // Assuming ~10000 pulses per revolution (typical for servo)
+                var estimatedSeconds = Math.Abs(pulses) / 10000.0 / (rpm / 60.0) + 2.0; // +2s safety margin
+                var maxWaitSeconds = Math.Min(Math.Max(estimatedSeconds, 3.0), 15.0); // Between 3-15 seconds
+
+                var token = _controlLoopCts.Token;
+                Task.Run(async () =>
                 {
-                    // Validate critical settings before attempting motor control
-                    if (!ValidateMotorSettings())
+                    try
                     {
-                        return;
+                        await Task.Delay(TimeSpan.FromSeconds(maxWaitSeconds), token);
+                        var finalEncoderPos = _axis.EncoderPosition;
+                        var finalError = Math.Abs(targetEncoderPosition - finalEncoderPos);
+                        System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement complete after {maxWaitSeconds:F1}s → FinalEnc: {finalEncoderPos:F0}, TargetEnc: {targetEncoderPosition:F0}, Error: {finalError:F0} units");
                     }
-
-                    // Initialize servo on first use (thread-safe)
-                    lock (_servoLock)
+                    catch (OperationCanceledException)
                     {
-                        if (!_servoInitialized)
-                        {
-                            InitServo();
-                            _servoInitialized = true;
-                        }
+                        // Movement was cancelled by new target
                     }
-
-                    // Get current encoder position and calculate error (delta)
-                    // Apply motor direction reversal if configured
-                    var currentEncoderPos = _axis.Settings.ReversedMotor ? -_axis.EncoderPosition : _axis.EncoderPosition;
-                    var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
-
-                    // Skip command if we're close enough to target (tolerance threshold)
-                    var toleranceUnits = 10.0;
-                    if (Math.Abs(deltaEncoderUnits) < toleranceUnits)
-                    {
-                        return;
-                    }
-
-                    // Apply motor pulse scaling to convert encoder units to motor pulses
-                    var scaledDelta = deltaEncoderUnits * 0.10;
-                    var pulses = (int)Math.Round(scaledDelta);
-
-                    // Skip command if movement is too small
-                    if (Math.Abs(pulses) < 1)
-                    {
-                        return;
-                    }
-
-                    // Use constant RPM from settings (no speed scaling)
-                    var rpm = _axis.Settings.MotorSpeedRpm;
-
-                    // Debug logging
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Target: {targetPercent:F1}% → TargetEnc: {targetEncoderPosition:F0}, CurrentEnc: {currentEncoderPos:F0}, Error: {deltaEncoderUnits:F0} → Pulses: {pulses}, RPM: {rpm}");
-
-                    // Get motor parameters from settings
-                    var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
-                    var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
-                    var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
-
-                    // Send move command to servo (using slot 0 for all movements)
-                    ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Motor command failed: {ex.Message}");
-                }
+                }, token);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement error: {ex.Message}");
             }
         }
 

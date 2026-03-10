@@ -63,7 +63,7 @@ namespace ACL_SIM_2.Models
         /// Range: 0-3000 rpm. Higher values = faster movement.
         /// Default: 10 RPM for very smooth, controlled movements.
         /// </summary>
-        public int MotorSpeedRpm { get; set; } = 10;
+        public int MotorSpeedRpm { get; set; } = 8;
 
         /// <summary>
         /// Motor acceleration mode: 0=None, 1=Linear, 2=S-Curve

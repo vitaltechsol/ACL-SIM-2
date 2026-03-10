@@ -184,9 +184,41 @@ namespace ACL_SIM_2.ViewModels
                 // Set AutopilotOn flag to use fixed MovingTorqueDisplay during test mode
                 _axisVm.Underlying.AutopilotOn = value;
 
-                // Reset target to 0 when disabled
-                if (!value)
+                if (value)
                 {
+                    // Test mode ENABLED: Start movement to current target position
+                    // GoToPosition now handles the continuous control loop internally
+                    if (_axisManager != null)
+                    {
+                        _axisManager.GoToPosition(_targetPosition);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[{AxisName}] ERROR: AxisManager is null! Cannot test position control.");
+                        System.Diagnostics.Debug.WriteLine($"[{AxisName}] Make sure the axis is ENABLED and has a valid RS485 IP configured.");
+                        MessageBox.Show(
+                            $"Cannot test position control for {AxisName}.\n\n" +
+                            "The axis must be ENABLED with a valid RS485 IP address.\n" +
+                            "1. Enable the axis checkbox on the main window\n" +
+                            "2. Configure RS485 IP in this setup window\n" +
+                            "3. Save settings\n" +
+                            "4. Restart the application",
+                            "Position Test Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning
+                        );
+                    }
+                }
+                else
+                {
+                    // Test mode DISABLED: Stop movement by sending 0% target
+                    // This cancels any ongoing movement
+                    if (_axisManager != null)
+                    {
+                        _axisManager.Movement.Stop();
+                    }
+
+                    // Reset target to 0 for next time
                     TargetPosition = 0.0;
                 }
             }
@@ -201,7 +233,8 @@ namespace ACL_SIM_2.ViewModels
                 _targetPosition = value;
                 OnPropertyChanged(nameof(TargetPosition));
 
-                // Call GoToPosition when slider changes (if test mode enabled and AxisManager available)
+                // If test mode is enabled, send new target immediately
+                // GoToPosition will cancel previous movement and start new one
                 if (IsPositionTestEnabled && _axisManager != null)
                 {
                     _axisManager.GoToPosition(_targetPosition);
