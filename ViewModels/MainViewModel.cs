@@ -171,11 +171,12 @@ namespace ACL_SIM_2.ViewModels
                         {
                             _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
 
-                            // Recreate AxisManager with new ModbusClient
+                            // Recreate AxisManager with new ModbusClient and shared lock
                             var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
-                            if (modbusClient != null)
+                            var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
+                            if (modbusClient != null && modbusLock != null)
                             {
-                                _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient);
+                                _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock);
                             }
 
                             LogError($"[{savedAxisName}] Encoder and torque control re-registered with new settings");

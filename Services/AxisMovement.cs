@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using ACL_SIM_2.Models;
@@ -105,6 +106,12 @@ namespace ACL_SIM_2.Services
             if (_modbusClient == null)
             {
                 System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: ModbusClient is null! Cannot move motor.");
+                return;
+            }
+
+            if (!_modbusClient.Connected)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: ModbusClient is not connected! Cannot move motor.");
                 return;
             }
 
@@ -343,7 +350,7 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public void Stop()
         {
-            if (_modbusClient != null)
+            if (_modbusClient != null && _modbusClient.Connected)
             {
                 try
                 {
@@ -353,6 +360,10 @@ namespace ACL_SIM_2.Services
                 {
                     System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Stop command failed: {ex.Message}");
                 }
+            }
+            else if (_modbusClient != null && !_modbusClient.Connected)
+            {
+                Debug.WriteLine($"[{_axis.Name}] Stop command skipped: ModbusClient is not connected");
             }
         }
 
@@ -377,6 +388,9 @@ namespace ACL_SIM_2.Services
             if (_modbusClient == null)
                 throw new InvalidOperationException("ModbusClient is not available");
 
+            if (!_modbusClient.Connected)
+                throw new InvalidOperationException("ModbusClient is not connected");
+
             if (_modbusLock != null)
             {
                 lock (_modbusLock)
@@ -391,6 +405,9 @@ namespace ACL_SIM_2.Services
         {
             if (_modbusClient == null)
                 throw new InvalidOperationException("ModbusClient is not available");
+
+            if (!_modbusClient.Connected)
+                throw new InvalidOperationException("ModbusClient is not connected");
 
             if (_modbusLock != null)
             {
@@ -446,8 +463,8 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // Convert MovingTorqueDisplay (0-100) to actual motor torque (0-300)
-            var torqueActual = _axis.Settings.ConvertTorqueDisplayToActual(_axis.Settings.MovingTorqueDisplay);
+            // Convert MovingTorquePercentage (0-100) to actual motor torque (0-300)
+            var torqueActual = _axis.Settings.ConvertTorqueDisplayToActual(_axis.Settings.MovingTorquePercentage);
             var torqueInt = (int)Math.Round(torqueActual);
 
             // Clamp to valid range (0-300)
@@ -456,7 +473,7 @@ namespace ACL_SIM_2.Services
             // Set torque for both directions using AxisTorqueControl
             _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
 
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving torque limit set to {torqueInt} (from display value {_axis.Settings.MovingTorqueDisplay})");
+            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving torque limit set to {torqueInt} (from display value {_axis.Settings.MovingTorquePercentage})");
         }
 
         private void ServoMoveTo(int pulses, int rpm, AccelMode accelMode, int accelParam1Ms, int accelParam2Ms, int slot)

@@ -73,9 +73,9 @@
             <GroupBox Header="Torque Settings (display 0..100)" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <TextBlock Text="Min Torque"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding MinTorqueDisplay}"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
                     <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding MaxTorqueDisplay}"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Start Movement Test" Width="140" Command="{Binding StartMovementTestCommand}" />
                         <Button Content="Verify" Width="80" Margin="8,0,0,0" Command="{Binding VerifyMovementTestCommand}" />
@@ -87,10 +87,17 @@
                 <StackPanel Margin="6">
                     <TextBlock Text="Self centering speed"/>
                     <Slider Minimum="1" Maximum="100" Value="{Binding SelfCenteringSpeed}"/>
-                    <TextBlock Text="Movement torque" Margin="0,8,0,0"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding MovingTorqueDisplay}"/>
                     <TextBlock Text="Dampening" Margin="0,8,0,0"/>
                     <Slider Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Auto Pilot / Trim" Margin="0,8,0,8">
+                <StackPanel Margin="6">
+                    <TextBlock Text="Motor Speed"/>
+                    <Slider Minimum="1" Maximum="50" Value="{Binding MotorSpeedRpm}"/>
+                    <TextBlock Text="Movement torque" Margin="0,8,0,0"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding MovingTorquePercentage}"/>
                 </StackPanel>
             </GroupBox>
 

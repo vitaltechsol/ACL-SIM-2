@@ -10,11 +10,10 @@ namespace ACL_SIM_2.Models
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
         public double FullLeftPosition { get; set; } = -2000; // encoder relative to center (left/negative direction)
         public double FullRightPosition { get; set; } = 2000; // encoder relative to center (right/positive direction)
-        public double MinTorqueDisplay { get; set; } = 0; // 0..100
-        public double MaxTorqueDisplay { get; set; } = 100; // 0..100
+        public double MinTorquePercent { get; set; } = 5; // 0..100
+        public double MaxTorquePercent { get; set; } = 30; // 0..100
         public bool ReversedMotor { get; set; } = false;
-        public double MovingTorqueDisplay { get; set; } = 10; // 0..100 (display value for UI slider)
-        public double MovingTorque { get; set; } = 30.0; // 0..300 (actual motor value)
+        public double MovingTorquePercentage { get; set; } = 20; // 0..100 (display value for UI slider)
         public double SelfCenteringSpeed { get; set; } = 50; // 1..100
         public double Dampening { get; set; } = 10; // 0..100
         public double HydraulicOffTorqueDisplay { get; set; } = 80; // 0..100
@@ -85,8 +84,7 @@ namespace ACL_SIM_2.Models
         public int MotorAccelParam2Ms { get; set; } = 30;
 
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
-        public double TorqueDisplayMax { get; set; } = 100.0;
-        public double TorqueActualMax { get; set; } = 300.0;
+        public const double TorqueActualMax = 300.0;
         // Persisted flag whether this axis is enabled for user interaction
         public bool Enabled { get; set; } = true;
 
@@ -100,6 +98,7 @@ namespace ACL_SIM_2.Models
 
         public double ConvertTorqueDisplayToActual(double display)
         {
+            const double TorqueDisplayMax = 100.0;
             var clamped = Math.Max(0, Math.Min(TorqueDisplayMax, display));
             return (clamped / TorqueDisplayMax) * TorqueActualMax;
         }
@@ -129,10 +128,10 @@ namespace ACL_SIM_2.Models
         // Update calculation of torque target based on encoder position and settings.
         public void RecalculateTorqueTarget()
         {
-            // If AutopilotOn (test mode), use fixed MovingTorque (actual motor value 0-300)
+            // If AutopilotOn (test mode), use MovingTorquePercentage converted to actual motor value (0-300)
             if (AutopilotOn)
             {
-                TorqueTarget = Settings.MovingTorque;
+                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
                 return;
             }
 
@@ -145,8 +144,8 @@ namespace ACL_SIM_2.Models
             var magnitude = Math.Min(1.0, Math.Abs(pos));
 
             // Interpolate torque display between min and max display settings
-            var minDisp = Settings.MinTorqueDisplay;
-            var maxDisp = Settings.MaxTorqueDisplay;
+            var minDisp = Settings.MinTorquePercent;
+            var maxDisp = Settings.MaxTorquePercent;
             var displayTorque = minDisp + (maxDisp - minDisp) * magnitude;
 
             // Convert to actual torque scale

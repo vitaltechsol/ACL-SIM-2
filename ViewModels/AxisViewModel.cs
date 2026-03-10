@@ -159,19 +159,13 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                var max = _axis.Settings.TorqueActualMax;
-                if (max <= 0) return 0;
+                const double max = AxisSettings.TorqueActualMax;
                 return System.Math.Max(0, System.Math.Min(1.0, _axis.TorqueTarget / max));
             }
             set
             {
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var max = _axis.Settings.TorqueActualMax;
-                if (max <= 0)
-                {
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
-                    return;
-                }
+                const double max = AxisSettings.TorqueActualMax;
 
                 var newTorque = normalized * max;
                 if (System.Math.Abs(_axis.TorqueTarget - newTorque) < 1e-9) return;
@@ -191,7 +185,7 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                var maxDisplay = _axis.Settings.MaxTorqueDisplay;
+                var maxDisplay = _axis.Settings.MaxTorquePercent;
                 if (maxDisplay <= 0) return 0;
                 return System.Math.Max(0, System.Math.Min(1.0, _currentTorque / maxDisplay));
             }

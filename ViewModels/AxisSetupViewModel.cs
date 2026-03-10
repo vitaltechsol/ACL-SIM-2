@@ -54,42 +54,49 @@ namespace ACL_SIM_2.ViewModels
         public AxisSettings Settings => _axisVm.Underlying.Settings;
 
         // Bindable proxies to common settings (UI sliders expect 0..100 ranges)
-        public double MinTorqueDisplay
+        public double MinTorquePercent
         {
-            get => Settings.MinTorqueDisplay;
+            get => Settings.MinTorquePercent;
             set
             {
-                if (Settings.MinTorqueDisplay == value) return;
-                Settings.MinTorqueDisplay = value;
-                OnPropertyChanged(nameof(MinTorqueDisplay));
+                if (Settings.MinTorquePercent == value) return;
+                Settings.MinTorquePercent = value;
+                OnPropertyChanged(nameof(MinTorquePercent));
                 PreviewTorque();
             }
         }
 
-        public double MaxTorqueDisplay
+        public double MaxTorquePercent
         {
-            get => Settings.MaxTorqueDisplay;
+            get => Settings.MaxTorquePercent;
             set
             {
-                if (Settings.MaxTorqueDisplay == value) return;
-                Settings.MaxTorqueDisplay = value;
-                OnPropertyChanged(nameof(MaxTorqueDisplay));
+                if (Settings.MaxTorquePercent == value) return;
+                Settings.MaxTorquePercent = value;
+                OnPropertyChanged(nameof(MaxTorquePercent));
                 PreviewTorque();
             }
         }
 
-        public double MovingTorqueDisplay
+        public double MovingTorquePercentage
         {
-            get => Settings.MovingTorqueDisplay;
+            get => Settings.MovingTorquePercentage;
             set
             {
-                if (Settings.MovingTorqueDisplay == value) return;
-                Settings.MovingTorqueDisplay = value;
+                if (Settings.MovingTorquePercentage == value) return;
+                Settings.MovingTorquePercentage = value;
+                OnPropertyChanged(nameof(MovingTorquePercentage));
+            }
+        }
 
-                // Update actual motor value (0-300) based on display value (0-100)
-                Settings.MovingTorque = Settings.ConvertTorqueDisplayToActual(value);
-
-                OnPropertyChanged(nameof(MovingTorqueDisplay));
+        public int MotorSpeedRpm
+        {
+            get => Settings.MotorSpeedRpm;
+            set
+            {
+                if (Settings.MotorSpeedRpm == value) return;
+                Settings.MotorSpeedRpm = value;
+                OnPropertyChanged(nameof(MotorSpeedRpm));
             }
         }
 
@@ -269,10 +276,10 @@ namespace ACL_SIM_2.ViewModels
                 // copy loaded values into existing settings instance
                 Settings.FullLeftPosition = loaded.FullLeftPosition;
                 Settings.FullRightPosition = loaded.FullRightPosition;
-                Settings.MinTorqueDisplay = loaded.MinTorqueDisplay;
-                Settings.MaxTorqueDisplay = loaded.MaxTorqueDisplay;
+                Settings.MinTorquePercent = loaded.MinTorquePercent;
+                Settings.MaxTorquePercent = loaded.MaxTorquePercent;
                 Settings.ReversedMotor = loaded.ReversedMotor;
-                Settings.MovingTorqueDisplay = loaded.MovingTorqueDisplay;
+                Settings.MovingTorquePercentage = loaded.MovingTorquePercentage;
                 Settings.SelfCenteringSpeed = loaded.SelfCenteringSpeed;
                 Settings.Dampening = loaded.Dampening;
                 Settings.HydraulicOffTorqueDisplay = loaded.HydraulicOffTorqueDisplay;

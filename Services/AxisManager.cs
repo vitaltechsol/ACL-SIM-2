@@ -77,8 +77,8 @@ namespace ACL_SIM_2.Services
                 {
                     var settings = _axisVm.Underlying.Settings;
 
-                    // Convert MovingTorqueDisplay (0-100) to actual motor torque (0-300)
-                    var torqueActual = settings.ConvertTorqueDisplayToActual(settings.MovingTorqueDisplay);
+                    // Convert MovingTorquePercentage (0-100) to actual motor torque (0-300)
+                    var torqueActual = settings.ConvertTorqueDisplayToActual(settings.MovingTorquePercentage);
                     var torqueInt = (int)Math.Round(torqueActual);
 
                     // Clamp to valid range (0-300)
@@ -90,7 +90,7 @@ namespace ACL_SIM_2.Services
                         _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
 
                         // Update ViewModel display value
-                        _axisVm.CurrentTorque = settings.MovingTorqueDisplay;
+                        _axisVm.CurrentTorque = settings.MovingTorquePercentage;
                     }
                     catch
                     {
@@ -129,8 +129,8 @@ namespace ACL_SIM_2.Services
                     }
 
                     // Get torque range from settings (display scale 0-100)
-                    var minTorqueDisplay = settings.MinTorqueDisplay;
-                    var maxTorqueDisplay = settings.MaxTorqueDisplay;
+                    var minTorqueDisplay = settings.MinTorquePercent;
+                    var maxTorqueDisplay = settings.MaxTorquePercent;
 
                     // Calculate display torque: min at center, max at limits (0-100 scale)
                     var targetTorqueDisplay = minTorqueDisplay + (normalizedDistance * (maxTorqueDisplay - minTorqueDisplay));
