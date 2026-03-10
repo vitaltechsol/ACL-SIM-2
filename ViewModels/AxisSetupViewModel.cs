@@ -16,6 +16,7 @@ namespace ACL_SIM_2.ViewModels
         private double _testStartEncoder;
         private bool _isTesting;
         private bool _isPositionTestEnabled;
+        private bool _isHydraulicTestEnabled;
         private double _targetPosition = 0.0;
         private readonly string _originalRS485Ip;
         private readonly int _originalDriverId;
@@ -50,6 +51,7 @@ namespace ACL_SIM_2.ViewModels
             StartMovementTestCommand = new RelayCommand(_ => StartMovementTest());
             VerifyMovementTestCommand = new RelayCommand(_ => VerifyMovementTest());
             TogglePositionTestCommand = new RelayCommand(_ => TogglePositionTest());
+            ToggleHydraulicTestCommand = new RelayCommand(_ => ToggleHydraulicTest());
             CloseCommand = new RelayCommand(o => CloseAction?.Invoke());
         }
 
@@ -128,14 +130,14 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
-        public double HydraulicOffTorqueDisplay
+        public double HydraulicOffTorquePercent
         {
-            get => Settings.HydraulicOffTorqueDisplay;
+            get => Settings.HydraulicOffTorquePercent;
             set
             {
-                if (Settings.HydraulicOffTorqueDisplay == value) return;
-                Settings.HydraulicOffTorqueDisplay = value;
-                OnPropertyChanged(nameof(HydraulicOffTorqueDisplay));
+                if (Settings.HydraulicOffTorquePercent == value) return;
+                Settings.HydraulicOffTorquePercent = value;
+                OnPropertyChanged(nameof(HydraulicOffTorquePercent));
             }
         }
 
@@ -237,6 +239,27 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        // Hydraulic test mode properties
+        public bool IsHydraulicTestEnabled
+        {
+            get => _isHydraulicTestEnabled;
+            set
+            {
+                if (_isHydraulicTestEnabled == value) return;
+                _isHydraulicTestEnabled = value;
+                OnPropertyChanged(nameof(IsHydraulicTestEnabled));
+
+                // Set HydraulicsOn flag to false during test mode to apply hydraulic off torque
+                _axisVm.Underlying.HydraulicsOn = !value;
+
+                // Recalculate torque to apply the new hydraulics state
+                _axisVm.Underlying.RecalculateTorqueTarget();
+
+                // Notify UI of hydraulics state change
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.HydraulicsOn));
+            }
+        }
+
         public double TargetPosition
         {
             get => _targetPosition;
@@ -263,6 +286,7 @@ namespace ACL_SIM_2.ViewModels
         public ICommand StartMovementTestCommand { get; }
         public ICommand VerifyMovementTestCommand { get; }
         public ICommand TogglePositionTestCommand { get; }
+        public ICommand ToggleHydraulicTestCommand { get; }
         public ICommand CloseCommand { get; }
 
         // An action the Window can set to close itself when VM requests
@@ -288,7 +312,7 @@ namespace ACL_SIM_2.ViewModels
                 Settings.MovingTorquePercentage = loaded.MovingTorquePercentage;
                 Settings.SelfCenteringSpeed = loaded.SelfCenteringSpeed;
                 Settings.Dampening = loaded.Dampening;
-                Settings.HydraulicOffTorqueDisplay = loaded.HydraulicOffTorqueDisplay;
+                Settings.HydraulicOffTorquePercent = loaded.HydraulicOffTorquePercent;
                 Settings.AutopilotOverridePercent = loaded.AutopilotOverridePercent;
                 Settings.Enabled = loaded.Enabled;
                 Settings.RS485Ip = loaded.RS485Ip;
@@ -383,6 +407,11 @@ namespace ACL_SIM_2.ViewModels
         private void TogglePositionTest()
         {
             IsPositionTestEnabled = !IsPositionTestEnabled;
+        }
+
+        private void ToggleHydraulicTest()
+        {
+            IsHydraulicTestEnabled = !IsHydraulicTestEnabled;
         }
     }
 }

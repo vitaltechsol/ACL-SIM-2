@@ -16,7 +16,7 @@ namespace ACL_SIM_2.Models
         public double MovingTorquePercentage { get; set; } = 20; // 0..100 (display value for UI slider)
         public double SelfCenteringSpeed { get; set; } = 50; // 1..100
         public double Dampening { get; set; } = 10; // 0..100
-        public double HydraulicOffTorqueDisplay { get; set; } = 80; // 0..100
+        public double HydraulicOffTorquePercent { get; set; } = 80; // 0..100
         public double AutopilotOverridePercent { get; set; } = 5; // 1..100 (only meaningful for pitch/roll)
 
         // Advanced motion tweak settings - used by AxisMovement service
@@ -123,6 +123,7 @@ namespace ACL_SIM_2.Models
         {
             Name = name;
             Settings = settings ?? new AxisSettings();
+            HydraulicsOn = true; // Default to hydraulics on
         }
 
         // Update calculation of torque target based on encoder position and settings.
@@ -132,6 +133,13 @@ namespace ACL_SIM_2.Models
             if (AutopilotOn)
             {
                 TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
+                return;
+            }
+
+            // If hydraulics are off, use specified hydraulic off torque (fixed, like autopilot)
+            if (!HydraulicsOn)
+            {
+                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.HydraulicOffTorquePercent);
                 return;
             }
 
@@ -149,15 +157,7 @@ namespace ACL_SIM_2.Models
             var displayTorque = minDisp + (maxDisp - minDisp) * magnitude;
 
             // Convert to actual torque scale
-            var actualTorque = Settings.ConvertTorqueDisplayToActual(displayTorque);
-
-            // If hydraulics are off, use specified hydraulic off torque (converted)
-            if (!HydraulicsOn)
-            {
-                actualTorque = Settings.ConvertTorqueDisplayToActual(Settings.HydraulicOffTorqueDisplay);
-            }
-
-            TorqueTarget = actualTorque;
+            TorqueTarget = Settings.ConvertTorqueDisplayToActual(displayTorque);
         }
 
         // Placeholder: called periodically to update from simulator data (TODO implement real data sources)

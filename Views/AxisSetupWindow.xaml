@@ -103,8 +103,25 @@
 
             <GroupBox Header="Hydraulics / Autopilot" Margin="0,8,0,8">
                 <StackPanel Margin="6">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Test" Width="80" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#2d2d30"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHydraulicTestEnabled}" Value="True">
+                                            <Setter Property="Background" Value="#007acc"/>
+                                            <Setter Property="Content" Value="Done"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <TextBlock Text="Test Hydraulic Off Torque" VerticalAlignment="Center" Foreground="White"/>
+                    </StackPanel>
                     <TextBlock Text="Hydraulic off torque"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorqueDisplay}"/>
+                    <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
                     <TextBlock Text="Autopilot override (%)" Margin="0,8,0,0"/>
                     <Slider Minimum="1" Maximum="100" Value="{Binding AutopilotOverridePercent}"/>
                 </StackPanel>

@@ -71,6 +71,8 @@ namespace ACL_SIM_2.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderPercentage)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HydraulicsOn)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AutopilotOn)));
             }
         }
 
@@ -192,6 +194,14 @@ namespace ACL_SIM_2.ViewModels
         }
 
         public Axis Underlying => _axis;
+
+        /// <summary>
+        /// Notify UI that a property has changed. For internal use and by related ViewModels.
+        /// </summary>
+        public void NotifyPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }

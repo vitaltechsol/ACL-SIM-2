@@ -65,6 +65,7 @@ namespace ACL_SIM_2.Services
         /// Torque increases as distance from center increases.
         /// Min torque at center (0), max torque at either limit.
         /// When AutopilotOn (test mode), uses MovingTorqueDisplay for both directions.
+        /// When HydraulicsOn is false, uses HydraulicOffTorquePercent for both directions.
         /// </summary>
         private async Task UpdateTorqueAsync()
         {
@@ -91,6 +92,37 @@ namespace ACL_SIM_2.Services
 
                         // Update ViewModel display value
                         _axisVm.CurrentTorque = settings.MovingTorquePercentage;
+                    }
+                    catch
+                    {
+                        // Motor write failed, continue
+                    }
+                });
+
+                return;
+            }
+
+            // If HydraulicsOn is false, use fixed HydraulicOffTorquePercent for both directions
+            if (!_axisVm.Underlying.HydraulicsOn)
+            {
+                await Task.Run(() =>
+                {
+                    var settings = _axisVm.Underlying.Settings;
+
+                    // Convert HydraulicOffTorquePercent (0-100) to actual motor torque (0-300)
+                    var torqueActual = settings.ConvertTorqueDisplayToActual(settings.HydraulicOffTorquePercent);
+                    var torqueInt = (int)Math.Round(torqueActual);
+
+                    // Clamp to valid range (0-300)
+                    torqueInt = Math.Max(0, Math.Min(300, torqueInt));
+
+                    // Set same torque for both directions when hydraulics are off
+                    try
+                    {
+                        _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
+
+                        // Update ViewModel display value
+                        _axisVm.CurrentTorque = settings.HydraulicOffTorquePercent;
                     }
                     catch
                     {
