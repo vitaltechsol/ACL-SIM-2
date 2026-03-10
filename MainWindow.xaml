@@ -10,6 +10,7 @@
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="120"/>
@@ -17,7 +18,71 @@
 
         <TextBlock Text="ACL 2.0" FontSize="20" FontWeight="SemiBold" />
 
-        <UniformGrid Grid.Row="1" Columns="2" Rows="2" Margin="0,12,0,12" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <!-- ProSim Connection Panel -->
+        <Border Grid.Row="1" Background="#252525" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ProSim IP -->
+                <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ProSimIp}" VerticalAlignment="Center" Foreground="LightGray"/>
+                    <TextBlock Text="ProSim IP:" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <!-- ProSim Status -->
+                <StackPanel Orientation="Horizontal" Grid.Column="2" VerticalAlignment="Center" Margin="24,0,12,0">
+                    <Ellipse Width="12" Height="12" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="Gray" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connected">
+                                        <Setter Property="Fill" Value="LimeGreen" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connecting">
+                                        <Setter Property="Fill" Value="Yellow" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Failed">
+                                        <Setter Property="Fill" Value="Red" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding ProSimStatusMessage}" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" Foreground="LightGray"/>
+                </StackPanel>
+
+                <!-- Connect Button -->
+                <Button Grid.Column="3" Content="Connect" Command="{Binding ConnectProSimCommand}" Width="80" Height="28">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#007acc"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connected">
+                                    <Setter Property="Content" Value="Disconnect"/>
+                                    <Setter Property="Background" Value="#d13438"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connecting">
+                                    <Setter Property="Content" Value="Connecting..."/>
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                    <Setter Property="Background" Value="#555555"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,12,0,12" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <!-- Axis panels bound to ViewModel -->
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
@@ -368,13 +433,13 @@
             </Border>
         </UniformGrid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Open Setup" Width="120" Height="32" Command="{Binding SetupCommand}" />
             <Button Content="Global Settings" Width="140" Height="32" Margin="8,0,0,0" Command="{Binding GlobalSettingsCommand}" />
         </StackPanel>
 
         <!-- Error Log Area -->
-        <Border Grid.Row="3" Background="#1a1a1a" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+        <Border Grid.Row="4" Background="#1a1a1a" CornerRadius="4" Padding="8" Margin="0,8,0,0">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
                     <TextBlock Text="Error Log" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Left" />

@@ -10,6 +10,7 @@ namespace ACL_SIM_2.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly Services.EncoderManager? _encoderManager;
+        private readonly Services.ProSimManager? _proSimManager;
         private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
         private readonly Dictionary<string, AxisViewModel> _axes = new Dictionary<string, AxisViewModel>();
         private readonly Dictionary<string, AxisSettings> _axisSettings = new Dictionary<string, AxisSettings>();
@@ -44,12 +45,80 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        // ProSim properties
+        private string _proSimIp = "192.168.1.142";
+        public string ProSimIp
+        {
+            get => _proSimIp;
+            set
+            {
+                if (_proSimIp != value)
+                {
+                    _proSimIp = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProSimIp)));
+                }
+            }
+        }
+
+        private Services.ProSimManager.ConnectionState _proSimConnectionState = Services.ProSimManager.ConnectionState.Disconnected;
+        public Services.ProSimManager.ConnectionState ProSimConnectionState
+        {
+            get => _proSimConnectionState;
+            set
+            {
+                if (_proSimConnectionState != value)
+                {
+                    _proSimConnectionState = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProSimConnectionState)));
+                }
+            }
+        }
+
+        private string _proSimStatusMessage = "Not connected";
+        public string ProSimStatusMessage
+        {
+            get => _proSimStatusMessage;
+            set
+            {
+                if (_proSimStatusMessage != value)
+                {
+                    _proSimStatusMessage = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProSimStatusMessage)));
+                }
+            }
+        }
+
         public ICommand SetupCommand { get; }
         public ICommand GlobalSettingsCommand { get; }
         public ICommand ClearErrorLogCommand { get; }
+        public ICommand ConnectProSimCommand { get; }
 
         public MainViewModel()
         {
+            // Load global settings for ProSim IP
+            var globalSettings = Services.SettingsService.LoadGlobalSettings();
+            if (globalSettings != null)
+            {
+                ProSimIp = globalSettings.ProsimIp ?? "192.168.1.142";
+            }
+
+            // Initialize ProSim Manager
+            try
+            {
+                _proSimManager = new Services.ProSimManager();
+                _proSimManager.OnConnectionStateChanged += ProSimManager_OnConnectionStateChanged;
+
+                // Auto-connect if enabled in settings
+                if (globalSettings?.AutoConnectProsim == true)
+                {
+                    _ = ConnectProSimAsync();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                LogError($"Failed to initialize ProSim manager: {ex.Message}");
+            }
+
             // Load settings and create ViewModels for all axes
             foreach (var axisName in AxisNames)
             {
@@ -117,9 +186,49 @@ namespace ACL_SIM_2.ViewModels
             SetupCommand = new RelayCommand(OnSetup);
             GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
             ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
+            ConnectProSimCommand = new RelayCommand(_ => ToggleProSimConnection());
 
             // Subscribe to ErrorLog collection changes to update ErrorLogText
             ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
+        }
+
+        private void ProSimManager_OnConnectionStateChanged(object? sender, Services.ConnectionStateEventArgs e)
+        {
+            // Update UI on main thread
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                ProSimConnectionState = e.State;
+                ProSimStatusMessage = e.Message;
+                LogError($"[ProSim] {e.Message}");
+            });
+        }
+
+        private async void ToggleProSimConnection()
+        {
+            if (_proSimManager == null) return;
+
+            if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected)
+            {
+                _proSimManager.Disconnect();
+            }
+            else
+            {
+                await ConnectProSimAsync();
+            }
+        }
+
+        private async System.Threading.Tasks.Task ConnectProSimAsync()
+        {
+            if (_proSimManager == null) return;
+
+            try
+            {
+                await _proSimManager.ConnectAsync(ProSimIp);
+            }
+            catch (System.Exception ex)
+            {
+                LogError($"[ProSim] Connection error: {ex.Message}");
+            }
         }
 
         private void UpdateErrorLogText()
