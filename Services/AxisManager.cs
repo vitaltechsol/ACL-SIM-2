@@ -15,13 +15,15 @@ namespace ACL_SIM_2.Services
         private readonly AxisViewModel _axisVm;
         private readonly AxisTorqueControl? _torqueControl;
         private readonly AxisMovement _axisMovement;
+        private readonly ProSimManager? _proSimManager;
         private readonly string _name;
         private bool _isDisposed;
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null, object? modbusLock = null)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null, object? modbusLock = null, ProSimManager? proSimManager = null)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
+            _proSimManager = proSimManager;
 
             // Create torque control if ModbusClient is provided
             if (modbusClient != null && !string.IsNullOrWhiteSpace(axisVm.Underlying.Settings.RS485Ip))
@@ -49,6 +51,12 @@ namespace ACL_SIM_2.Services
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
+
+            // Subscribe to ProSim hydraulics availability changes
+            if (_proSimManager != null)
+            {
+                _proSimManager.OnHydraulicsAvailableChanged += ProSimManager_OnHydraulicsAvailableChanged;
+            }
         }
 
         private void OnAxisPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -58,6 +66,27 @@ namespace ACL_SIM_2.Services
                 // Calculate and update torque asynchronously
                 _ = UpdateTorqueAsync();
             }
+        }
+
+        /// <summary>
+        /// Handles changes to ProSim hydraulics availability.
+        /// Updates HydraulicsOn state for this axis and recalculates torque immediately.
+        /// </summary>
+        private void ProSimManager_OnHydraulicsAvailableChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            var hydraulicsAvailable = e.Value != 0;
+
+            // Update the underlying axis model
+            _axisVm.Underlying.HydraulicsOn = hydraulicsAvailable;
+
+            // Notify the ViewModel to update UI bindings
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.HydraulicsOn));
+            });
+
+            // Trigger immediate torque recalculation with new hydraulics state
+            _ = UpdateTorqueAsync();
         }
 
         /// <summary>
@@ -230,6 +259,15 @@ namespace ACL_SIM_2.Services
             try
             {
                 _axisVm.PropertyChanged -= OnAxisPropertyChanged;
+            }
+            catch { }
+
+            try
+            {
+                if (_proSimManager != null)
+                {
+                    _proSimManager.OnHydraulicsAvailableChanged -= ProSimManager_OnHydraulicsAvailableChanged;
+                }
             }
             catch { }
 

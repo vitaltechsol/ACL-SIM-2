@@ -167,7 +167,7 @@ namespace ACL_SIM_2.ViewModels
                             var modbusLock = _encoderManager.GetModbusLock(axisName);
                             if (modbusClient != null && modbusLock != null)
                             {
-                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock);
+                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager);
                             }
                         }
                     }
@@ -370,9 +370,10 @@ namespace ACL_SIM_2.ViewModels
 
                         // Create AxisManager for torque control
                         var modbusClient = _encoderManager.GetModbusClient(axisName);
-                        if (modbusClient != null)
+                        var modbusLock = _encoderManager.GetModbusLock(axisName);
+                        if (modbusClient != null && modbusLock != null)
                         {
-                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient);
+                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager);
                         }
 
                         LogError($"[{axisName}] Encoder and torque control enabled");
