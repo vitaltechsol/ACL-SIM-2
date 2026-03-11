@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -14,12 +15,12 @@ namespace ACL_SIM_2.ViewModels
         private readonly AxisManager? _axisManager;
         private double _centerEncoder;
         private double _testStartEncoder;
-        private bool _isTesting;
         private bool _isPositionTestEnabled;
         private bool _isHydraulicTestEnabled;
         private double _targetPosition = 0.0;
         private readonly string _originalRS485Ip;
         private readonly int _originalDriverId;
+        private CancellationTokenSource? _verificationCts;
 
         public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null)
         {
@@ -48,8 +49,6 @@ namespace ACL_SIM_2.ViewModels
             SetFullLeftCommand = new RelayCommand(_ => SetFullLeft());
             ToggleReversedCommand = new RelayCommand(_ => ToggleReversed());
             SaveCommand = new RelayCommand(_ => Save());
-            StartMovementTestCommand = new RelayCommand(_ => StartMovementTest());
-            VerifyMovementTestCommand = new RelayCommand(_ => VerifyMovementTest());
             TogglePositionTestCommand = new RelayCommand(_ => TogglePositionTest());
             ToggleHydraulicTestCommand = new RelayCommand(_ => ToggleHydraulicTest());
             CloseCommand = new RelayCommand(o => CloseAction?.Invoke());
@@ -206,6 +205,12 @@ namespace ACL_SIM_2.ViewModels
                     if (_axisManager != null)
                     {
                         _axisManager.GoToPosition(_targetPosition);
+
+                        // If target position is not 0, start automatic verification
+                        if (Math.Abs(_targetPosition) > 0.01)
+                        {
+                            StartAutomaticVerification();
+                        }
                     }
                     else
                     {
@@ -232,6 +237,9 @@ namespace ACL_SIM_2.ViewModels
                     {
                         _axisManager.Movement.Stop();
                     }
+
+                    // Cancel any ongoing verification
+                    _verificationCts?.Cancel();
 
                     // Reset target to 0 for next time
                     TargetPosition = 0.0;
@@ -274,6 +282,12 @@ namespace ACL_SIM_2.ViewModels
                 if (IsPositionTestEnabled && _axisManager != null)
                 {
                     _axisManager.GoToPosition(_targetPosition);
+
+                    // If moving to non-zero position, start automatic verification
+                    if (Math.Abs(_targetPosition) > 0.01)
+                    {
+                        StartAutomaticVerification();
+                    }
                 }
             }
         }
@@ -283,8 +297,6 @@ namespace ACL_SIM_2.ViewModels
         public ICommand SetFullLeftCommand { get; }
         public ICommand ToggleReversedCommand { get; }
         public ICommand SaveCommand { get; }
-        public ICommand StartMovementTestCommand { get; }
-        public ICommand VerifyMovementTestCommand { get; }
         public ICommand TogglePositionTestCommand { get; }
         public ICommand ToggleHydraulicTestCommand { get; }
         public ICommand CloseCommand { get; }
@@ -377,30 +389,40 @@ namespace ACL_SIM_2.ViewModels
             OnPropertyChanged(nameof(EncoderPosition));
         }
 
-        private void StartMovementTest()
+        private async void StartAutomaticVerification()
         {
+            // Cancel any existing verification
+            _verificationCts?.Cancel();
+            _verificationCts = new CancellationTokenSource();
+            var token = _verificationCts.Token;
+
+            // Record starting encoder position
             _testStartEncoder = _axisVm.EncoderPosition;
-            _isTesting = true;
-            MessageBox.Show("Movement test started. Use the movement controls or push the axis and then press Verify.", "Test", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            try
+            {
+                // Wait 3 seconds for motor to respond
+                await Task.Delay(3000, token);
+
+                // Only verify if still in test mode and not cancelled
+                if (IsPositionTestEnabled && !token.IsCancellationRequested)
+                {
+                    VerifyMovementTest();
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Verification was cancelled, this is expected when slider moves
+            }
         }
 
         private void VerifyMovementTest()
         {
-            if (!_isTesting)
-            {
-                MessageBox.Show("Start test before verifying.", "Test", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             var delta = Math.Abs(_axisVm.EncoderPosition - _testStartEncoder);
-            _isTesting = false;
+
             if (delta < 1e-3)
             {
                 MessageBox.Show("Encoder did not change. The moving torque may be too low.", "Test Result", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            else
-            {
-                MessageBox.Show($"Encoder changed by {delta}. Movement detected.", "Test Result", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 

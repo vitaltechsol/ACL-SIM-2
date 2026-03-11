@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ACL_SIM_2"
         mc:Ignorable="d"
-        Title="ACL 2.0" Height="600" Width="1000"
+        Title="ACL-SIM 2.0" Height="703" Width="1000"
         Background="#1e1e1e" Foreground="White">
     <Grid Margin="12">
         <Grid.RowDefinitions>
