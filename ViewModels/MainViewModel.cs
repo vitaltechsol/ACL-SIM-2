@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -46,7 +47,7 @@ namespace ACL_SIM_2.ViewModels
         }
 
         // ProSim properties
-        private string _proSimIp = "192.168.1.142";
+        private string _proSimIp = "127.0.0.1";
         public string ProSimIp
         {
             get => _proSimIp;
@@ -99,7 +100,7 @@ namespace ACL_SIM_2.ViewModels
             var globalSettings = Services.SettingsService.LoadGlobalSettings();
             if (globalSettings != null)
             {
-                ProSimIp = globalSettings.ProsimIp ?? "192.168.1.142";
+                ProSimIp = globalSettings.ProsimIp ?? "127.0.0.1";
             }
 
             // Initialize ProSim Manager
@@ -331,6 +332,18 @@ namespace ACL_SIM_2.ViewModels
             var win = new Views.GlobalSettingsWindow(vm);
             win.Owner = Application.Current?.MainWindow;
             win.ShowDialog();
+
+            // Reload ProSim IP after settings window closes
+            var globalSettings = Services.SettingsService.LoadGlobalSettings();
+            if (globalSettings != null)
+            {
+                var newIp = globalSettings.ProsimIp ?? "127.0.0.1";
+                if (ProSimIp != newIp)
+                {
+                    ProSimIp = newIp;
+                    LogError($"[ProSim] IP updated to {newIp}");
+                }
+            }
         }
 
         public void LogError(string message)
