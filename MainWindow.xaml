@@ -7,6 +7,9 @@
         mc:Ignorable="d"
         Title="ACL-SIM 2.0" Height="703" Width="1000"
         Background="#1e1e1e" Foreground="White">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -120,13 +123,13 @@
                             <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
                             <!-- ProSim Axis Value -->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0" Visibility="{Binding Pitch.Enabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding PitchProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
                             </StackPanel>
 
                             <!-- Flight Control Value -->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0" Visibility="{Binding Pitch.Enabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Flight Crl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding PitchFlightControl, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
                             </StackPanel>
@@ -336,7 +339,7 @@
                             <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
                             <!-- ProSim Axis Value -->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0" Visibility="{Binding Rudder.Enabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding RudderProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
                             </StackPanel>

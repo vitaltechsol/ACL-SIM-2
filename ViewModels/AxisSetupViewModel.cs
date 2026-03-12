@@ -435,5 +435,47 @@ namespace ACL_SIM_2.ViewModels
         {
             IsHydraulicTestEnabled = !IsHydraulicTestEnabled;
         }
+
+        public async Task CleanupAndCenterAsync()
+        {
+            // Stop any active test functions
+            if (IsPositionTestEnabled)
+            {
+                IsPositionTestEnabled = false;
+            }
+
+            if (IsHydraulicTestEnabled)
+            {
+                IsHydraulicTestEnabled = false;
+            }
+
+            // Re-center the axis to default position (512.0)
+            if (_axisManager != null)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering axis after settings window close...");
+
+                    // Enable AutopilotOn to use Movement Torque during centering
+                    _axisVm.Underlying.AutopilotOn = true;
+
+                    await _axisManager.CenterToProSimPositionAsync(
+                        getProSimValue: () => 512.0, // Center position
+                        log: message => System.Diagnostics.Debug.WriteLine($"[{AxisName}] {message}")
+                    );
+
+                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering complete");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering failed: {ex.Message}");
+                }
+                finally
+                {
+                    // Disable AutopilotOn after centering
+                    _axisVm.Underlying.AutopilotOn = false;
+                }
+            }
+        }
     }
 }
