@@ -89,6 +89,92 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        // ProSim Axis Values
+        private double _pitchProSimAxis;
+        public double PitchProSimAxis
+        {
+            get => _pitchProSimAxis;
+            set
+            {
+                if (Math.Abs(_pitchProSimAxis - value) > 0.001)
+                {
+                    _pitchProSimAxis = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PitchProSimAxis)));
+                }
+            }
+        }
+
+        private double _rollProSimAxis;
+        public double RollProSimAxis
+        {
+            get => _rollProSimAxis;
+            set
+            {
+                if (Math.Abs(_rollProSimAxis - value) > 0.001)
+                {
+                    _rollProSimAxis = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RollProSimAxis)));
+                }
+            }
+        }
+
+        private double _rudderProSimAxis;
+        public double RudderProSimAxis
+        {
+            get => _rudderProSimAxis;
+            set
+            {
+                if (Math.Abs(_rudderProSimAxis - value) > 0.001)
+                {
+                    _rudderProSimAxis = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RudderProSimAxis)));
+                }
+            }
+        }
+
+        private double _tillerProSimAxis;
+        public double TillerProSimAxis
+        {
+            get => _tillerProSimAxis;
+            set
+            {
+                if (Math.Abs(_tillerProSimAxis - value) > 0.001)
+                {
+                    _tillerProSimAxis = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TillerProSimAxis)));
+                }
+            }
+        }
+
+        // ProSim Flight Control Values (Pitch and Roll only)
+        private double _pitchFlightControl;
+        public double PitchFlightControl
+        {
+            get => _pitchFlightControl;
+            set
+            {
+                if (Math.Abs(_pitchFlightControl - value) > 0.001)
+                {
+                    _pitchFlightControl = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PitchFlightControl)));
+                }
+            }
+        }
+
+        private double _rollFlightControl;
+        public double RollFlightControl
+        {
+            get => _rollFlightControl;
+            set
+            {
+                if (Math.Abs(_rollFlightControl - value) > 0.001)
+                {
+                    _rollFlightControl = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RollFlightControl)));
+                }
+            }
+        }
+
         public ICommand SetupCommand { get; }
         public ICommand GlobalSettingsCommand { get; }
         public ICommand ClearErrorLogCommand { get; }
@@ -108,6 +194,14 @@ namespace ACL_SIM_2.ViewModels
             {
                 _proSimManager = new Services.ProSimManager();
                 _proSimManager.OnConnectionStateChanged += ProSimManager_OnConnectionStateChanged;
+
+                // Subscribe to ProSim DataRef changes
+                _proSimManager.OnElevatorCptnChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchProSimAxis = e.Value);
+                _proSimManager.OnAileronCptnChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollProSimAxis = e.Value);
+                _proSimManager.OnRudderCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RudderProSimAxis = e.Value);
+                _proSimManager.OnTillerCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => TillerProSimAxis = e.Value);
+                _proSimManager.OnElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchFlightControl = e.Value);
+                _proSimManager.OnAileronLeftChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value);
 
                 // Auto-connect if enabled in settings
                 if (globalSettings?.AutoConnectProsim == true)

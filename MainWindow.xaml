@@ -98,6 +98,18 @@
                             <!-- Enable checkbox -->
                             <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
+                            <!-- ProSim Axis Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding PitchProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                            </StackPanel>
+
+                            <!-- Flight Control Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Flight Crl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding PitchFlightControl, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
+                            </StackPanel>
+
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12">
@@ -193,6 +205,18 @@
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
                             <CheckBox IsChecked="{Binding Roll.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Background="White" Foreground="White" />
+
+                            <!-- ProSim Axis Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding RollProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                            </StackPanel>
+
+                            <!-- Flight Control Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Flight Crl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding RollFlightControl, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
+                            </StackPanel>
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
@@ -290,6 +314,12 @@
                             <!-- Enable checkbox -->
                             <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
+                            <!-- ProSim Axis Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding RudderProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                            </StackPanel>
+
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12">
@@ -367,6 +397,12 @@
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
                             <CheckBox IsChecked="{Binding Tiller.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
+
+                            <!-- ProSim Axis Value -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TillerProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                            </StackPanel>
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
