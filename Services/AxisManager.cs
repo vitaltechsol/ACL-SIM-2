@@ -251,6 +251,114 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public AxisMovement Movement => _axisMovement;
 
+        /// <summary>
+        /// Centers the axis to ProSim position 512 using closed-loop feedback.
+        /// Uses ProSim axis value as feedback to incrementally move the servo motor until centered.
+        /// </summary>
+        /// <param name="getProSimValue">Function to get the current ProSim axis value (0-1024 range, 512 = center)</param>
+        /// <param name="log">Action to log status messages</param>
+        /// <returns>Task that completes when centering is done or fails</returns>
+        public async Task CenterToProSimPositionAsync(Func<double> getProSimValue, Action<string> log)
+        {
+            const double TARGET_CENTER = 512.0;
+            const double TOLERANCE = 2.0;
+            const int MAX_ITERATIONS = 50;
+            const int DELAY_MS = 200;
+
+            if (_isDisposed)
+            {
+                log($"[{_name}] ERROR: AxisManager is disposed");
+                return;
+            }
+
+            double? previousError = null;
+            double directionMultiplier = 1.0; // Will be -1.0 if direction needs to be reversed
+
+            try
+            {
+                for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++)
+                {
+                    // Get current ProSim axis value
+                    double currentProSimValue = getProSimValue();
+
+                    // Calculate error from center
+                    double error = currentProSimValue - TARGET_CENTER;
+                    double errorMagnitude = Math.Abs(error);
+
+                    log($"[{_name}] Iteration {iteration + 1}: ProSim={currentProSimValue:F1}, Error={error:F1}");
+
+                    // Check if we're within tolerance
+                    if (errorMagnitude <= TOLERANCE)
+                    {
+                        log($"[{_name}] Centered successfully at {currentProSimValue:F1}");
+                        return;
+                    }
+
+                    // Detect if we're moving away from center (error is increasing)
+                    if (previousError.HasValue && iteration > 0)
+                    {
+                        double previousErrorMagnitude = Math.Abs(previousError.Value);
+
+                        // If error magnitude increased, we're moving in the wrong direction
+                        if (errorMagnitude > previousErrorMagnitude + 5.0) // +5 threshold to account for noise
+                        {
+                            directionMultiplier *= -1.0; // Reverse direction
+                            log($"[{_name}] ERROR INCREASING! Reversing direction (multiplier now: {directionMultiplier})");
+                        }
+                    }
+
+                    // Calculate movement speed based on error magnitude
+                    // Larger error = faster movement, smaller error = slower movement
+                    double speedPercent;
+
+                    if (errorMagnitude > 200)
+                        speedPercent = 30.0; // Fast movement for large errors
+                    else if (errorMagnitude > 100)
+                        speedPercent = 20.0; // Medium speed
+                    else if (errorMagnitude > 50)
+                        speedPercent = 10.0; // Slow speed
+                    else if (errorMagnitude > 20)
+                        speedPercent = 5.0; // Very slow
+                    else
+                        speedPercent = 2.0; // Crawl speed near center
+
+                    // Determine direction: if error is positive, we're right of center (need to move left)
+                    // if error is negative, we're left of center (need to move right)
+                    double moveDirection = (error > 0 ? -1.0 : 1.0) * directionMultiplier;
+                    double movePercent = moveDirection * speedPercent;
+
+                    log($"[{_name}] Moving {movePercent:F1}% (speed={speedPercent:F1}%, dir={moveDirection:+0;-0})");
+
+                    // Get current encoder position
+                    double currentEncoderPos = _axisVm.EncoderPosition;
+                    double centerEncoderPos = _axisVm.Underlying.Settings.CenterPosition;
+                    double currentPercentFromCenter = ((currentEncoderPos - centerEncoderPos) / Math.Max(1, Math.Abs(_axisVm.Underlying.Settings.FullRightPosition))) * 100.0;
+
+                    // Calculate target percent
+                    double targetPercent = currentPercentFromCenter + movePercent;
+                    targetPercent = Math.Max(-100, Math.Min(100, targetPercent)); // Clamp to valid range
+
+                    // Move the axis
+                    _axisMovement.GoToPosition(targetPercent);
+
+                    // Store current error for next iteration
+                    previousError = error;
+
+                    // Wait for movement to complete
+                    await Task.Delay(DELAY_MS);
+
+                    // Give encoder time to update
+                    await Task.Delay(DELAY_MS);
+                }
+
+                log($"[{_name}] WARNING: Max iterations reached. Final position: {getProSimValue():F1}");
+            }
+            catch (Exception ex)
+            {
+                log($"[{_name}] Error: {ex.Message}");
+            }
+        }
+
         public void Dispose()
         {
             if (_isDisposed) return;

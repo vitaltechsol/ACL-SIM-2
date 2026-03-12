@@ -179,6 +179,21 @@ namespace ACL_SIM_2.ViewModels
         public ICommand GlobalSettingsCommand { get; }
         public ICommand ClearErrorLogCommand { get; }
         public ICommand ConnectProSimCommand { get; }
+        public ICommand CenterControlsCommand { get; }
+
+        private bool _isCentering;
+        public bool IsCentering
+        {
+            get => _isCentering;
+            set
+            {
+                if (_isCentering != value)
+                {
+                    _isCentering = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCentering)));
+                }
+            }
+        }
 
         public MainViewModel()
         {
@@ -282,6 +297,7 @@ namespace ACL_SIM_2.ViewModels
             GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
             ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
             ConnectProSimCommand = new RelayCommand(_ => ToggleProSimConnection());
+            CenterControlsCommand = new RelayCommand(_ => CenterAllControls(), _ => CanCenterControls());
 
             // Subscribe to ErrorLog collection changes to update ErrorLogText
             ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
@@ -449,6 +465,97 @@ namespace ACL_SIM_2.ViewModels
             {
                 ErrorLog.RemoveAt(ErrorLog.Count - 1);
             }
+        }
+
+        private bool CanCenterControls()
+        {
+            return _proSimManager != null && 
+                   ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected &&
+                   !IsCentering;
+        }
+
+        private async void CenterAllControls()
+        {
+            if (IsCentering || _proSimManager == null) return;
+
+            IsCentering = true;
+            LogError("[Center] Starting concurrent centering for all axes...");
+
+            // Track which axes were enabled and had AutopilotOn set
+            var axesToCenter = new List<(string name, AxisViewModel vm, Services.AxisManager manager)>();
+
+            try
+            {
+                // First pass: Collect enabled axes and set AutopilotOn
+                foreach (var axisName in AxisNames)
+                {
+                    if (!_axes.TryGetValue(axisName, out var axisVm) || !axisVm.Enabled)
+                    {
+                        LogError($"[Center] Skipping {axisName} (not enabled)");
+                        continue;
+                    }
+
+                    if (!_axisManagers.TryGetValue(axisName, out var axisManager) || axisManager == null)
+                    {
+                        LogError($"[Center] Skipping {axisName} (no axis manager)");
+                        continue;
+                    }
+
+                    axesToCenter.Add((axisName, axisVm, axisManager));
+
+                    // Enable AutopilotOn to use Movement Torque during centering
+                    axisVm.Underlying.AutopilotOn = true;
+                    LogError($"[Center] {axisName} - AutopilotOn enabled (using Movement Torque)");
+                }
+
+                // Second pass: Start centering all axes concurrently (don't await individually)
+                var centeringTasks = new List<System.Threading.Tasks.Task>();
+
+                foreach (var (axisName, axisVm, axisManager) in axesToCenter)
+                {
+                    LogError($"[Center] Starting {axisName}...");
+
+                    // Start centering task without awaiting (runs concurrently)
+                    var task = axisManager.CenterToProSimPositionAsync(
+                        getProSimValue: () => GetProSimAxisValue(axisName),
+                        log: message => LogError($"[Center] {message}")
+                    );
+
+                    centeringTasks.Add(task);
+                }
+
+                // Wait for all axes to finish centering concurrently
+                await System.Threading.Tasks.Task.WhenAll(centeringTasks);
+
+                LogError("[Center] All axes centering complete!");
+            }
+            catch (System.Exception ex)
+            {
+                LogError($"[Center] Error: {ex.Message}");
+            }
+            finally
+            {
+                // Third pass: Disable AutopilotOn for all axes that were centered
+                foreach (var (axisName, axisVm, _) in axesToCenter)
+                {
+                    axisVm.Underlying.AutopilotOn = false;
+                    LogError($"[Center] {axisName} - AutopilotOn disabled (back to normal torque)");
+                }
+
+                IsCentering = false;
+            }
+        }
+
+        private double GetProSimAxisValue(string axisName)
+        {
+            return axisName switch
+            {
+                "Pitch" => PitchProSimAxis,
+                "Roll" => RollProSimAxis,
+                "Rudder" => RudderProSimAxis,
+                "Tiller" => TillerProSimAxis,
+                _ => 512.0 // Default to center if unknown
+            };
         }
 
         private void HandleAxisEnabledChanged(string axisName, AxisViewModel vm, string rs485Ip, PropertyChangedEventArgs e)

@@ -19,7 +19,10 @@ namespace ACL_SIM_2.Models
         public double HydraulicOffTorquePercent { get; set; } = 80; // 0..100
         public double AutopilotOverridePercent { get; set; } = 5; // 1..100 (only meaningful for pitch/roll)
 
-        // Advanced motion tweak settings - used by AxisMovement service
+        // Advanced motion tweak settings - used by Axis
+        //
+        //
+        // service
 
         /// <summary>
         /// Output update rate (milliseconds). Controls how often the output value is sent to the motor.
