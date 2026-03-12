@@ -16,7 +16,7 @@
             <RowDefinition Height="120"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="ACL 2.0" FontSize="20" FontWeight="SemiBold" />
+        <TextBlock Text="ACL-SIM 2.0" FontSize="20" FontWeight="SemiBold" />
 
         <!-- ProSim Connection Panel -->
         <Border Grid.Row="1" Background="#252525" CornerRadius="6" Padding="12" Margin="0,12,0,0">
@@ -96,7 +96,7 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
-                            <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
@@ -135,7 +135,7 @@
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Pitch.ConnectionBrush}" />
-                                <TextBlock Text="Encoder" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -143,7 +143,7 @@
                         <TextBlock Text="Encoder:" />
                         <TextBlock Text="{Binding Pitch.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -163,7 +163,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -192,7 +192,7 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
-                            <CheckBox IsChecked="{Binding Roll.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <CheckBox IsChecked="{Binding Roll.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Background="White" Foreground="White" />
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
@@ -231,7 +231,7 @@
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Roll.ConnectionBrush}" />
-                                <TextBlock Text="Encoder" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -239,7 +239,7 @@
                         <TextBlock Text="Encoder:" />
                         <TextBlock Text="{Binding Roll.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -259,7 +259,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Roll.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -288,7 +288,7 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
-                            <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
@@ -309,7 +309,7 @@
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Rudder.ConnectionBrush}" />
-                                <TextBlock Text="Encoder" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -317,7 +317,7 @@
                         <TextBlock Text="Encoder:" />
                         <TextBlock Text="{Binding Rudder.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -337,7 +337,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Rudder.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -366,7 +366,7 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
                             <!-- Enable checkbox -->
-                            <CheckBox IsChecked="{Binding Tiller.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <CheckBox IsChecked="{Binding Tiller.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White" />
 
                             <!-- Hydraulics -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
@@ -387,7 +387,7 @@
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Tiller.ConnectionBrush}" />
-                                <TextBlock Text="Encoder" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -395,7 +395,7 @@
                         <TextBlock Text="Encoder:" />
                         <TextBlock Text="{Binding Tiller.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -415,7 +415,7 @@
                             <Run Text="% from center)" />
                         </TextBlock>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Tiller.Enabled}">
+                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.TorqueNormalizedFromCurrent, Mode=OneWay}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">
                                 <Style.Triggers>
@@ -434,7 +434,6 @@
         </UniformGrid>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Open Setup" Width="120" Height="32" Command="{Binding SetupCommand}" />
             <Button Content="Global Settings" Width="140" Height="32" Margin="8,0,0,0" Command="{Binding GlobalSettingsCommand}" />
         </StackPanel>
 

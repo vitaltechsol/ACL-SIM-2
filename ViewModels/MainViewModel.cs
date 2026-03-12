@@ -178,11 +178,11 @@ namespace ACL_SIM_2.ViewModels
                 // ignore if AxisManager creation fails
             }
 
-            // Populate with some initial demo values so UI appears active
+            // Populate with some initial value
             Pitch.EncoderPosition = 0;
-            Roll.EncoderPosition = 0.1;
-            Rudder.EncoderPosition = -0.05;
-            Tiller.EncoderPosition = 0.02;
+            Roll.EncoderPosition = 0;
+            Rudder.EncoderPosition = 0;
+            Tiller.EncoderPosition = 0;
 
             SetupCommand = new RelayCommand(OnSetup);
             GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
