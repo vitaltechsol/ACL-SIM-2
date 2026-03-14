@@ -474,6 +474,12 @@ namespace ACL_SIM_2.ViewModels
                 IsHydraulicTestEnabled = false;
             }
 
+            // Turn off calibration mode
+            if (IsCalibrationMode)
+            {
+                IsCalibrationMode = false;
+            }
+
             // Re-center the axis to default position (512.0)
             if (_axisManager != null)
             {
