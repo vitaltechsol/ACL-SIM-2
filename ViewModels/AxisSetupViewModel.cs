@@ -22,6 +22,9 @@ namespace ACL_SIM_2.ViewModels
         private readonly string _originalRS485Ip;
         private readonly int _originalDriverId;
         private CancellationTokenSource? _verificationCts;
+        private string _toastMessage = string.Empty;
+        private bool _showToast;
+        private CancellationTokenSource? _toastCts;
 
         public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null)
         {
@@ -218,17 +221,7 @@ namespace ACL_SIM_2.ViewModels
                     {
                         System.Diagnostics.Debug.WriteLine($"[{AxisName}] ERROR: AxisManager is null! Cannot test position control.");
                         System.Diagnostics.Debug.WriteLine($"[{AxisName}] Make sure the axis is ENABLED and has a valid RS485 IP configured.");
-                        MessageBox.Show(
-                            $"Cannot test position control for {AxisName}.\n\n" +
-                            "The axis must be ENABLED with a valid RS485 IP address.\n" +
-                            "1. Enable the axis checkbox on the main window\n" +
-                            "2. Configure RS485 IP in this setup window\n" +
-                            "3. Save settings\n" +
-                            "4. Restart the application",
-                            "Position Test Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning
-                        );
+                        ShowToastNotification("⚠ Cannot test position control. Axis must be enabled with valid RS485 IP.");
                     }
                 }
                 else
@@ -311,6 +304,28 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        public string ToastMessage
+        {
+            get => _toastMessage;
+            set
+            {
+                if (_toastMessage == value) return;
+                _toastMessage = value;
+                OnPropertyChanged(nameof(ToastMessage));
+            }
+        }
+
+        public bool ShowToast
+        {
+            get => _showToast;
+            set
+            {
+                if (_showToast == value) return;
+                _showToast = value;
+                OnPropertyChanged(nameof(ShowToast));
+            }
+        }
+
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
         public ICommand SetFullLeftCommand { get; }
@@ -366,7 +381,7 @@ namespace ACL_SIM_2.ViewModels
             // Notify that settings have changed
             OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip, connectionSettingsChanged);
 
-            MessageBox.Show("Settings saved.", "Save", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToastNotification("✓ Settings saved successfully");
         }
 
         private void SetCenter()
@@ -374,7 +389,7 @@ namespace ACL_SIM_2.ViewModels
             _centerEncoder = _axisVm.EncoderPosition;
             Settings.CenterPosition = _centerEncoder;
             OnPropertyChanged(nameof(Settings));
-            MessageBox.Show($"Center set to encoder {_centerEncoder}", "Center", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToastNotification($"✓ Center set to encoder {_centerEncoder:F2}");
         }
 
         private void SetFullRight()
@@ -384,7 +399,7 @@ namespace ACL_SIM_2.ViewModels
             // If right is less than left, mark reversed
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
-            MessageBox.Show($"Full right position saved: {Settings.FullRightPosition}", "Full Right", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToastNotification($"✓ Full right position saved: {Settings.FullRightPosition:F2}");
         }
 
         private void SetFullLeft()
@@ -393,7 +408,7 @@ namespace ACL_SIM_2.ViewModels
             Settings.FullLeftPosition = val;
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
-            MessageBox.Show($"Full left position saved: {Settings.FullLeftPosition}", "Full Left", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToastNotification($"✓ Full left position saved: {Settings.FullLeftPosition:F2}");
         }
 
         private void ToggleReversed()
@@ -447,7 +462,30 @@ namespace ACL_SIM_2.ViewModels
 
             if (delta < 1e-3)
             {
-                MessageBox.Show("Encoder did not change. The moving torque may be too low.", "Test Result", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToastNotification("⚠ Encoder did not change. The moving torque may be too low.");
+            }
+        }
+
+        private async void ShowToastNotification(string message)
+        {
+            // Cancel any existing toast
+            _toastCts?.Cancel();
+            _toastCts = new CancellationTokenSource();
+            var token = _toastCts.Token;
+
+            ToastMessage = message;
+            ShowToast = true;
+
+            try
+            {
+                // Show toast for 3 seconds
+                await Task.Delay(3000, token);
+                ShowToast = false;
+            }
+            catch (TaskCanceledException)
+            {
+                // Toast was cancelled, hide it immediately
+                ShowToast = false;
             }
         }
 

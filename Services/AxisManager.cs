@@ -76,17 +76,21 @@ namespace ACL_SIM_2.Services
         {
             var hydraulicsAvailable = e.Value != 0;
 
-            // Update the underlying axis model
-            _axisVm.Underlying.HydraulicsOn = hydraulicsAvailable;
-
-            // Notify the ViewModel to update UI bindings
-            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            // Don't change HydraulicsOn if we're in calibration mode
+            if (!_axisVm.Underlying.CalibrationMode)
             {
-                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.HydraulicsOn));
-            });
+                // Update the underlying axis model
+                _axisVm.Underlying.HydraulicsOn = hydraulicsAvailable;
 
-            // Trigger immediate torque recalculation with new hydraulics state
-            _ = UpdateTorqueAsync();
+                // Notify the ViewModel to update UI bindings
+                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.HydraulicsOn));
+                });
+
+                // Trigger immediate torque recalculation with new hydraulics state
+                _ = UpdateTorqueAsync();
+            }
         }
 
         /// <summary>
@@ -99,6 +103,25 @@ namespace ACL_SIM_2.Services
         private async Task UpdateTorqueAsync()
         {
             if (_isDisposed || _torqueControl == null) return;
+
+            // If CalibrationMode is active, set torque to 0 for both directions
+            if (_axisVm.Underlying.CalibrationMode)
+            {
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        _torqueControl.SetTorqueBoth(0, 0);
+                        _axisVm.CurrentTorque = 0.0;
+                    }
+                    catch
+                    {
+                        // Motor write failed, continue
+                    }
+                });
+
+                return;
+            }
 
             // If AutopilotOn (position test mode), use fixed MovingTorque for both directions
             if (_axisVm.Underlying.AutopilotOn)
@@ -169,9 +192,10 @@ namespace ACL_SIM_2.Services
                     var settings = _axisVm.Underlying.Settings;
                     var encoderPosition = _axisVm.EncoderPosition;
 
-                    // Calculate offset from center (absolute encoder position)
+                    // Normalize encoder reading by subtracting the offset
+                    var normalizedEncoder = encoderPosition - _axisVm.Underlying.EncoderCenterOffset;
                     var centerPosition = settings.CenterPosition;
-                    var offsetFromCenter = encoderPosition - centerPosition;
+                    var offsetFromCenter = normalizedEncoder - centerPosition;
 
                     // Calculate normalized distance based on direction
                     double normalizedDistance;
@@ -271,8 +295,19 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
+            // Reset the encoder center offset to 0 at the start of centering
+            // This ensures we calculate position based on the configured center only
+            // The new offset will be set after successful centering
+            double originalOffset = _axisVm.Underlying.EncoderCenterOffset;
+            _axisVm.Underlying.EncoderCenterOffset = 0.0;
+            log($"[{_name}] Centering started - encoder offset reset to 0 (was {originalOffset:F2})");
+
+            // Account for reversed motor setting - if motor is reversed, we need to invert the direction
+            double motorDirectionMultiplier = _axisVm.Underlying.Settings.ReversedMotor ? -1.0 : 1.0;
+            log($"[{_name}] Motor direction multiplier: {motorDirectionMultiplier} (ReversedMotor: {_axisVm.Underlying.Settings.ReversedMotor})");
+
             double? previousError = null;
-            double directionMultiplier = 1.0; // Will be -1.0 if direction needs to be reversed
+            int errorIncreasingCount = 0; // Track consecutive error increases
 
             try
             {
@@ -291,6 +326,15 @@ namespace ACL_SIM_2.Services
                     if (errorMagnitude <= TOLERANCE)
                     {
                         log($"[{_name}] Centered successfully at {currentProSimValue:F1}");
+
+                        // Set the encoder center offset to normalize future calculations
+                        // The current encoder position becomes the new reference center
+                        double centeredEncoderPos = _axisVm.EncoderPosition;
+                        double configuredCenter = _axisVm.Underlying.Settings.CenterPosition;
+                        _axisVm.Underlying.EncoderCenterOffset = centeredEncoderPos - configuredCenter;
+
+                        log($"[{_name}] Encoder center offset set to {_axisVm.Underlying.EncoderCenterOffset:F2} (Encoder: {centeredEncoderPos:F1}, Configured: {configuredCenter:F1})");
+
                         return;
                     }
 
@@ -300,10 +344,23 @@ namespace ACL_SIM_2.Services
                         double previousErrorMagnitude = Math.Abs(previousError.Value);
 
                         // If error magnitude increased, we're moving in the wrong direction
-                        if (errorMagnitude > previousErrorMagnitude + 5.0) // +5 threshold to account for noise
+                        if (errorMagnitude > previousErrorMagnitude + 3.0) // +3 threshold to account for noise
                         {
-                            directionMultiplier *= -1.0; // Reverse direction
-                            log($"[{_name}] ERROR INCREASING! Reversing direction (multiplier now: {directionMultiplier})");
+                            errorIncreasingCount++;
+                            log($"[{_name}] ERROR INCREASING! Count: {errorIncreasingCount}, Error: {errorMagnitude:F1} (was {previousErrorMagnitude:F1})");
+
+                            // If error keeps increasing for 2 consecutive iterations, reverse the motor direction assumption
+                            if (errorIncreasingCount >= 2)
+                            {
+                                motorDirectionMultiplier *= -1.0;
+                                errorIncreasingCount = 0; // Reset counter
+                                log($"[{_name}] Direction reversed! New multiplier: {motorDirectionMultiplier}");
+                            }
+                        }
+                        else
+                        {
+                            // Error is decreasing (good), reset counter
+                            errorIncreasingCount = 0;
                         }
                     }
 
@@ -324,12 +381,14 @@ namespace ACL_SIM_2.Services
 
                     // Determine direction: if error is positive, we're right of center (need to move left)
                     // if error is negative, we're left of center (need to move right)
-                    double moveDirection = (error > 0 ? -1.0 : 1.0) * directionMultiplier;
-                    double movePercent = moveDirection * speedPercent;
+                    // Apply motor direction multiplier to account for ReversedMotor setting
+                    double desiredDirection = (error > 0 ? -1.0 : 1.0);
+                    double movePercent = desiredDirection * motorDirectionMultiplier * speedPercent;
 
-                    log($"[{_name}] Moving {movePercent:F1}% (speed={speedPercent:F1}%, dir={moveDirection:+0;-0})");
+                    log($"[{_name}] Moving {movePercent:F1}% (speed={speedPercent:F1}%)");
 
                     // Get current encoder position
+                    // Note: EncoderCenterOffset is reset to 0 at start of centering, so we use configured center only
                     double currentEncoderPos = _axisVm.EncoderPosition;
                     double centerEncoderPos = _axisVm.Underlying.Settings.CenterPosition;
                     double currentPercentFromCenter = ((currentEncoderPos - centerEncoderPos) / Math.Max(1, Math.Abs(_axisVm.Underlying.Settings.FullRightPosition))) * 100.0;

@@ -119,8 +119,17 @@ namespace ACL_SIM_2.Models
         public bool AutopilotOn { get; set; }
         public double AutopilotTarget { get; set; }
         public bool HydraulicsOn { get; set; }
+        public bool CalibrationMode { get; set; }
 
         public double TorqueTarget { get; set; }
+
+        /// <summary>
+        /// Encoder offset applied after successful centering.
+        /// This is the difference between the actual encoder position at center and the configured center position.
+        /// Used to normalize encoder readings: NormalizedEncoder = RawEncoder - EncoderCenterOffset
+        /// Example: If encoder reads 5000 when centered, and configured center is 0, offset = 5000
+        /// </summary>
+        public double EncoderCenterOffset { get; set; } = 0.0;
 
         public Axis(string name, AxisSettings? settings = null)
         {
@@ -132,14 +141,21 @@ namespace ACL_SIM_2.Models
         // Update calculation of torque target based on encoder position and settings.
         public void RecalculateTorqueTarget()
         {
-            // If AutopilotOn (test mode), use MovingTorquePercentage converted to actual motor value (0-300)
+            // If in calibration mode, set torque to 0 and ignore all other calculations
+            if (CalibrationMode)
+            {
+                TorqueTarget = 0.0;
+                return;
+            }
+
+            // If AutopilotOn (or test mode), use MovingTorquePercentage converted to actual motor value (0-300)  (fixed value)
             if (AutopilotOn)
             {
                 TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
                 return;
             }
 
-            // If hydraulics are off, use specified hydraulic off torque (fixed, like autopilot)
+            // If hydraulics are off, use specified hydraulic off torque (fixed value)
             if (!HydraulicsOn)
             {
                 TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.HydraulicOffTorquePercent);
@@ -147,7 +163,8 @@ namespace ACL_SIM_2.Models
             }
 
             // Normalize encoder position relative to calibrated center -> -1 .. 1
-            var center = Settings.CenterPosition;
+            // Apply the encoder center offset to normalize based on actual centered position
+            var center = Settings.CenterPosition + EncoderCenterOffset;
             var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.FullLeftPosition), Math.Abs(Settings.FullRightPosition)));
             var pos = (EncoderPosition - center) / range; // approx -1..1
 
@@ -163,17 +180,7 @@ namespace ACL_SIM_2.Models
             TorqueTarget = Settings.ConvertTorqueDisplayToActual(displayTorque);
         }
 
-        // Placeholder: called periodically to update from simulator data (TODO implement real data sources)
-        public void UpdateFromSimulator(double axisPosition, bool autopilotOn, double autopilotTarget, bool hydraulicsOn)
-        {
-            AxisPosition = axisPosition;
-            AutopilotOn = autopilotOn;
-            AutopilotTarget = autopilotTarget;
-            HydraulicsOn = hydraulicsOn;
-            RecalculateTorqueTarget();
-        }
-
-        // Placeholder: update from encoder reading (TODO implement real encoder read)
+        // Update from encoder reading
         public void UpdateFromEncoder(double encoder)
         {
             EncoderPosition = encoder;

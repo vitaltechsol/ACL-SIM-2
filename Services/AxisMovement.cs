@@ -246,14 +246,16 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private double PercentToEncoderPosition(double percent)
         {
+            // Normalize encoder by subtracting offset to get position relative to configured center
             var centerPosition = _axis.Settings.CenterPosition;
 
+            double normalizedEncoder;
             if (percent >= 0)
             {
                 // Moving right (positive direction)
                 // FullRightPosition is in encoder units relative to center (positive, e.g., +2000)
                 var fullRightPosition = _axis.Settings.FullRightPosition;
-                return centerPosition + (percent / 100.0) * fullRightPosition;
+                normalizedEncoder = centerPosition + (percent / 100.0) * fullRightPosition;
             }
             else
             {
@@ -262,8 +264,11 @@ namespace ACL_SIM_2.Services
                 var fullLeftPosition = _axis.Settings.FullLeftPosition;
                 // percent is negative (-100 to 0), fullLeftPosition is negative (e.g., -2000)
                 // So (percent/100) * Math.Abs(fullLeftPosition) gives correct negative offset
-                return centerPosition + (percent / 100.0) * Math.Abs(fullLeftPosition);
+                normalizedEncoder = centerPosition + (percent / 100.0) * Math.Abs(fullLeftPosition);
             }
+
+            // Add offset back to get raw encoder position
+            return normalizedEncoder + _axis.EncoderCenterOffset;
         }
 
         /// <summary>
@@ -271,8 +276,10 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private double EncoderPositionToPercent(double encoderPosition)
         {
+            // Normalize encoder by subtracting offset
+            var normalizedEncoder = encoderPosition - _axis.EncoderCenterOffset;
             var centerPosition = _axis.Settings.CenterPosition;
-            var offset = encoderPosition - centerPosition;
+            var offset = normalizedEncoder - centerPosition;
 
             if (offset >= 0)
             {

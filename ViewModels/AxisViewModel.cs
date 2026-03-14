@@ -104,7 +104,8 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                var centerPosition = _axis.Settings.CenterPosition;
+                // Apply the encoder center offset to normalize based on actual centered position
+                var centerPosition = _axis.Settings.CenterPosition + _axis.EncoderCenterOffset;
                 var offsetFromCenter = _axis.EncoderPosition - centerPosition;
 
                 double normalizedDistance;
@@ -140,21 +141,26 @@ namespace ACL_SIM_2.ViewModels
             get
             {
                 // Map encoder position to 0-1 range using actual full left/right positions (supports asymmetric ranges)
-                var actualLeft = _axis.Settings.CenterPosition + _axis.Settings.FullLeftPosition;
-                var actualRight = _axis.Settings.CenterPosition + _axis.Settings.FullRightPosition;
+                // Normalize encoder reading by subtracting the offset
+                var normalizedEncoder = _axis.EncoderPosition - _axis.EncoderCenterOffset;
+                var centerPosition = _axis.Settings.CenterPosition;
+                var actualLeft = centerPosition + _axis.Settings.FullLeftPosition;
+                var actualRight = centerPosition + _axis.Settings.FullRightPosition;
                 var range = System.Math.Max(1e-6, actualRight - actualLeft);
-                var normalized = (_axis.EncoderPosition - actualLeft) / range;
+                var normalized = (normalizedEncoder - actualLeft) / range;
                 return System.Math.Max(0.0, System.Math.Min(1.0, normalized)); // clamp to 0-1
             }
             set
             {
                 // Convert normalized 0-1 value back to absolute encoder position
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var actualLeft = _axis.Settings.CenterPosition + _axis.Settings.FullLeftPosition;
-                var actualRight = _axis.Settings.CenterPosition + _axis.Settings.FullRightPosition;
+                var centerPosition = _axis.Settings.CenterPosition;
+                var actualLeft = centerPosition + _axis.Settings.FullLeftPosition;
+                var actualRight = centerPosition + _axis.Settings.FullRightPosition;
                 var range = actualRight - actualLeft;
-                var encoder = actualLeft + (normalized * range);
-                EncoderPosition = encoder;
+                var normalizedEncoder = actualLeft + (normalized * range);
+                // Add offset back to get raw encoder position
+                EncoderPosition = normalizedEncoder + _axis.EncoderCenterOffset;
             }
         }
 
