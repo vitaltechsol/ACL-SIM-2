@@ -17,6 +17,7 @@ namespace ACL_SIM_2.ViewModels
         private double _testStartEncoder;
         private bool _isPositionTestEnabled;
         private bool _isHydraulicTestEnabled;
+        private bool _isCalibrationMode;
         private double _targetPosition = 0.0;
         private readonly string _originalRS485Ip;
         private readonly int _originalDriverId;
@@ -51,6 +52,7 @@ namespace ACL_SIM_2.ViewModels
             SaveCommand = new RelayCommand(_ => Save());
             TogglePositionTestCommand = new RelayCommand(_ => TogglePositionTest());
             ToggleHydraulicTestCommand = new RelayCommand(_ => ToggleHydraulicTest());
+            ToggleCalibrateCommand = new RelayCommand(_ => ToggleCalibrate());
             CloseCommand = new RelayCommand(o => CloseAction?.Invoke());
         }
 
@@ -292,6 +294,23 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        public bool IsCalibrationMode
+        {
+            get => _isCalibrationMode;
+            set
+            {
+                if (_isCalibrationMode == value) return;
+                _isCalibrationMode = value;
+                OnPropertyChanged(nameof(IsCalibrationMode));
+
+                // Set CalibrationMode flag on the underlying Axis to set torque to 0
+                _axisVm.Underlying.CalibrationMode = value;
+
+                // Recalculate torque to apply the new calibration mode state (torque = 0 when active)
+                _axisVm.Underlying.RecalculateTorqueTarget();
+            }
+        }
+
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
         public ICommand SetFullLeftCommand { get; }
@@ -299,6 +318,7 @@ namespace ACL_SIM_2.ViewModels
         public ICommand SaveCommand { get; }
         public ICommand TogglePositionTestCommand { get; }
         public ICommand ToggleHydraulicTestCommand { get; }
+        public ICommand ToggleCalibrateCommand { get; }
         public ICommand CloseCommand { get; }
 
         // An action the Window can set to close itself when VM requests
@@ -380,6 +400,11 @@ namespace ACL_SIM_2.ViewModels
         {
             Settings.ReversedMotor = !Settings.ReversedMotor;
             OnPropertyChanged(nameof(Reversed));
+        }
+
+        private void ToggleCalibrate()
+        {
+            IsCalibrationMode = !IsCalibrationMode;
         }
 
         private void PreviewTorque()

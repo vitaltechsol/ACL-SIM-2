@@ -49,17 +49,47 @@
                         <TextBlock Text="{Binding EncoderPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="Full Left Position:" Width="140" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding Settings.FullLeftPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="Full Left Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                            <TextBlock Text="{Binding Settings.FullLeftPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="Center Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                            <TextBlock Text="{Binding Settings.CenterPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Full Right Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                            <TextBlock Text="{Binding Settings.FullRightPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Full Right Position:" Width="140" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding Settings.FullRightPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <Button Content="Calibrate" Width="100" Margin="0,4,0,8" HorizontalAlignment="Left" Command="{Binding ToggleCalibrateCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#2d2d30"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
+                                        <Setter Property="Background" Value="#007acc"/>
+                                        <Setter Property="Content" Value="Done"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,4,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
                         <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
                         <Button Content="Set Full Right" Width="120" Margin="0,0,8,0" Command="{Binding SetFullRightCommand}" />
                         <Button Content="Set Full Left" Width="120" Command="{Binding SetFullLeftCommand}" />
