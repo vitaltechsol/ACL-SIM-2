@@ -276,6 +276,28 @@ namespace ACL_SIM_2.Services
         public AxisMovement Movement => _axisMovement;
 
         /// <summary>
+        /// Sends a centering speed value to the motor via Modbus register 51.
+        /// </summary>
+        /// <param name="speed">Speed value (0-3000)</param>
+        public void SendCenteringSpeed(int speed)
+        {
+            if (_isDisposed || _torqueControl == null) return;
+            try { _torqueControl.SetCenteringSpeed(speed); }
+            catch { /* Motor write failed, continue */ }
+        }
+
+        /// <summary>
+        /// Sends a dampening value to the motor via Modbus register 192.
+        /// </summary>
+        /// <param name="dampening">Dampening value (5-2000)</param>
+        public void SendDampening(int dampening)
+        {
+            if (_isDisposed || _torqueControl == null) return;
+            try { _torqueControl.SetDampening(dampening); }
+            catch { /* Motor write failed, continue */ }
+        }
+
+        /// <summary>
         /// Centers the axis to ProSim position 512 using closed-loop feedback.
         /// Uses ProSim axis value as feedback to incrementally move the servo motor until centered.
         /// </summary>

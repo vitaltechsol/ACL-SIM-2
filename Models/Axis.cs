@@ -88,6 +88,21 @@ namespace ACL_SIM_2.Models
 
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
         public const double TorqueActualMax = 300.0;
+        public const double CenteringSpeedActualMax = 250;
+        public const double DampeningActualMin = 5.0;
+        public const double DampeningActualMax = 1000.0;
+
+        public static int ConvertCenteringSpeedToActual(double display)
+        {
+            var clamped = Math.Max(0, Math.Min(100.0, display));
+            return (int)Math.Round(clamped / 100.0 * CenteringSpeedActualMax);
+        }
+
+        public static int ConvertDampeningToActual(double display)
+        {
+            var clamped = Math.Max(0, Math.Min(100.0, display));
+            return (int)Math.Round(DampeningActualMin + (clamped / 100.0 * (DampeningActualMax - DampeningActualMin)));
+        }
         // Persisted flag whether this axis is enabled for user interaction
         public bool Enabled { get; set; } = true;
 

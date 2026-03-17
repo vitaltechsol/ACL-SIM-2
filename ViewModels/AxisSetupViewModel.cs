@@ -120,6 +120,8 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.SelfCenteringSpeed == value) return;
                 Settings.SelfCenteringSpeed = value;
                 OnPropertyChanged(nameof(SelfCenteringSpeed));
+
+                _axisManager?.SendCenteringSpeed(AxisSettings.ConvertCenteringSpeedToActual(value));
             }
         }
 
@@ -131,6 +133,8 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.Dampening == value) return;
                 Settings.Dampening = value;
                 OnPropertyChanged(nameof(Dampening));
+
+                _axisManager?.SendDampening(AxisSettings.ConvertDampeningToActual(value));
             }
         }
 
@@ -381,6 +385,10 @@ namespace ACL_SIM_2.ViewModels
             // Notify that settings have changed
             OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip, connectionSettingsChanged);
 
+            // Notify AxisViewModel to recalculate EncoderPercentage in case calibration settings changed
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+
             ShowToastNotification("✓ Settings saved successfully");
         }
 
@@ -389,6 +397,11 @@ namespace ACL_SIM_2.ViewModels
             _centerEncoder = _axisVm.EncoderPosition;
             Settings.CenterPosition = _centerEncoder;
             OnPropertyChanged(nameof(Settings));
+
+            // Notify AxisViewModel to recalculate EncoderPercentage
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+
             ShowToastNotification($"✓ Center set to encoder {_centerEncoder:F2}");
         }
 
@@ -399,6 +412,11 @@ namespace ACL_SIM_2.ViewModels
             // If right is less than left, mark reversed
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
+
+            // Notify AxisViewModel to recalculate EncoderPercentage
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+
             ShowToastNotification($"✓ Full right position saved: {Settings.FullRightPosition:F2}");
         }
 
@@ -408,6 +426,11 @@ namespace ACL_SIM_2.ViewModels
             Settings.FullLeftPosition = val;
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
+
+            // Notify AxisViewModel to recalculate EncoderPercentage
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+
             ShowToastNotification($"✓ Full left position saved: {Settings.FullLeftPosition:F2}");
         }
 

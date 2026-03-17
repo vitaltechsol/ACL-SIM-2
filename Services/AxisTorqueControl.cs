@@ -86,6 +86,36 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
+        /// Set self-centering speed register for the configured driver.
+        /// </summary>
+        public void SetCenteringSpeed(int speed)
+        {
+            if (!_enabled) return;
+
+            lock (_modbusLock)
+            {
+                if (!_mbc.Connected) return;
+                _mbc.UnitIdentifier = (byte)_driverId;
+                _mbc.WriteSingleRegister(51, speed);
+            }
+        }
+
+        /// <summary>
+        /// Set dampening register for the configured driver.
+        /// </summary>
+        public void SetDampening(int dampening)
+        {
+            if (!_enabled) return;
+
+            lock (_modbusLock)
+            {
+                if (!_mbc.Connected) return;
+                _mbc.UnitIdentifier = (byte)_driverId;
+                _mbc.WriteSingleRegister(192, dampening);
+            }
+        }
+
+        /// <summary>
         /// Disconnect is not called - shared ModbusClient is managed by EncoderManager.
         /// </summary>
         public void Disconnect()

@@ -287,6 +287,16 @@ namespace ACL_SIM_2.ViewModels
                 // ignore if AxisManager creation fails
             }
 
+            // Send initial centering speed and dampening values to all enabled axes
+            foreach (var axisName in AxisNames)
+            {
+                if (_axisManagers.TryGetValue(axisName, out var mgr) && _axisSettings.TryGetValue(axisName, out var s))
+                {
+                    mgr.SendCenteringSpeed(AxisSettings.ConvertCenteringSpeedToActual(s.SelfCenteringSpeed));
+                    mgr.SendDampening(AxisSettings.ConvertDampeningToActual(s.Dampening));
+                }
+            }
+
             // Populate with some initial value
             Pitch.EncoderPosition = 0;
             Roll.EncoderPosition = 0;
