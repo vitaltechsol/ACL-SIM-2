@@ -8,8 +8,8 @@ namespace ACL_SIM_2.Models
         // Encoder position calibration (absolute encoder values with rollover tracking)
         public double CenterPosition { get; set; } = 0.0; // absolute encoder value at center
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
-        public double FullLeftPosition { get; set; } = -2000; // encoder relative to center (left/negative direction)
-        public double FullRightPosition { get; set; } = 2000; // encoder relative to center (right/positive direction)
+        public double FullLeftPosition { get; set; } = -2000; // absolute encoder value at full left
+        public double FullRightPosition { get; set; } = 2000; // absolute encoder value at full right
         public double MinTorquePercent { get; set; } = 5; // 0..100
         public double MaxTorquePercent { get; set; } = 30; // 0..100
         public bool ReversedMotor { get; set; } = false;
@@ -177,14 +177,23 @@ namespace ACL_SIM_2.Models
                 return;
             }
 
-            // Normalize encoder position relative to calibrated center -> -1 .. 1
+            // Normalize encoder position relative to calibrated center -> magnitude 0..1
             // Apply the encoder center offset to normalize based on actual centered position
             var center = Settings.CenterPosition + EncoderCenterOffset;
-            var range = Math.Max(1e-6, Math.Max(Math.Abs(Settings.FullLeftPosition), Math.Abs(Settings.FullRightPosition)));
-            var pos = (EncoderPosition - center) / range; // approx -1..1
+            var offsetFromCenter = EncoderPosition - center;
 
-            // Map pos 0..1 magnitude from center
-            var magnitude = Math.Min(1.0, Math.Abs(pos));
+            // Direction-aware normalization using distance from center to each limit
+            double magnitude;
+            if (offsetFromCenter >= 0)
+            {
+                var maxRight = Math.Max(1e-6, Math.Abs(Settings.FullRightPosition - Settings.CenterPosition));
+                magnitude = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxRight);
+            }
+            else
+            {
+                var maxLeft = Math.Max(1e-6, Math.Abs(Settings.CenterPosition - Settings.FullLeftPosition));
+                magnitude = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxLeft);
+            }
 
             // Interpolate torque display between min and max display settings
             var minDisp = Settings.MinTorquePercent;

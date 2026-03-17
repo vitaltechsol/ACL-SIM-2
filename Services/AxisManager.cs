@@ -202,14 +202,14 @@ namespace ACL_SIM_2.Services
 
                     if (offsetFromCenter >= 0)
                     {
-                        // Moving in positive (right) direction
-                        var maxPositive = Math.Max(1e-6, Math.Abs(settings.FullRightPosition));
+                        // Moving in positive (right) direction: distance from center to full right
+                        var maxPositive = Math.Max(1e-6, Math.Abs(settings.FullRightPosition - settings.CenterPosition));
                         normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxPositive);
                     }
                     else
                     {
-                        // Moving in negative (left) direction
-                        var maxNegative = Math.Max(1e-6, Math.Abs(settings.FullLeftPosition));
+                        // Moving in negative (left) direction: distance from center to full left
+                        var maxNegative = Math.Max(1e-6, Math.Abs(settings.CenterPosition - settings.FullLeftPosition));
                         normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxNegative);
                     }
 
@@ -413,7 +413,7 @@ namespace ACL_SIM_2.Services
                     // Note: EncoderCenterOffset is reset to 0 at start of centering, so we use configured center only
                     double currentEncoderPos = _axisVm.EncoderPosition;
                     double centerEncoderPos = _axisVm.Underlying.Settings.CenterPosition;
-                    double currentPercentFromCenter = ((currentEncoderPos - centerEncoderPos) / Math.Max(1, Math.Abs(_axisVm.Underlying.Settings.FullRightPosition))) * 100.0;
+                    double currentPercentFromCenter = ((currentEncoderPos - centerEncoderPos) / Math.Max(1, Math.Abs(_axisVm.Underlying.Settings.FullRightPosition - centerEncoderPos))) * 100.0;
 
                     // Calculate target percent
                     double targetPercent = currentPercentFromCenter + movePercent;

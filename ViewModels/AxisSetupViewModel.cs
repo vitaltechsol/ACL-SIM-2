@@ -396,6 +396,10 @@ namespace ACL_SIM_2.ViewModels
         {
             _centerEncoder = _axisVm.EncoderPosition;
             Settings.CenterPosition = _centerEncoder;
+
+            // Reset encoder offset — raw encoder is now the new ground truth
+            _axisVm.Underlying.EncoderCenterOffset = 0.0;
+
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
@@ -407,7 +411,7 @@ namespace ACL_SIM_2.ViewModels
 
         private void SetFullRight()
         {
-            var val = _axisVm.EncoderPosition - _centerEncoder;
+            var val = _axisVm.EncoderPosition;
             Settings.FullRightPosition = val;
             // If right is less than left, mark reversed
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
@@ -422,7 +426,7 @@ namespace ACL_SIM_2.ViewModels
 
         private void SetFullLeft()
         {
-            var val = _axisVm.EncoderPosition - _centerEncoder;
+            var val = _axisVm.EncoderPosition;
             Settings.FullLeftPosition = val;
             if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));

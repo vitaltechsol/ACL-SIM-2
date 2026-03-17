@@ -163,10 +163,9 @@ namespace ACL_SIM_2.Services
             // Convert percentage to absolute encoder position
             var targetEncoderPosition = PercentToEncoderPosition(targetPercent);
 
-            // Apply safety limits: clamp target to valid encoder range
-            var centerPosition = _axis.Settings.CenterPosition;
-            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;
-            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition;
+            // Apply safety limits: absolute positions shifted by encoder offset
+            var minEncoderPosition = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
+            var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
             targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
 
             System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Target encoder: {targetEncoderPosition:F0}, Range: [{minEncoderPosition:F0}, {maxEncoderPosition:F0}]");
@@ -246,28 +245,22 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private double PercentToEncoderPosition(double percent)
         {
-            // Normalize encoder by subtracting offset to get position relative to configured center
             var centerPosition = _axis.Settings.CenterPosition;
 
             double normalizedEncoder;
             if (percent >= 0)
             {
-                // Moving right (positive direction)
-                // FullRightPosition is in encoder units relative to center (positive, e.g., +2000)
-                var fullRightPosition = _axis.Settings.FullRightPosition;
-                normalizedEncoder = centerPosition + (percent / 100.0) * fullRightPosition;
+                // Interpolate from center toward full right (absolute positions)
+                normalizedEncoder = centerPosition + (percent / 100.0) * (_axis.Settings.FullRightPosition - centerPosition);
             }
             else
             {
-                // Moving left (negative direction)
-                // FullLeftPosition is in encoder units relative to center (negative, e.g., -2000)
-                var fullLeftPosition = _axis.Settings.FullLeftPosition;
-                // percent is negative (-100 to 0), fullLeftPosition is negative (e.g., -2000)
-                // So (percent/100) * Math.Abs(fullLeftPosition) gives correct negative offset
-                normalizedEncoder = centerPosition + (percent / 100.0) * Math.Abs(fullLeftPosition);
+                // Interpolate from center toward full left (absolute positions)
+                // percent is negative, (center - fullLeft) is positive, result moves left of center
+                normalizedEncoder = centerPosition + (percent / 100.0) * (centerPosition - _axis.Settings.FullLeftPosition);
             }
 
-            // Add offset back to get raw encoder position
+            // Add offset to get raw encoder position
             return normalizedEncoder + _axis.EncoderCenterOffset;
         }
 
@@ -283,19 +276,15 @@ namespace ACL_SIM_2.Services
 
             if (offset >= 0)
             {
-                // Right side (positive)
-                // FullRightPosition is positive encoder units from center (e.g., +2000)
-                var fullRightPosition = _axis.Settings.FullRightPosition;
-                var range = Math.Max(1e-6, fullRightPosition);
+                // Right side: distance from center to full right
+                var range = Math.Max(1e-6, _axis.Settings.FullRightPosition - centerPosition);
                 var normalized = Math.Min(1.0, offset / range);
                 return normalized * 100.0;
             }
             else
             {
-                // Left side (negative)
-                // FullLeftPosition is negative encoder units from center (e.g., -2000)
-                var fullLeftPosition = _axis.Settings.FullLeftPosition;
-                var range = Math.Max(1e-6, Math.Abs(fullLeftPosition));
+                // Left side: distance from center to full left
+                var range = Math.Max(1e-6, centerPosition - _axis.Settings.FullLeftPosition);
                 var normalized = Math.Min(1.0, Math.Abs(offset) / range);
                 return -normalized * 100.0;
             }
