@@ -413,8 +413,6 @@ namespace ACL_SIM_2.ViewModels
         {
             var val = _axisVm.EncoderPosition;
             Settings.FullRightPosition = val;
-            // If right is less than left, mark reversed
-            if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
@@ -428,7 +426,6 @@ namespace ACL_SIM_2.ViewModels
         {
             var val = _axisVm.EncoderPosition;
             Settings.FullLeftPosition = val;
-            if (Settings.FullRightPosition < Settings.FullLeftPosition) Settings.ReversedMotor = true;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
@@ -446,6 +443,13 @@ namespace ACL_SIM_2.ViewModels
 
         private void ToggleCalibrate()
         {
+            if (IsCalibrationMode)
+            {
+                // Exiting calibration mode (Done): auto-detect motor direction
+                Reversed = Settings.FullLeftPosition > Settings.FullRightPosition;
+                OnPropertyChanged(nameof(Reversed));
+            }
+
             IsCalibrationMode = !IsCalibrationMode;
         }
 
