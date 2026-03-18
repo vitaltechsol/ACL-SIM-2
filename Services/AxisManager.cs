@@ -192,25 +192,19 @@ namespace ACL_SIM_2.Services
                     var settings = _axisVm.Underlying.Settings;
                     var encoderPosition = _axisVm.EncoderPosition;
 
-                    // Normalize encoder reading by subtracting the offset
-                    var normalizedEncoder = encoderPosition - _axisVm.Underlying.EncoderCenterOffset;
-                    var centerPosition = settings.CenterPosition;
-                    var offsetFromCenter = normalizedEncoder - centerPosition;
+                    // Relative position: 0 at center, negative=left, positive=right
+                    var relativePos = encoderPosition - _axisVm.Underlying.EncoderCenterOffset;
 
                     // Calculate normalized distance based on direction
                     double normalizedDistance;
 
-                    if (offsetFromCenter >= 0)
+                    if (relativePos >= 0)
                     {
-                        // Moving in positive (right) direction: distance from center to full right
-                        var maxPositive = Math.Max(1e-6, Math.Abs(settings.FullRightPosition - settings.CenterPosition));
-                        normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxPositive);
+                        normalizedDistance = Math.Min(1.0, relativePos / Math.Max(1e-6, settings.FullRightPosition));
                     }
                     else
                     {
-                        // Moving in negative (left) direction: distance from center to full left
-                        var maxNegative = Math.Max(1e-6, Math.Abs(settings.CenterPosition - settings.FullLeftPosition));
-                        normalizedDistance = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxNegative);
+                        normalizedDistance = Math.Min(1.0, Math.Abs(relativePos) / Math.Max(1e-6, Math.Abs(settings.FullLeftPosition)));
                     }
 
                     // Get torque range from settings (display scale 0-100)
@@ -233,7 +227,7 @@ namespace ACL_SIM_2.Services
                         var torqueInt = (int)Math.Round(targetTorqueActual);
 
                         // Send to appropriate register based on direction
-                        if (offsetFromCenter >= 0)
+                        if (relativePos >= 0)
                         {
                             // Positive offset (right direction): use right register (register 8)
                             _torqueControl.SetTorqueRight(torqueInt);
@@ -317,12 +311,7 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // Reset the encoder center offset to 0 at the start of centering
-            // This ensures we calculate position based on the configured center only
-            // The new offset will be set after successful centering
-            double originalOffset = _axisVm.Underlying.EncoderCenterOffset;
-            _axisVm.Underlying.EncoderCenterOffset = 0.0;
-            log($"[{_name}] Centering started - encoder offset reset to 0 (was {originalOffset:F2})");
+            log($"[{_name}] Centering started - EncoderCenterOffset = {_axisVm.Underlying.EncoderCenterOffset:F2}");
 
             // Account for reversed motor setting - if motor is reversed, we need to invert the direction
             double motorDirectionMultiplier = _axisVm.Underlying.Settings.ReversedMotor ? -1.0 : 1.0;
@@ -349,13 +338,11 @@ namespace ACL_SIM_2.Services
                     {
                         log($"[{_name}] Centered successfully at {currentProSimValue:F1}");
 
-                        // Set the encoder center offset to normalize future calculations
-                        // The current encoder position becomes the new reference center
+                        // Set the encoder center offset so that relativePos = rawEncoder - offset = 0 at center
                         double centeredEncoderPos = _axisVm.EncoderPosition;
-                        double configuredCenter = _axisVm.Underlying.Settings.CenterPosition;
-                        _axisVm.Underlying.EncoderCenterOffset = centeredEncoderPos - configuredCenter;
+                        _axisVm.Underlying.EncoderCenterOffset = centeredEncoderPos;
 
-                        log($"[{_name}] Encoder center offset set to {_axisVm.Underlying.EncoderCenterOffset:F2} (Encoder: {centeredEncoderPos:F1}, Configured: {configuredCenter:F1})");
+                        log($"[{_name}] Encoder center offset set to {centeredEncoderPos:F2} (raw encoder at center)");
 
                         return;
                     }
@@ -409,11 +396,10 @@ namespace ACL_SIM_2.Services
 
                     log($"[{_name}] Moving {movePercent:F1}% (speed={speedPercent:F1}%)");
 
-                    // Get current encoder position
-                    // Note: EncoderCenterOffset is reset to 0 at start of centering, so we use configured center only
+                    // Get current encoder position and calculate relative position using current offset
                     double currentEncoderPos = _axisVm.EncoderPosition;
-                    double centerEncoderPos = _axisVm.Underlying.Settings.CenterPosition;
-                    double currentPercentFromCenter = ((currentEncoderPos - centerEncoderPos) / Math.Max(1, Math.Abs(_axisVm.Underlying.Settings.FullRightPosition - centerEncoderPos))) * 100.0;
+                    double relativePos = currentEncoderPos - _axisVm.Underlying.EncoderCenterOffset;
+                    double currentPercentFromCenter = (relativePos / Math.Max(1, _axisVm.Underlying.Settings.FullRightPosition)) * 100.0;
 
                     // Calculate target percent
                     double targetPercent = currentPercentFromCenter + movePercent;

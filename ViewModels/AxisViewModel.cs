@@ -104,22 +104,17 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                // Apply the encoder center offset to normalize based on actual centered position
-                var centerPosition = _axis.Settings.CenterPosition + _axis.EncoderCenterOffset;
-                var offsetFromCenter = _axis.EncoderPosition - centerPosition;
+                // Relative position: 0 at center, negative=left, positive=right
+                var relativePos = _axis.EncoderPosition - _axis.EncoderCenterOffset;
 
                 double normalizedDistance;
-                if (offsetFromCenter >= 0)
+                if (relativePos >= 0)
                 {
-                    // Positive (right): distance from center to full right
-                    var maxPositive = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.FullRightPosition - _axis.Settings.CenterPosition));
-                    normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxPositive);
+                    normalizedDistance = System.Math.Min(1.0, relativePos / System.Math.Max(1e-6, _axis.Settings.FullRightPosition));
                 }
                 else
                 {
-                    // Negative (left): distance from center to full left
-                    var maxNegative = System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.CenterPosition - _axis.Settings.FullLeftPosition));
-                    normalizedDistance = System.Math.Min(1.0, System.Math.Abs(offsetFromCenter) / maxNegative);
+                    normalizedDistance = System.Math.Min(1.0, System.Math.Abs(relativePos) / System.Math.Max(1e-6, System.Math.Abs(_axis.Settings.FullLeftPosition)));
                 }
 
                 return normalizedDistance * 100.0; // Convert to percentage
@@ -140,25 +135,20 @@ namespace ACL_SIM_2.ViewModels
         {
             get
             {
-                // Map encoder position to 0-1 range using absolute full left/right positions
-                // Normalize encoder reading by subtracting the offset
-                var normalizedEncoder = _axis.EncoderPosition - _axis.EncoderCenterOffset;
-                var actualLeft = _axis.Settings.FullLeftPosition;
-                var actualRight = _axis.Settings.FullRightPosition;
-                var range = System.Math.Max(1e-6, actualRight - actualLeft);
-                var normalized = (normalizedEncoder - actualLeft) / range;
+                // Map encoder to 0-1 range using relative full left/right positions
+                var relativePos = _axis.EncoderPosition - _axis.EncoderCenterOffset;
+                var range = System.Math.Max(1e-6, _axis.Settings.FullRightPosition - _axis.Settings.FullLeftPosition);
+                var normalized = (relativePos - _axis.Settings.FullLeftPosition) / range;
                 return System.Math.Max(0.0, System.Math.Min(1.0, normalized)); // clamp to 0-1
             }
             set
             {
                 // Convert normalized 0-1 value back to absolute encoder position
                 var normalized = System.Math.Max(0.0, System.Math.Min(1.0, value));
-                var actualLeft = _axis.Settings.FullLeftPosition;
-                var actualRight = _axis.Settings.FullRightPosition;
-                var range = actualRight - actualLeft;
-                var normalizedEncoder = actualLeft + (normalized * range);
-                // Add offset back to get raw encoder position
-                EncoderPosition = normalizedEncoder + _axis.EncoderCenterOffset;
+                var range = _axis.Settings.FullRightPosition - _axis.Settings.FullLeftPosition;
+                var relativePos = _axis.Settings.FullLeftPosition + (normalized * range);
+                // Add offset to get raw encoder position
+                EncoderPosition = relativePos + _axis.EncoderCenterOffset;
             }
         }
 

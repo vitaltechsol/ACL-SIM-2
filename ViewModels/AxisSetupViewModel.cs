@@ -13,7 +13,8 @@ namespace ACL_SIM_2.ViewModels
     {
         private readonly AxisViewModel _axisVm;
         private readonly AxisManager? _axisManager;
-        private double _centerEncoder;
+        private readonly Func<double> _getProSimValue;
+        private double _calibrationDisplayOffset;
         private double _testStartEncoder;
         private bool _isPositionTestEnabled;
         private bool _isHydraulicTestEnabled;
@@ -25,11 +26,13 @@ namespace ACL_SIM_2.ViewModels
         private string _toastMessage = string.Empty;
         private bool _showToast;
         private CancellationTokenSource? _toastCts;
+        private bool _calibrationPerformed;
 
-        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null)
+        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null)
         {
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _axisManager = axisManager;
+            _getProSimValue = getProSimValue ?? (() => 512.0);
             AxisName = _axisVm.Name;
 
             // Store original connection settings to detect changes
@@ -61,7 +64,9 @@ namespace ACL_SIM_2.ViewModels
 
         public string AxisName { get; }
 
-        public double EncoderPosition => _axisVm.EncoderPosition;
+        public double EncoderPosition => IsCalibrationMode
+            ? _axisVm.EncoderPosition + _calibrationDisplayOffset
+            : _axisVm.EncoderPosition;
 
         public AxisSettings Settings => _axisVm.Underlying.Settings;
 
@@ -305,6 +310,11 @@ namespace ACL_SIM_2.ViewModels
 
                 // Recalculate torque to apply the new calibration mode state (torque = 0 when active)
                 _axisVm.Underlying.RecalculateTorqueTarget();
+
+                // Force AxisManager to send updated torque to motor immediately.
+                // Without this, UpdateTorqueAsync only fires on encoder changes, but the
+                // motor may be holding position (torque != 0) preventing encoder movement.
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
             }
         }
 
@@ -355,6 +365,7 @@ namespace ACL_SIM_2.ViewModels
             if (loaded != null)
             {
                 // copy loaded values into existing settings instance
+                Settings.CenterPosition = loaded.CenterPosition;
                 Settings.FullLeftPosition = loaded.FullLeftPosition;
                 Settings.FullRightPosition = loaded.FullRightPosition;
                 Settings.MinTorquePercent = loaded.MinTorquePercent;
@@ -394,45 +405,54 @@ namespace ACL_SIM_2.ViewModels
 
         private void SetCenter()
         {
-            _centerEncoder = _axisVm.EncoderPosition;
-            Settings.CenterPosition = _centerEncoder;
+            var rawEncoder = _axisVm.EncoderPosition;
 
-            // Reset encoder offset — raw encoder is now the new ground truth
-            _axisVm.Underlying.EncoderCenterOffset = 0.0;
+            // Temporary display offset so encoder reads 0 at center during calibration
+            _calibrationDisplayOffset = -rawEncoder;
 
+            // CenterPosition is always 0 (raw encoder at center is not persisted)
+            Settings.CenterPosition = 0;
+
+            // Set offset to current raw encoder so all position calculations
+            // (EncoderPercentage, torque, PercentToEncoderPosition) remain correct.
+            _axisVm.Underlying.EncoderCenterOffset = rawEncoder;
+
+            OnPropertyChanged(nameof(EncoderPosition));
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
 
-            ShowToastNotification($"✓ Center set to encoder {_centerEncoder:F2}");
+            ShowToastNotification($"✓ Center set encoder centered position)");
         }
 
         private void SetFullRight()
         {
-            var val = _axisVm.EncoderPosition;
-            Settings.FullRightPosition = val;
+            // Store relative distance from center (positive value)
+            var relativePosition = _axisVm.EncoderPosition + _calibrationDisplayOffset;
+            Settings.FullRightPosition = relativePosition;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
 
-            ShowToastNotification($"✓ Full right position saved: {Settings.FullRightPosition:F2}");
+            ShowToastNotification($"✓ Full right position saved: {relativePosition:F2}");
         }
 
         private void SetFullLeft()
         {
-            var val = _axisVm.EncoderPosition;
-            Settings.FullLeftPosition = val;
+            // Store relative distance from center (negative value)
+            var relativePosition = _axisVm.EncoderPosition + _calibrationDisplayOffset;
+            Settings.FullLeftPosition = relativePosition;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
 
-            ShowToastNotification($"✓ Full left position saved: {Settings.FullLeftPosition:F2}");
+            ShowToastNotification($"✓ Full left position saved: {relativePosition:F2}");
         }
 
         private void ToggleReversed()
@@ -448,9 +468,71 @@ namespace ACL_SIM_2.ViewModels
                 // Exiting calibration mode (Done): auto-detect motor direction
                 Reversed = Settings.FullLeftPosition > Settings.FullRightPosition;
                 OnPropertyChanged(nameof(Reversed));
-            }
 
-            IsCalibrationMode = !IsCalibrationMode;
+                // Restore EncoderCenterOffset to the raw encoder value at calibration center
+                // so GoToPosition(0) targets the correct physical position.
+                // _calibrationDisplayOffset was set to -rawEncoder in SetCenter().
+                _axisVm.Underlying.EncoderCenterOffset = -_calibrationDisplayOffset;
+
+                // Clear temporary calibration display offset
+                _calibrationDisplayOffset = 0;
+
+                // Exit calibration mode (restores torque via the setter)
+                IsCalibrationMode = false;
+
+                _calibrationPerformed = true;
+
+                // Center the axis via AxisManager so EncoderCenterOffset is set from the actual encoder
+                if (_axisManager != null)
+                {
+                    ShowToastNotification("↻ Centering axis…");
+                    _ = CenterAxisViaManagerAsync();
+                }
+                else
+                {
+                    ShowToastNotification("⚠ Cannot center – axis not connected");
+                }
+            }
+            else
+            {
+                // Entering calibration mode: reset display offset
+                _calibrationDisplayOffset = 0;
+                IsCalibrationMode = true;
+            }
+        }
+
+        /// <summary>
+        /// Delegates centering to AxisManager.CenterToProSimPositionAsync and shows toast notifications.
+        /// Handles AutopilotOn/Off around the centering call.
+        /// </summary>
+        private async Task CenterAxisViaManagerAsync()
+        {
+            try
+            {
+                // Enable AutopilotOn so AxisManager sends movement torque to the motor
+                _axisVm.Underlying.AutopilotOn = true;
+                _axisVm.Underlying.RecalculateTorqueTarget();
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+
+                await _axisManager!.CenterToProSimPositionAsync(
+                    getProSimValue: _getProSimValue,
+                    log: message => System.Diagnostics.Debug.WriteLine($"[{AxisName}] {message}")
+                );
+
+                ShowToastNotification("✓ Calibration complete – axis centered");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[{AxisName}] Post-calibration centering failed: {ex.Message}");
+                ShowToastNotification($"⚠ Centering failed: {ex.Message}");
+            }
+            finally
+            {
+                _axisVm.Underlying.AutopilotOn = false;
+                _axisVm.Underlying.RecalculateTorqueTarget();
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+            }
         }
 
         private void PreviewTorque()
@@ -549,8 +631,8 @@ namespace ACL_SIM_2.ViewModels
                 IsCalibrationMode = false;
             }
 
-            // Re-center the axis to default position (512.0)
-            if (_axisManager != null)
+            // Only re-center if calibration was performed during this session
+            if (_calibrationPerformed && _axisManager != null)
             {
                 try
                 {
@@ -558,9 +640,11 @@ namespace ACL_SIM_2.ViewModels
 
                     // Enable AutopilotOn to use Movement Torque during centering
                     _axisVm.Underlying.AutopilotOn = true;
+                    _axisVm.Underlying.RecalculateTorqueTarget();
+                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
 
                     await _axisManager.CenterToProSimPositionAsync(
-                        getProSimValue: () => 512.0, // Center position
+                        getProSimValue: _getProSimValue,
                         log: message => System.Diagnostics.Debug.WriteLine($"[{AxisName}] {message}")
                     );
 
@@ -572,8 +656,9 @@ namespace ACL_SIM_2.ViewModels
                 }
                 finally
                 {
-                    // Disable AutopilotOn after centering
                     _axisVm.Underlying.AutopilotOn = false;
+                    _axisVm.Underlying.RecalculateTorqueTarget();
+                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
                 }
             }
         }

@@ -377,7 +377,7 @@ namespace ACL_SIM_2.ViewModels
             _axisManagers.TryGetValue(axisName, out var axisManager);
 
             // Open the axis setup window with AxisManager for position testing
-            var vm = new AxisSetupViewModel(axisVm, axisManager);
+            var vm = new AxisSetupViewModel(axisVm, axisManager, () => GetProSimAxisValue(axisName));
 
             // Subscribe to settings saved event to update encoder registration
             vm.OnSettingsSaved += (savedAxisName, rs485Ip, connectionSettingsChanged) =>

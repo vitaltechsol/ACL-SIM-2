@@ -5,11 +5,15 @@ namespace ACL_SIM_2.Models
     // Settings that can be persisted and adjusted by the user.
     public class AxisSettings
     {
-        // Encoder position calibration (absolute encoder values with rollover tracking)
-        public double CenterPosition { get; set; } = 0.0; // absolute encoder value at center
+        // Encoder position calibration
+        // CenterPosition is always 0 — the raw encoder value at center is not persisted.
+        // EncoderCenterOffset is initialized to 0 on startup and updated at runtime after centering.
+        public double CenterPosition { get; set; } = 0.0;
+        // FullLeftPosition / FullRightPosition: relative distances from center.
+        // FullLeftPosition is always negative, FullRightPosition is always positive.
         // Range sliders are presented 0..100 in UI. Actual motor uses different ranges (example torque 0..300).
-        public double FullLeftPosition { get; set; } = -2000; // absolute encoder value at full left
-        public double FullRightPosition { get; set; } = 2000; // absolute encoder value at full right
+        public double FullLeftPosition { get; set; } = -2000; // relative distance from center (negative)
+        public double FullRightPosition { get; set; } = 2000;  // relative distance from center (positive)
         public double MinTorquePercent { get; set; } = 5; // 0..100
         public double MaxTorquePercent { get; set; } = 30; // 0..100
         public bool ReversedMotor { get; set; } = false;
@@ -139,10 +143,9 @@ namespace ACL_SIM_2.Models
         public double TorqueTarget { get; set; }
 
         /// <summary>
-        /// Encoder offset applied after successful centering.
-        /// This is the difference between the actual encoder position at center and the configured center position.
-        /// Used to normalize encoder readings: NormalizedEncoder = RawEncoder - EncoderCenterOffset
-        /// Example: If encoder reads 5000 when centered, and configured center is 0, offset = 5000
+        /// Encoder offset applied so that (RawEncoder - EncoderCenterOffset) == 0 when the axis is at center.
+        /// Initialized to 0 on startup. Updated to the actual raw encoder value after motor centering
+        /// completes (via <see cref="Services.AxisManager.CenterToProSimPositionAsync"/>).
         /// </summary>
         public double EncoderCenterOffset { get; set; } = 0.0;
 
@@ -151,6 +154,10 @@ namespace ACL_SIM_2.Models
             Name = name;
             Settings = settings ?? new AxisSettings();
             HydraulicsOn = true; // Default to hydraulics on
+
+            // Offset starts at 0; physical centering at startup will update it
+            // to the actual raw encoder value at center.
+            EncoderCenterOffset = Settings.CenterPosition;
         }
 
         // Update calculation of torque target based on encoder position and settings.
@@ -177,22 +184,18 @@ namespace ACL_SIM_2.Models
                 return;
             }
 
-            // Normalize encoder position relative to calibrated center -> magnitude 0..1
-            // Apply the encoder center offset to normalize based on actual centered position
-            var center = Settings.CenterPosition + EncoderCenterOffset;
-            var offsetFromCenter = EncoderPosition - center;
+            // Relative position: 0 at center, negative=left, positive=right
+            var relativePos = EncoderPosition - EncoderCenterOffset;
 
-            // Direction-aware normalization using distance from center to each limit
+            // Direction-aware normalization using relative distances stored in settings
             double magnitude;
-            if (offsetFromCenter >= 0)
+            if (relativePos >= 0)
             {
-                var maxRight = Math.Max(1e-6, Math.Abs(Settings.FullRightPosition - Settings.CenterPosition));
-                magnitude = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxRight);
+                magnitude = Math.Min(1.0, relativePos / Math.Max(1e-6, Settings.FullRightPosition));
             }
             else
             {
-                var maxLeft = Math.Max(1e-6, Math.Abs(Settings.CenterPosition - Settings.FullLeftPosition));
-                magnitude = Math.Min(1.0, Math.Abs(offsetFromCenter) / maxLeft);
+                magnitude = Math.Min(1.0, Math.Abs(relativePos) / Math.Max(1e-6, Math.Abs(Settings.FullLeftPosition)));
             }
 
             // Interpolate torque display between min and max display settings

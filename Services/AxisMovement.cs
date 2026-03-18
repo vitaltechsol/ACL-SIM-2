@@ -242,26 +242,24 @@ namespace ACL_SIM_2.Services
 
         /// <summary>
         /// Convert a percentage (-100 to +100) to absolute encoder position.
+        /// Uses relative FullLeft/FullRight distances from center plus EncoderCenterOffset.
         /// </summary>
         private double PercentToEncoderPosition(double percent)
         {
-            var centerPosition = _axis.Settings.CenterPosition;
-
-            double normalizedEncoder;
+            double relativeTarget;
             if (percent >= 0)
             {
-                // Interpolate from center toward full right (absolute positions)
-                normalizedEncoder = centerPosition + (percent / 100.0) * (_axis.Settings.FullRightPosition - centerPosition);
+                // Interpolate from center (0) toward full right (positive relative distance)
+                relativeTarget = (percent / 100.0) * _axis.Settings.FullRightPosition;
             }
             else
             {
-                // Interpolate from center toward full left (absolute positions)
-                // percent is negative, (center - fullLeft) is positive, result moves left of center
-                normalizedEncoder = centerPosition + (percent / 100.0) * (centerPosition - _axis.Settings.FullLeftPosition);
+                // Interpolate from center (0) toward full left (negative relative distance)
+                relativeTarget = (percent / 100.0) * Math.Abs(_axis.Settings.FullLeftPosition);
             }
 
-            // Add offset to get raw encoder position
-            return normalizedEncoder + _axis.EncoderCenterOffset;
+            // Add offset to convert from relative to absolute encoder position
+            return relativeTarget + _axis.EncoderCenterOffset;
         }
 
         /// <summary>
@@ -269,23 +267,19 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private double EncoderPositionToPercent(double encoderPosition)
         {
-            // Normalize encoder by subtracting offset
-            var normalizedEncoder = encoderPosition - _axis.EncoderCenterOffset;
-            var centerPosition = _axis.Settings.CenterPosition;
-            var offset = normalizedEncoder - centerPosition;
+            // Relative position: 0 at center
+            var relativePos = encoderPosition - _axis.EncoderCenterOffset;
 
-            if (offset >= 0)
+            if (relativePos >= 0)
             {
-                // Right side: distance from center to full right
-                var range = Math.Max(1e-6, _axis.Settings.FullRightPosition - centerPosition);
-                var normalized = Math.Min(1.0, offset / range);
+                var range = Math.Max(1e-6, _axis.Settings.FullRightPosition);
+                var normalized = Math.Min(1.0, relativePos / range);
                 return normalized * 100.0;
             }
             else
             {
-                // Left side: distance from center to full left
-                var range = Math.Max(1e-6, centerPosition - _axis.Settings.FullLeftPosition);
-                var normalized = Math.Min(1.0, Math.Abs(offset) / range);
+                var range = Math.Max(1e-6, Math.Abs(_axis.Settings.FullLeftPosition));
+                var normalized = Math.Min(1.0, Math.Abs(relativePos) / range);
                 return -normalized * 100.0;
             }
         }
@@ -326,10 +320,9 @@ namespace ACL_SIM_2.Services
             // Set filtered target to current encoder position
             _filteredTarget = _axis.EncoderPosition;
 
-            // Apply safety limits to ensure initial target is within valid range
-            var centerPosition = _axis.Settings.CenterPosition;
-            var minEncoderPosition = centerPosition + _axis.Settings.FullLeftPosition;
-            var maxEncoderPosition = centerPosition + _axis.Settings.FullRightPosition;
+            // Apply safety limits using relative positions offset to absolute
+            var minEncoderPosition = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
+            var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
             _filteredTarget = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, _filteredTarget));
 
             // Initialize last commanded position to current encoder position
