@@ -168,6 +168,23 @@
                                 <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
 
+                            <!-- Motor Moving -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Pitch.MotorIsMoving}" Value="True">
+                                                    <Setter Property="Fill" Value="Orange" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Pitch.ConnectionBrush}" />
@@ -276,6 +293,23 @@
                                 <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
 
+                            <!-- Motor Moving -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Roll.MotorIsMoving}" Value="True">
+                                                    <Setter Property="Fill" Value="Orange" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Roll.ConnectionBrush}" />
@@ -360,6 +394,24 @@
                                 </Ellipse>
                                 <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
+
+                            <!-- Motor Moving -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Rudder.MotorIsMoving}" Value="True">
+                                                    <Setter Property="Fill" Value="Orange" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Rudder.ConnectionBrush}" />
@@ -444,6 +496,24 @@
                                 </Ellipse>
                                 <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
                             </StackPanel>
+
+                            <!-- Motor Moving -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                <Ellipse Width="12" Height="12">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="Red" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Tiller.MotorIsMoving}" Value="True">
+                                                    <Setter Property="Fill" Value="Orange" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+
                             <!-- Encoder connection status -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <Ellipse Width="12" Height="12" Fill="{Binding Tiller.ConnectionBrush}" />

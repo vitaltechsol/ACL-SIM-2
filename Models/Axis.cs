@@ -143,6 +143,12 @@ namespace ACL_SIM_2.Models
         public double TorqueTarget { get; set; }
 
         /// <summary>
+        /// Indicates the motor is actively being moved (centering, position test, or autopilot movement).
+        /// When true, <see cref="AxisSettings.MovingTorquePercentage"/> is used for torque.
+        /// </summary>
+        public bool MotorIsMoving { get; set; }
+
+        /// <summary>
         /// Encoder offset applied so that (RawEncoder - EncoderCenterOffset) == 0 when the axis is at center.
         /// Initialized to 0 on startup. Updated to the actual raw encoder value after motor centering
         /// completes (via <see cref="Services.AxisManager.CenterToProSimPositionAsync"/>).
@@ -170,8 +176,8 @@ namespace ACL_SIM_2.Models
                 return;
             }
 
-            // If AutopilotOn (or test mode), use MovingTorquePercentage converted to actual motor value (0-300)  (fixed value)
-            if (AutopilotOn)
+            // If MotorIsMoving (centering, position test, or autopilot movement), use MovingTorquePercentage
+            if (MotorIsMoving)
             {
                 TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
                 return;

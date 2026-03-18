@@ -56,6 +56,16 @@ namespace ACL_SIM_2.Services
             if (_proSimManager != null)
             {
                 _proSimManager.OnHydraulicsAvailableChanged += ProSimManager_OnHydraulicsAvailableChanged;
+
+                // Subscribe to ProSim autopilot command changes (Pitch and Roll only)
+                if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
+                {
+                    _proSimManager.OnPitchCmdChanged += ProSimManager_OnAutopilotChanged;
+                }
+                else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
+                {
+                    _proSimManager.OnRollCmdChanged += ProSimManager_OnAutopilotChanged;
+                }
             }
         }
 
@@ -94,10 +104,43 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
+        /// Handles changes to ProSim autopilot command state (B_PITCH_CMD / B_ROLL_CMD).
+        /// Updates AutopilotOn for this axis.
+        /// </summary>
+        private void ProSimManager_OnAutopilotChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            var autopilotOn = e.Value != 0;
+
+            if (!_axisVm.Underlying.CalibrationMode)
+            {
+                _axisVm.Underlying.AutopilotOn = autopilotOn;
+
+                // TODO: When autopilot is ON, move the motor to a target position based on a ProSim value
+                if (autopilotOn)
+                {
+                    _axisVm.Underlying.MotorIsMoving = true;
+                }
+                else
+                {
+                    _axisVm.Underlying.MotorIsMoving = false;
+                }
+
+                // Notify the ViewModel to update UI bindings
+                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
+                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+                });
+
+                _ = UpdateTorqueAsync();
+            }
+        }
+
+        /// <summary>
         /// Calculates torque based on encoder position relative to center.
         /// Torque increases as distance from center increases.
         /// Min torque at center (0), max torque at either limit.
-        /// When AutopilotOn (test mode), uses MovingTorqueDisplay for both directions.
+        /// When MotorIsMoving (centering, position test, or autopilot), uses MovingTorqueDisplay for both directions.
         /// When HydraulicsOn is false, uses HydraulicOffTorquePercent for both directions.
         /// </summary>
         private async Task UpdateTorqueAsync()
@@ -123,8 +166,8 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // If AutopilotOn (position test mode), use fixed MovingTorque for both directions
-            if (_axisVm.Underlying.AutopilotOn)
+            // If MotorIsMoving (centering, position test, or autopilot movement), use fixed MovingTorque for both directions
+            if (_axisVm.Underlying.MotorIsMoving)
             {
                 await Task.Run(() =>
                 {
@@ -137,7 +180,7 @@ namespace ACL_SIM_2.Services
                     // Clamp to valid range (0-300)
                     torqueInt = Math.Max(0, Math.Min(300, torqueInt));
 
-                    // Set same torque for both directions during test mode
+                    // Set same torque for both directions during motor movement
                     try
                     {
                         _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
@@ -534,6 +577,15 @@ namespace ACL_SIM_2.Services
                 if (_proSimManager != null)
                 {
                     _proSimManager.OnHydraulicsAvailableChanged -= ProSimManager_OnHydraulicsAvailableChanged;
+
+                    if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _proSimManager.OnPitchCmdChanged -= ProSimManager_OnAutopilotChanged;
+                    }
+                    else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _proSimManager.OnRollCmdChanged -= ProSimManager_OnAutopilotChanged;
+                    }
                 }
             }
             catch { }

@@ -215,8 +215,8 @@ namespace ACL_SIM_2.ViewModels
                 _proSimManager.OnAileronCptnChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollProSimAxis = e.Value);
                 _proSimManager.OnRudderCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RudderProSimAxis = e.Value);
                 _proSimManager.OnTillerCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => TillerProSimAxis = e.Value);
-                _proSimManager.OnElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchFlightControl = e.Value);
-                _proSimManager.OnAileronLeftChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value);
+                _proSimManager.OnElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchFlightControl = e.Value * 100);
+                _proSimManager.OnAileronLeftChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value * 100);
 
                 // Auto-connect if enabled in settings
                 if (globalSettings?.AutoConnectProsim == true)
@@ -513,9 +513,9 @@ namespace ACL_SIM_2.ViewModels
 
                     axesToCenter.Add((axisName, axisVm, axisManager));
 
-                    // Enable AutopilotOn to use Movement Torque during centering
-                    axisVm.Underlying.AutopilotOn = true;
-                    LogError($"[Center] {axisName} - AutopilotOn enabled (using Movement Torque)");
+                    // Enable MotorIsMoving to use Movement Torque during centering
+                    axisVm.Underlying.MotorIsMoving = true;
+                    LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
                 }
 
                 // Second pass: Start centering all axes concurrently (don't await individually)
@@ -545,11 +545,11 @@ namespace ACL_SIM_2.ViewModels
             }
             finally
             {
-                // Third pass: Disable AutopilotOn for all axes that were centered
+                // Third pass: Disable MotorIsMoving for all axes that were centered
                 foreach (var (axisName, axisVm, _) in axesToCenter)
                 {
-                    axisVm.Underlying.AutopilotOn = false;
-                    LogError($"[Center] {axisName} - AutopilotOn disabled (back to normal torque)");
+                    axisVm.Underlying.MotorIsMoving = false;
+                    LogError($"[Center] {axisName} - MotorIsMoving disabled (back to normal torque)");
                 }
 
                 IsCentering = false;

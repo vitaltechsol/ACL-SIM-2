@@ -133,9 +133,9 @@ namespace ACL_SIM_2.Services
         public event EventHandler<ConnectionStateEventArgs>? OnConnectionStateChanged;
 
         // Public properties to expose values
-        public double AileronLeft => _doubleValues.GetValueOrDefault(AILERON_LEFT);
-        public double AileronRight => _doubleValues.GetValueOrDefault(AILERON_RIGHT);
-        public double Elevator => _doubleValues.GetValueOrDefault(ELEVATOR);
+        public double AileronLeft => _doubleValues.GetValueOrDefault(AILERON_LEFT) * 10000;
+        public double AileronRight => _doubleValues.GetValueOrDefault(AILERON_RIGHT) * 10000;
+        public double Elevator => _doubleValues.GetValueOrDefault(ELEVATOR) * 10000;
         public double TrimElevator => _doubleValues.GetValueOrDefault(TRIM_ELEVATOR);
         public double TrimAileron => _doubleValues.GetValueOrDefault(TRIM_AILERON);
         public double TrimRudder => _doubleValues.GetValueOrDefault(TRIM_RUDDER);

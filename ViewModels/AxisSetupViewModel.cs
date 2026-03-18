@@ -209,8 +209,8 @@ namespace ACL_SIM_2.ViewModels
                 _isPositionTestEnabled = value;
                 OnPropertyChanged(nameof(IsPositionTestEnabled));
 
-                // Set AutopilotOn flag to use fixed MovingTorqueDisplay during test mode
-                _axisVm.Underlying.AutopilotOn = value;
+                // Set MotorIsMoving flag to use fixed MovingTorqueDisplay during test mode
+                _axisVm.Underlying.MotorIsMoving = value;
 
                 if (value)
                 {
