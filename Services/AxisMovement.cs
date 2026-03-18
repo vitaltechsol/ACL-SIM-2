@@ -357,6 +357,82 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
+        /// Move the axis by a specified number of encoder units relative to its current position.
+        /// Unlike <see cref="GoToPosition"/>, this does not depend on <c>EncoderCenterOffset</c>
+        /// or the calibrated <c>FullLeftPosition</c>/<c>FullRightPosition</c> range, making it
+        /// suitable for the initial centering phase before those values are known.
+        /// Positive values increase the raw encoder reading; negative values decrease it.
+        /// The <c>ReversedMotor</c> setting is applied internally.
+        /// </summary>
+        /// <param name="encoderUnits">Signed number of encoder units to move.</param>
+        public void MoveByUnits(int encoderUnits)
+        {
+            if (encoderUnits == 0) return;
+
+            if (_modbusClient == null)
+            {
+                Debug.WriteLine($"[{_axis.Name}] MoveByUnits: ModbusClient is null");
+                return;
+            }
+
+            if (!_modbusClient.Connected)
+            {
+                Debug.WriteLine($"[{_axis.Name}] MoveByUnits: ModbusClient not connected");
+                return;
+            }
+
+            if (!ValidateMotorSettings()) return;
+
+            // Cancel any existing movement
+            if (_controlLoopCts != null)
+            {
+                _controlLoopCts.Cancel();
+                try { ServoStop(); }
+                catch { }
+                _controlLoopCts.Dispose();
+            }
+            _controlLoopCts = new CancellationTokenSource();
+
+            // Initialize servo on first use
+            lock (_servoLock)
+            {
+                if (!_servoInitialized)
+                {
+                    try
+                    {
+                        InitServo();
+                        _servoInitialized = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[{_axis.Name}] MoveByUnits: servo init failed: {ex.Message}");
+                        return;
+                    }
+                }
+            }
+
+            var pulses = encoderUnits;
+            if (_axis.Settings.ReversedMotor)
+                pulses = -pulses;
+
+            var rpm = _axis.Settings.MotorSpeedRpm;
+            var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
+            var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
+            var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
+
+            Debug.WriteLine($"[{_axis.Name}] MoveByUnits: {encoderUnits} enc → {pulses} pulses @ {rpm} RPM");
+
+            try
+            {
+                ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_axis.Name}] MoveByUnits error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Validates motor settings before attempting control.
         /// </summary>
         private bool ValidateMotorSettings()

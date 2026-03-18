@@ -293,7 +293,13 @@ namespace ACL_SIM_2.Services
 
         /// <summary>
         /// Centers the axis to ProSim position 512 using closed-loop feedback.
-        /// Uses ProSim axis value as feedback to incrementally move the servo motor until centered.
+        /// Uses <see cref="AxisMovement.MoveByUnits"/> to move in raw encoder units,
+        /// avoiding any dependency on <c>EncoderCenterOffset</c> or the calibrated
+        /// <c>FullLeft/FullRight</c> range (which are not yet known at centering time).
+        /// After the first measured move, the encoder-to-ProSim gain is computed
+        /// adaptively so subsequent moves converge quickly without overshooting.
+        /// Once within tolerance the motor is stopped and a 2-second averaging window
+        /// determines the final <c>EncoderCenterOffset</c>.
         /// </summary>
         /// <param name="getProSimValue">Function to get the current ProSim axis value (0-1024 range, 512 = center)</param>
         /// <param name="log">Action to log status messages</param>
@@ -301,9 +307,24 @@ namespace ACL_SIM_2.Services
         public async Task CenterToProSimPositionAsync(Func<double> getProSimValue, Action<string> log)
         {
             const double TARGET_CENTER = 512.0;
-            const double TOLERANCE = 2.0;
-            const int MAX_ITERATIONS = 50;
-            const int DELAY_MS = 200;
+            const double COARSE_TOLERANCE = 15.0;    // Enter fine-centering phase
+            const double FINE_TOLERANCE = 2.0;       // Final accuracy target (±2 ProSim units, averaged)
+            const int MAX_ITERATIONS = 60;
+            const int SETTLE_MS = 400;
+            const int MAX_FINE_ADJUSTMENTS = 10;     // Max correction cycles in fine phase
+
+            // Per-read averaging to smooth ±10-unit ProSim noise
+            const int SAMPLES_PER_READ = 5;
+            const int SAMPLE_INTERVAL_MS = 40;
+
+            // Final averaging constants
+            const int AVERAGING_DURATION_MS = 2000;
+            const int AVERAGING_SAMPLE_INTERVAL_MS = 50;
+
+            // Movement limits (encoder units)
+            const int MAX_MOVE_UNITS = 600;
+            const int MIN_MOVE_UNITS = 15;
+            const int PROBE_UNITS = 80;
 
             if (_isDisposed)
             {
@@ -313,109 +334,180 @@ namespace ACL_SIM_2.Services
 
             log($"[{_name}] Centering started - EncoderCenterOffset = {_axisVm.Underlying.EncoderCenterOffset:F2}");
 
-            // Account for reversed motor setting - if motor is reversed, we need to invert the direction
-            double motorDirectionMultiplier = _axisVm.Underlying.Settings.ReversedMotor ? -1.0 : 1.0;
-            log($"[{_name}] Motor direction multiplier: {motorDirectionMultiplier} (ReversedMotor: {_axisVm.Underlying.Settings.ReversedMotor})");
+            // Helper: read averaged ProSim value to reduce noise impact
+            async Task<double> ReadAveragedProSimAsync()
+            {
+                double sum = 0;
+                for (int i = 0; i < SAMPLES_PER_READ; i++)
+                {
+                    sum += getProSimValue();
+                    if (i < SAMPLES_PER_READ - 1)
+                        await Task.Delay(SAMPLE_INTERVAL_MS);
+                }
+                return sum / SAMPLES_PER_READ;
+            }
 
-            double? previousError = null;
-            int errorIncreasingCount = 0; // Track consecutive error increases
+            // Helper: average ProSim and encoder over 2 seconds
+            async Task<(double avgProSim, double avgEncoder)> AverageOverWindowAsync()
+            {
+                int sampleCount = AVERAGING_DURATION_MS / AVERAGING_SAMPLE_INTERVAL_MS;
+                double proSimSum = 0;
+                double encoderSum = 0;
+
+                for (int s = 0; s < sampleCount; s++)
+                {
+                    proSimSum += getProSimValue();
+                    encoderSum += _axisVm.EncoderPosition;
+                    await Task.Delay(AVERAGING_SAMPLE_INTERVAL_MS);
+                }
+
+                return (proSimSum / sampleCount, encoderSum / sampleCount);
+            }
+
+            // Signed gain: encoder units to move per ProSim unit of desired change.
+            var settings = _axisVm.Underlying.Settings;
+            double totalEncoderRange = Math.Abs(settings.FullRightPosition) + Math.Abs(settings.FullLeftPosition);
+            double gain = totalEncoderRange / 1024.0; // magnitude only — sign unknown
+            bool gainSignKnown = false;
+
+            log($"[{_name}] Initial gain magnitude: {gain:F2} enc/ProSim (sign TBD)");
 
             try
             {
+                // Read initial state
+                double currentProSim = await ReadAveragedProSimAsync();
+
                 for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++)
                 {
-                    // Get current ProSim axis value
-                    double currentProSimValue = getProSimValue();
+                    double error = currentProSim - TARGET_CENTER;
+                    double errorMag = Math.Abs(error);
+                    double currentEncoder = _axisVm.EncoderPosition;
 
-                    // Calculate error from center
-                    double error = currentProSimValue - TARGET_CENTER;
-                    double errorMagnitude = Math.Abs(error);
+                    log($"[{_name}] Iter {iteration + 1}: ProSim={currentProSim:F1}, Error={error:F1}, Enc={currentEncoder:F0}");
 
-                    log($"[{_name}] Iteration {iteration + 1}: ProSim={currentProSimValue:F1}, Error={error:F1}");
-
-                    // Check if we're within tolerance
-                    if (errorMagnitude <= TOLERANCE)
+                    // Within coarse tolerance → enter fine-centering phase
+                    if (errorMag <= COARSE_TOLERANCE)
                     {
-                        log($"[{_name}] Centered successfully at {currentProSimValue:F1}");
+                        log($"[{_name}] Within coarse tolerance ({COARSE_TOLERANCE}), entering fine-centering phase...");
 
-                        // Set the encoder center offset so that relativePos = rawEncoder - offset = 0 at center
-                        double centeredEncoderPos = _axisVm.EncoderPosition;
-                        _axisVm.Underlying.EncoderCenterOffset = centeredEncoderPos;
+                        for (int fineIter = 0; fineIter < MAX_FINE_ADJUSTMENTS; fineIter++)
+                        {
+                            // Stop motor and let it settle
+                            _axisMovement.Stop();
+                            await Task.Delay(300);
 
-                        log($"[{_name}] Encoder center offset set to {centeredEncoderPos:F2} (raw encoder at center)");
+                            // Average ProSim and encoder over 2 seconds
+                            var (avgProSim, avgEncoder) = await AverageOverWindowAsync();
+                            double avgError = avgProSim - TARGET_CENTER;
 
+                            log($"[{_name}] Fine iter {fineIter + 1}: Avg ProSim={avgProSim:F1}, Avg Error={avgError:F1}, Avg Enc={avgEncoder:F2}");
+
+                            // Check if averaged position is within fine tolerance
+                            if (Math.Abs(avgError) <= FINE_TOLERANCE)
+                            {
+                                _axisVm.Underlying.EncoderCenterOffset = avgEncoder;
+                                log($"[{_name}] Centered successfully (±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
+                                return;
+                            }
+
+                            // Averaged error still too large — make a small correction
+                            // Use calibrated gain; if gain isn't calibrated yet, use magnitude with sign guess
+                            double correction = gain * (-avgError);
+                            int correctionUnits = (int)Math.Round(correction * 0.5); // Conservative 50% of estimated
+                            if (Math.Abs(correctionUnits) < 5)
+                                correctionUnits = correctionUnits >= 0 ? 5 : -5;
+                            correctionUnits = Math.Max(-200, Math.Min(200, correctionUnits));
+
+                            log($"[{_name}] Fine correction: {correctionUnits} encoder units (avg error={avgError:F1})");
+
+                            double preCorrEncoder = _axisVm.EncoderPosition;
+                            _axisMovement.MoveByUnits(correctionUnits);
+                            await Task.Delay(SETTLE_MS);
+
+                            // Update gain from the correction move if possible
+                            double postCorrProSim = await ReadAveragedProSimAsync();
+                            double postCorrEncoder = _axisVm.EncoderPosition;
+                            double corrEncDelta = postCorrEncoder - preCorrEncoder;
+                            double corrProSimDelta = postCorrProSim - avgProSim;
+
+                            if (Math.Abs(corrProSimDelta) > 1.0 && Math.Abs(corrEncDelta) > 3.0)
+                            {
+                                gain = corrEncDelta / corrProSimDelta;
+                                gainSignKnown = true;
+                            }
+                        }
+
+                        // Max fine adjustments exhausted — accept last average
+                        log($"[{_name}] Fine-centering: max adjustments reached, accepting current position");
+                        _axisMovement.Stop();
+                        await Task.Delay(300);
+                        var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
+                        _axisVm.Underlying.EncoderCenterOffset = finalEncoder;
+                        log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
                         return;
                     }
 
-                    // Detect if we're moving away from center (error is increasing)
-                    if (previousError.HasValue && iteration > 0)
+                    // --- Coarse approach phase (unchanged) ---
+
+                    double desiredProSimChange = -error;
+
+                    int moveUnits;
+
+                    if (!gainSignKnown)
                     {
-                        double previousErrorMagnitude = Math.Abs(previousError.Value);
+                        moveUnits = PROBE_UNITS;
+                        log($"[{_name}] Probe move: {moveUnits} encoder units (gain sign unknown)");
+                    }
+                    else
+                    {
+                        double estimatedMove = gain * desiredProSimChange;
 
-                        // If error magnitude increased, we're moving in the wrong direction
-                        if (errorMagnitude > previousErrorMagnitude + 3.0) // +3 threshold to account for noise
-                        {
-                            errorIncreasingCount++;
-                            log($"[{_name}] ERROR INCREASING! Count: {errorIncreasingCount}, Error: {errorMagnitude:F1} (was {previousErrorMagnitude:F1})");
+                        double fraction;
+                        if (errorMag > 200) fraction = 0.5;
+                        else if (errorMag > 100) fraction = 0.4;
+                        else if (errorMag > 50) fraction = 0.35;
+                        else fraction = 0.3;
 
-                            // If error keeps increasing for 2 consecutive iterations, reverse the motor direction assumption
-                            if (errorIncreasingCount >= 2)
-                            {
-                                motorDirectionMultiplier *= -1.0;
-                                errorIncreasingCount = 0; // Reset counter
-                                log($"[{_name}] Direction reversed! New multiplier: {motorDirectionMultiplier}");
-                            }
-                        }
-                        else
-                        {
-                            // Error is decreasing (good), reset counter
-                            errorIncreasingCount = 0;
-                        }
+                        moveUnits = (int)Math.Round(estimatedMove * fraction);
+
+                        if (Math.Abs(moveUnits) < MIN_MOVE_UNITS)
+                            moveUnits = moveUnits >= 0 ? MIN_MOVE_UNITS : -MIN_MOVE_UNITS;
+                        moveUnits = Math.Max(-MAX_MOVE_UNITS, Math.Min(MAX_MOVE_UNITS, moveUnits));
                     }
 
-                    // Calculate movement speed based on error magnitude
-                    // Larger error = faster movement, smaller error = slower movement
-                    double speedPercent;
+                    double preMoveEncoder = _axisVm.EncoderPosition;
+                    double preMoveProSim = currentProSim;
 
-                    if (errorMagnitude > 200)
-                        speedPercent = 30.0; // Fast movement for large errors
-                    else if (errorMagnitude > 100)
-                        speedPercent = 20.0; // Medium speed
-                    else if (errorMagnitude > 50)
-                        speedPercent = 10.0; // Slow speed
-                    else if (errorMagnitude > 20)
-                        speedPercent = 5.0; // Very slow
-                    else
-                        speedPercent = 2.0; // Crawl speed near center
+                    log($"[{_name}] Moving {moveUnits} encoder units");
+                    _axisMovement.MoveByUnits(moveUnits);
+                    await Task.Delay(SETTLE_MS);
 
-                    // Determine direction: if error is positive, we're right of center (need to move left)
-                    // if error is negative, we're left of center (need to move right)
-                    // Apply motor direction multiplier to account for ReversedMotor setting
-                    double desiredDirection = (error > 0 ? -1.0 : 1.0);
-                    double movePercent = desiredDirection * motorDirectionMultiplier * speedPercent;
+                    currentProSim = await ReadAveragedProSimAsync();
+                    double postMoveEncoder = _axisVm.EncoderPosition;
 
-                    log($"[{_name}] Moving {movePercent:F1}% (speed={speedPercent:F1}%)");
+                    double actualEncoderDelta = postMoveEncoder - preMoveEncoder;
+                    double actualProSimDelta = currentProSim - preMoveProSim;
 
-                    // Get current encoder position and calculate relative position using current offset
-                    double currentEncoderPos = _axisVm.EncoderPosition;
-                    double relativePos = currentEncoderPos - _axisVm.Underlying.EncoderCenterOffset;
-                    double currentPercentFromCenter = (relativePos / Math.Max(1, _axisVm.Underlying.Settings.FullRightPosition)) * 100.0;
+                    log($"[{_name}] Result: ΔEnc={actualEncoderDelta:F0}, ΔProSim={actualProSimDelta:F1}");
 
-                    // Calculate target percent
-                    double targetPercent = currentPercentFromCenter + movePercent;
-                    targetPercent = Math.Max(-100, Math.Min(100, targetPercent)); // Clamp to valid range
-
-                    // Move the axis
-                    _axisMovement.GoToPosition(targetPercent);
-
-                    // Store current error for next iteration
-                    previousError = error;
-
-                    // Wait for movement to complete
-                    await Task.Delay(DELAY_MS);
-
-                    // Give encoder time to update
-                    await Task.Delay(DELAY_MS);
+                    if (Math.Abs(actualProSimDelta) > 2.0 && Math.Abs(actualEncoderDelta) > 5.0)
+                    {
+                        gain = actualEncoderDelta / actualProSimDelta;
+                        gainSignKnown = true;
+                        log($"[{_name}] Gain updated: {gain:F2} enc/ProSim");
+                    }
+                    else if (!gainSignKnown && Math.Abs(actualProSimDelta) > 0.5)
+                    {
+                        if (actualProSimDelta < 0)
+                            gain = -Math.Abs(gain);
+                        gainSignKnown = true;
+                        log($"[{_name}] Gain sign determined: {gain:F2} enc/ProSim");
+                    }
+                    else if (!gainSignKnown)
+                    {
+                        gain = -Math.Abs(gain);
+                        log($"[{_name}] Probe inconclusive, flipping sign: {gain:F2}");
+                    }
                 }
 
                 log($"[{_name}] WARNING: Max iterations reached. Final position: {getProSimValue():F1}");
