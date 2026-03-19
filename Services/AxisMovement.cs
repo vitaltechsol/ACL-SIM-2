@@ -39,6 +39,11 @@ namespace ACL_SIM_2.Services
         private const int SERVO_TRIGGER_SETUP_MS = 2;   // Reduced from 5ms to 2ms
         private const int SERVO_STOP_PULSE_MS = 10;     // Reduced from 20ms to 10ms
         private const int MIN_TRIGGER_PULSE_MS = 10;
+        /// <summary>
+        /// Minimum encoder-position error required before issuing or updating a position command.
+        /// Prevents tiny corrections from retriggering the servo during tracking.
+        /// </summary>
+        private const double POSITION_TOLERANCE_UNITS = 10.0;
 
         // AASD Servo Pn parameters
         private const int Pn002 = 2;   // Control mode
@@ -102,28 +107,45 @@ namespace ACL_SIM_2.Services
         /// </param>
         public void GoToPosition(double targetPercent, int? rpmOverride = null)
         {
-            // Clamp input to valid range
+            CommandPosition(targetPercent, rpmOverride, applyFiltering: false, stopActiveMove: true);
+        }
+
+        /// <summary>
+        /// Tracks a continuously changing target more smoothly by filtering updates and
+        /// avoiding a stop/restart cycle for every new command.
+        /// </summary>
+        /// <param name="targetPercent">Target position as percentage (-100 to +100).</param>
+        /// <param name="rpmOverride">
+        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
+        /// When null, the configured MotorSpeedRpm is used.
+        /// </param>
+        public void TrackTargetPosition(double targetPercent, int? rpmOverride = null)
+        {
+            CommandPosition(targetPercent, rpmOverride, applyFiltering: true, stopActiveMove: false);
+        }
+
+        private void CommandPosition(double targetPercent, int? rpmOverride, bool applyFiltering, bool stopActiveMove)
+        {
             targetPercent = Math.Max(-100.0, Math.Min(100.0, targetPercent));
+            var now = DateTime.UtcNow;
 
             if (_modbusClient == null || !_modbusClient.Connected)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition: ModbusClient unavailable");
+                Debug.WriteLine($"[{_axis.Name}] GoToPosition: ModbusClient unavailable");
                 return;
             }
 
-            // Validate settings
             if (!ValidateMotorSettings())
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: Motor settings validation failed!");
+                Debug.WriteLine($"[{_axis.Name}] ERROR: Motor settings validation failed!");
                 return;
             }
 
-            // Initialize servo on first use
             lock (_servoLock)
             {
                 if (!_servoInitialized)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Initializing servo for first use...");
+                    Debug.WriteLine($"[{_axis.Name}] Initializing servo for first use...");
                     try
                     {
                         InitServo();
@@ -131,52 +153,80 @@ namespace ACL_SIM_2.Services
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Servo initialization failed: {ex.Message}");
+                        Debug.WriteLine($"[{_axis.Name}] Servo initialization failed: {ex.Message}");
                         return;
                     }
                 }
             }
 
-            // Convert percentage to absolute encoder position
             var targetEncoderPosition = PercentToEncoderPosition(targetPercent);
 
-            // Apply safety limits: absolute positions shifted by encoder offset
             var minEncoderPosition = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
             var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
             targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
 
-            // Calculate distance to target (always in absolute encoder frame)
             var currentEncoderPos = _axis.EncoderPosition;
-            var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
 
-            // Check if already at target — return WITHOUT stopping the servo so
-            // any in-progress movement toward this position can continue undisturbed
-            var toleranceUnits = 10.0;
-            if (Math.Abs(deltaEncoderUnits) < toleranceUnits)
+            lock (_targetLock)
+            {
+                _currentTarget = targetPercent;
+
+                if (applyFiltering)
+                {
+                    if (_lastMotorCommand == DateTime.MinValue)
+                    {
+                        _filteredTarget = currentEncoderPos;
+                        _lastCommandedPosition = currentEncoderPos;
+                    }
+
+                    _filteredTarget = ApplyTargetFilter(_filteredTarget, targetEncoderPosition);
+                    targetEncoderPosition = _filteredTarget;
+
+                    if (Math.Abs(targetEncoderPosition - _lastCommandedPosition) < POSITION_TOLERANCE_UNITS)
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    _filteredTarget = targetEncoderPosition;
+                }
+            }
+
+            var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
+            if (Math.Abs(deltaEncoderUnits) < POSITION_TOLERANCE_UNITS)
             {
                 return;
             }
 
-            // We have a meaningful move — cancel any previous movement first
-            if (_controlLoopCts != null)
+            var minMotorCommandIntervalMs = Math.Max(0, _axis.Settings.MinMotorCommandIntervalMs);
+            if (applyFiltering &&
+                minMotorCommandIntervalMs > 0 &&
+                _lastMotorCommand != DateTime.MinValue &&
+                (now - _lastMotorCommand).TotalMilliseconds < minMotorCommandIntervalMs)
             {
-                _controlLoopCts.Cancel();
-                try
-                {
-                    ServoStop();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
-                }
-                _controlLoopCts.Dispose();
+                return;
             }
-            _controlLoopCts = new CancellationTokenSource();
 
-            // Convert to motor pulses (1:1 relationship between encoder units and motor pulses)
+            if (stopActiveMove)
+            {
+                if (_controlLoopCts != null)
+                {
+                    _controlLoopCts.Cancel();
+                    try
+                    {
+                        ServoStop();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
+                    }
+                    _controlLoopCts.Dispose();
+                }
+                _controlLoopCts = new CancellationTokenSource();
+            }
+
             var pulses = (int)Math.Round(deltaEncoderUnits);
-
-            // Reverse motor direction if configured
             if (_axis.Settings.ReversedMotor)
             {
                 pulses = -pulses;
@@ -187,24 +237,42 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // Get motor parameters
             var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
             var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
             var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
             var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
+            var commandType = applyFiltering ? "TrackTargetPosition" : "GoToPosition";
 
-            // Debug logging
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {rpm} RPM");
+            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {rpm} RPM");
 
-            // Send command to servo
             try
             {
                 ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
+
+                lock (_targetLock)
+                {
+                    _lastCommandedPosition = targetEncoderPosition;
+                    _lastMotorCommand = now;
+                    _currentOutput = EncoderPositionToPercent(currentEncoderPos);
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement error: {ex.Message}");
+                Debug.WriteLine($"[{_axis.Name}] Movement error: {ex.Message}");
             }
+        }
+
+        public void ReapplyCurrentTarget(bool applyFiltering)
+        {
+            double targetPercent;
+
+            lock (_targetLock)
+            {
+                targetPercent = _currentTarget;
+                _lastMotorCommand = DateTime.MinValue;
+            }
+
+            CommandPosition(targetPercent, rpmOverride: null, applyFiltering: applyFiltering, stopActiveMove: true);
         }
 
         /// <summary>

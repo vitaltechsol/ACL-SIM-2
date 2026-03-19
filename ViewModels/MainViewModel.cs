@@ -220,7 +220,7 @@ namespace ACL_SIM_2.ViewModels
                 _proSimManager.OnRudderCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RudderProSimAxis = e.Value);
                 _proSimManager.OnTillerCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => TillerProSimAxis = e.Value);
                 _proSimManager.OnElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchFlightControl = e.Value * 100);
-                _proSimManager.OnAileronLeftChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value * 100);
+                _proSimManager.OnAileronRightChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value * 100);
 
                 // Auto-connect if enabled in settings
                 if (globalSettings?.AutoConnectProsim == true)

@@ -24,7 +24,11 @@ namespace ACL_SIM_2.Services
         /// <summary>
         /// Interval between autopilot tracking loop iterations (ms).
         /// </summary>
-        private const int AUTOPILOT_LOOP_INTERVAL_MS = 100;
+        /// <summary>
+        /// Delay between autopilot tracking loop iterations.
+        /// Lower values increase responsiveness; higher values reduce command churn and can smooth motion.
+        /// </summary>
+        private const int AUTOPILOT_LOOP_INTERVAL_MS = 250; //100
         private CancellationTokenSource? _autopilotLoopCts;
         private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
 
@@ -178,6 +182,7 @@ namespace ACL_SIM_2.Services
         private void StartAutopilotTrackingLoop()
         {
             StopAutopilotTrackingLoop();
+            _axisMovement.Reset();
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
 
@@ -191,7 +196,7 @@ namespace ACL_SIM_2.Services
                         var target = LatestAutopilotTarget;
                         if (!double.IsNaN(target))
                         {
-                            _axisMovement.GoToPosition(target);
+                            _axisMovement.TrackTargetPosition(target);
                         }
                         await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
                     }
@@ -396,6 +401,25 @@ namespace ACL_SIM_2.Services
             _axisMovement.GoToPosition(targetPercent, rpmOverride);
         }
 
+        public void ApplyMotionTuningPreview()
+        {
+            if (_isDisposed) return;
+
+            try
+            {
+                if (_axisVm.Underlying.MotorIsMoving)
+                {
+                    _axisMovement.ReapplyCurrentTarget(applyFiltering: _axisVm.Underlying.AutopilotOn);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_name}] Motion tuning preview failed: {ex.Message}");
+            }
+
+            _ = UpdateTorqueAsync();
+        }
+
         /// <summary>
         /// Gets the axis movement controller for direct access to advanced features.
         /// </summary>
@@ -506,6 +530,10 @@ namespace ACL_SIM_2.Services
             bool gainSignKnown = false;
             int probeDirection = 1;
             int noMotionCount = 0;
+            /// <summary>
+            /// Minimum observed encoder movement required to treat a commanded centering move as real motion.
+            /// Smaller changes are considered noise or insufficient movement.
+            /// </summary>
             const double MIN_VALID_ENCODER_DELTA = 5.0;
 
             log($"[{_name}] Initial gain magnitude: {gain:F2} enc/ProSim (sign TBD)");

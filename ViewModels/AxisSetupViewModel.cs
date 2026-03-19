@@ -27,6 +27,7 @@ namespace ACL_SIM_2.ViewModels
         private bool _showToast;
         private CancellationTokenSource? _toastCts;
         private bool _calibrationPerformed;
+        private AxisSettings _savedSettingsSnapshot = new AxisSettings();
 
         public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null)
         {
@@ -103,6 +104,7 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.MovingTorquePercentage == value) return;
                 Settings.MovingTorquePercentage = value;
                 OnPropertyChanged(nameof(MovingTorquePercentage));
+                ApplyMotionTuningPreview();
             }
         }
 
@@ -114,8 +116,94 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.MotorSpeedRpm == value) return;
                 Settings.MotorSpeedRpm = value;
                 OnPropertyChanged(nameof(MotorSpeedRpm));
+                ApplyMotionTuningPreview();
             }
         }
+
+        public double MotionSmoothingPercent
+        {
+            get => (1.0 - Settings.TargetFilterAlpha) * 100.0;
+            set
+            {
+                var clamped = Math.Max(0.0, Math.Min(100.0, value));
+                var alpha = 1.0 - (clamped / 100.0);
+                if (Math.Abs(Settings.TargetFilterAlpha - alpha) < 0.0001) return;
+
+                Settings.TargetFilterAlpha = alpha;
+                OnPropertyChanged(nameof(MotionSmoothingPercent));
+                ApplyMotionTuningPreview();
+            }
+        }
+
+        public int MinMotorCommandIntervalMs
+        {
+            get => Settings.MinMotorCommandIntervalMs;
+            set
+            {
+                var clamped = Math.Max(0, Math.Min(1000, value));
+                if (Settings.MinMotorCommandIntervalMs == clamped) return;
+
+                Settings.MinMotorCommandIntervalMs = clamped;
+                OnPropertyChanged(nameof(MinMotorCommandIntervalMs));
+                ApplyMotionTuningPreview();
+            }
+        }
+
+        public int MotorAccelMode
+        {
+            get => Settings.MotorAccelMode;
+            set
+            {
+                var clamped = Math.Max(0, Math.Min(2, value));
+                if (Settings.MotorAccelMode == clamped) return;
+
+                Settings.MotorAccelMode = clamped;
+                OnPropertyChanged(nameof(AccelerationProfileIndex));
+                OnPropertyChanged(nameof(MotorAccelMode));
+                OnPropertyChanged(nameof(IsLinearAccelerationMode));
+                OnPropertyChanged(nameof(IsSCurveAccelerationMode));
+                ApplyMotionTuningPreview();
+            }
+        }
+
+        public int AccelerationProfileIndex
+        {
+            get => MotorAccelMode == (int)AccelMode.SCurve ? 1 : 0;
+            set => MotorAccelMode = value == 1 ? (int)AccelMode.SCurve : (int)AccelMode.Linear;
+        }
+
+        public int MotorAccelParam1Ms
+        {
+            get => Settings.MotorAccelParam1Ms;
+            set
+            {
+                var max = MotorAccelMode == (int)AccelMode.SCurve ? 340 : 500;
+                var clamped = Math.Max(5, Math.Min(max, value));
+                if (Settings.MotorAccelParam1Ms == clamped) return;
+
+                Settings.MotorAccelParam1Ms = clamped;
+                OnPropertyChanged(nameof(MotorAccelParam1Ms));
+                ApplyMotionTuningPreview();
+            }
+        }
+
+        public int MotorAccelParam2Ms
+        {
+            get => Settings.MotorAccelParam2Ms;
+            set
+            {
+                var clamped = Math.Max(5, Math.Min(150, value));
+                if (Settings.MotorAccelParam2Ms == clamped) return;
+
+                Settings.MotorAccelParam2Ms = clamped;
+                OnPropertyChanged(nameof(MotorAccelParam2Ms));
+                ApplyMotionTuningPreview();
+            }
+        }
+
+        public bool IsLinearAccelerationMode => MotorAccelMode == (int)AccelMode.Linear;
+
+        public bool IsSCurveAccelerationMode => MotorAccelMode == (int)AccelMode.SCurve;
 
         public double SelfCenteringSpeed
         {
@@ -376,6 +464,15 @@ namespace ACL_SIM_2.ViewModels
                 Settings.Dampening = loaded.Dampening;
                 Settings.HydraulicOffTorquePercent = loaded.HydraulicOffTorquePercent;
                 Settings.AutopilotOverridePercent = loaded.AutopilotOverridePercent;
+                Settings.OutputIntervalMs = loaded.OutputIntervalMs;
+                Settings.SpeedRateLimitPercent = loaded.SpeedRateLimitPercent;
+                Settings.InputIntervalMs = loaded.InputIntervalMs;
+                Settings.TargetFilterAlpha = loaded.TargetFilterAlpha;
+                Settings.MinMotorCommandIntervalMs = loaded.MinMotorCommandIntervalMs;
+                Settings.MotorSpeedRpm = loaded.MotorSpeedRpm;
+                Settings.MotorAccelMode = loaded.MotorAccelMode;
+                Settings.MotorAccelParam1Ms = loaded.MotorAccelParam1Ms;
+                Settings.MotorAccelParam2Ms = loaded.MotorAccelParam2Ms;
                 Settings.Enabled = loaded.Enabled;
                 Settings.RS485Ip = loaded.RS485Ip;
                 Settings.DriverId = loaded.DriverId;
@@ -384,11 +481,14 @@ namespace ACL_SIM_2.ViewModels
 
                 OnPropertyChanged(string.Empty);
             }
+
+            _savedSettingsSnapshot = Settings.Clone();
         }
 
         private void Save()
         {
             SettingsService.SaveAxisSettings(AxisName, Settings);
+            _savedSettingsSnapshot = Settings.Clone();
 
             // Check if connection-related settings changed
             var connectionSettingsChanged = Settings.RS485Ip != _originalRS485Ip || Settings.DriverId != _originalDriverId;
@@ -542,6 +642,27 @@ namespace ACL_SIM_2.ViewModels
             OnPropertyChanged(nameof(EncoderPosition));
         }
 
+        private void ApplyMotionTuningPreview()
+        {
+            _axisManager?.ApplyMotionTuningPreview();
+        }
+
+        private void RestoreSavedSettingsSnapshot()
+        {
+            Settings.CopyFrom(_savedSettingsSnapshot);
+
+            OnPropertyChanged(string.Empty);
+            OnPropertyChanged(nameof(IsLinearAccelerationMode));
+            OnPropertyChanged(nameof(IsSCurveAccelerationMode));
+
+            _axisVm.Underlying.RecalculateTorqueTarget();
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+
+            ApplyMotionTuningPreview();
+        }
+
         private async void StartAutomaticVerification()
         {
             // Cancel any existing verification
@@ -614,52 +735,59 @@ namespace ACL_SIM_2.ViewModels
 
         public async Task CleanupAndCenterAsync()
         {
-            // Stop any active test functions
-            if (IsPositionTestEnabled)
+            try
             {
-                IsPositionTestEnabled = false;
-            }
-
-            if (IsHydraulicTestEnabled)
-            {
-                IsHydraulicTestEnabled = false;
-            }
-
-            // Turn off calibration mode
-            if (IsCalibrationMode)
-            {
-                IsCalibrationMode = false;
-            }
-
-            // Only re-center if calibration was performed during this session
-            if (_calibrationPerformed && _axisManager != null)
-            {
-                try
+                // Stop any active test functions
+                if (IsPositionTestEnabled)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering axis after settings window close...");
-
-                    // Enable AutopilotOn to use Movement Torque during centering
-                    _axisVm.Underlying.AutopilotOn = true;
-                    _axisVm.Underlying.RecalculateTorqueTarget();
-                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
-
-                    await _axisManager.CenterToProSimPositionAsync(
-                        getProSimValue: _getProSimValue,
-                        log: message => System.Diagnostics.Debug.WriteLine($"[{AxisName}] {message}")
-                    );
-
-                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering complete");
+                    IsPositionTestEnabled = false;
                 }
-                catch (Exception ex)
+
+                if (IsHydraulicTestEnabled)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering failed: {ex.Message}");
+                    IsHydraulicTestEnabled = false;
                 }
-                finally
+
+                // Turn off calibration mode
+                if (IsCalibrationMode)
                 {
-                    _axisVm.Underlying.AutopilotOn = false;
-                    _axisVm.Underlying.RecalculateTorqueTarget();
-                    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+                    IsCalibrationMode = false;
                 }
+
+                // Only re-center if calibration was performed during this session
+                if (_calibrationPerformed && _axisManager != null)
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering axis after settings window close...");
+
+                        // Enable AutopilotOn to use Movement Torque during centering
+                        _axisVm.Underlying.AutopilotOn = true;
+                        _axisVm.Underlying.RecalculateTorqueTarget();
+                        _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+
+                        await _axisManager.CenterToProSimPositionAsync(
+                            getProSimValue: _getProSimValue,
+                            log: message => System.Diagnostics.Debug.WriteLine($"[{AxisName}] {message}")
+                        );
+
+                        System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering complete");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering failed: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _axisVm.Underlying.AutopilotOn = false;
+                        _axisVm.Underlying.RecalculateTorqueTarget();
+                        _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+                    }
+                }
+            }
+            finally
+            {
+                RestoreSavedSettingsSnapshot();
             }
         }
     }

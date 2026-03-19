@@ -124,6 +124,44 @@ namespace ACL_SIM_2.Models
             var clamped = Math.Max(0, Math.Min(TorqueDisplayMax, display));
             return (clamped / TorqueDisplayMax) * TorqueActualMax;
         }
+
+        public AxisSettings Clone()
+        {
+            return new AxisSettings().CopyFrom(this);
+        }
+
+        public AxisSettings CopyFrom(AxisSettings other)
+        {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+
+            CenterPosition = other.CenterPosition;
+            FullLeftPosition = other.FullLeftPosition;
+            FullRightPosition = other.FullRightPosition;
+            MinTorquePercent = other.MinTorquePercent;
+            MaxTorquePercent = other.MaxTorquePercent;
+            ReversedMotor = other.ReversedMotor;
+            MovingTorquePercentage = other.MovingTorquePercentage;
+            SelfCenteringSpeed = other.SelfCenteringSpeed;
+            Dampening = other.Dampening;
+            HydraulicOffTorquePercent = other.HydraulicOffTorquePercent;
+            AutopilotOverridePercent = other.AutopilotOverridePercent;
+            OutputIntervalMs = other.OutputIntervalMs;
+            SpeedRateLimitPercent = other.SpeedRateLimitPercent;
+            InputIntervalMs = other.InputIntervalMs;
+            TargetFilterAlpha = other.TargetFilterAlpha;
+            MinMotorCommandIntervalMs = other.MinMotorCommandIntervalMs;
+            MotorSpeedRpm = other.MotorSpeedRpm;
+            MotorAccelMode = other.MotorAccelMode;
+            MotorAccelParam1Ms = other.MotorAccelParam1Ms;
+            MotorAccelParam2Ms = other.MotorAccelParam2Ms;
+            Enabled = other.Enabled;
+            RS485Ip = other.RS485Ip;
+            DriverId = other.DriverId;
+            AirspeedAdditionalTorquePercent = other.AirspeedAdditionalTorquePercent;
+            StallAdditionalTorquePercent = other.StallAdditionalTorquePercent;
+
+            return this;
+        }
     }
 
     // Dynamic axis state and basic calculations.
