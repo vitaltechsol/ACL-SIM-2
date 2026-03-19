@@ -96,22 +96,18 @@ namespace ACL_SIM_2.Services
         /// 0 = Center position (CenterPosition)
         /// +100 = Full right position (FullRightPosition)
         /// </param>
-        public void GoToPosition(double targetPercent)
+        /// <param name="rpmOverride">
+        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
+        /// When null, the configured MotorSpeedRpm is used.
+        /// </param>
+        public void GoToPosition(double targetPercent, int? rpmOverride = null)
         {
             // Clamp input to valid range
             targetPercent = Math.Max(-100.0, Math.Min(100.0, targetPercent));
 
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition called: {targetPercent:F1}%");
-
-            if (_modbusClient == null)
+            if (_modbusClient == null || !_modbusClient.Connected)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: ModbusClient is null! Cannot move motor.");
-                return;
-            }
-
-            if (!_modbusClient.Connected)
-            {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: ModbusClient is not connected! Cannot move motor.");
+                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition: ModbusClient unavailable");
                 return;
             }
 
@@ -121,25 +117,6 @@ namespace ACL_SIM_2.Services
                 System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] ERROR: Motor settings validation failed!");
                 return;
             }
-
-            // Cancel any existing movement (stops servo)
-            if (_controlLoopCts != null)
-            {
-                _controlLoopCts.Cancel();
-                try
-                {
-                    ServoStop();
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Previous movement cancelled");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
-                }
-                _controlLoopCts.Dispose();
-            }
-
-            // Create new cancellation token for this movement
-            _controlLoopCts = new CancellationTokenSource();
 
             // Initialize servo on first use
             lock (_servoLock)
@@ -168,19 +145,33 @@ namespace ACL_SIM_2.Services
             var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
             targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
 
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Target encoder: {targetEncoderPosition:F0}, Range: [{minEncoderPosition:F0}, {maxEncoderPosition:F0}]");
-
             // Calculate distance to target (always in absolute encoder frame)
             var currentEncoderPos = _axis.EncoderPosition;
             var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
 
-            // Check if already at target (within tolerance)
+            // Check if already at target — return WITHOUT stopping the servo so
+            // any in-progress movement toward this position can continue undisturbed
             var toleranceUnits = 10.0;
             if (Math.Abs(deltaEncoderUnits) < toleranceUnits)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Already at target: {targetPercent:F1}%");
                 return;
             }
+
+            // We have a meaningful move — cancel any previous movement first
+            if (_controlLoopCts != null)
+            {
+                _controlLoopCts.Cancel();
+                try
+                {
+                    ServoStop();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
+                }
+                _controlLoopCts.Dispose();
+            }
+            _controlLoopCts = new CancellationTokenSource();
 
             // Convert to motor pulses (1:1 relationship between encoder units and motor pulses)
             var pulses = (int)Math.Round(deltaEncoderUnits);
@@ -193,46 +184,22 @@ namespace ACL_SIM_2.Services
 
             if (Math.Abs(pulses) < 1)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement too small, skipping");
                 return;
             }
 
             // Get motor parameters
-            var rpm = _axis.Settings.MotorSpeedRpm;
+            var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
             var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
             var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
             var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
 
             // Debug logging
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving to {targetPercent:F1}% → TargetEnc: {targetEncoderPosition:F0}, CurrentEnc: {currentEncoderPos:F0}, Distance: {deltaEncoderUnits:F0} units ({pulses} pulses) @ {rpm} RPM");
+            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {rpm} RPM");
 
-            // Send command to servo - let servo's internal controller handle the movement
+            // Send command to servo
             try
             {
                 ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Command sent successfully");
-
-                // Log final position after movement should be complete
-                // Estimate time based on distance and speed: time = (pulses / pulsesPerRevolution) / (rpm / 60)
-                // Assuming ~10000 pulses per revolution (typical for servo)
-                var estimatedSeconds = Math.Abs(pulses) / 10000.0 / (rpm / 60.0) + 2.0; // +2s safety margin
-                var maxWaitSeconds = Math.Min(Math.Max(estimatedSeconds, 3.0), 15.0); // Between 3-15 seconds
-
-                var token = _controlLoopCts.Token;
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(maxWaitSeconds), token);
-                        var finalEncoderPos = _axis.EncoderPosition;
-                        var finalError = Math.Abs(targetEncoderPosition - finalEncoderPos);
-                        System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Movement complete after {maxWaitSeconds:F1}s → FinalEnc: {finalEncoderPos:F0}, TargetEnc: {targetEncoderPosition:F0}, Error: {finalError:F0} units");
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Movement was cancelled by new target
-                    }
-                }, token);
             }
             catch (Exception ex)
             {

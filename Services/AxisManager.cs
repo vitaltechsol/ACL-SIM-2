@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using ACL_SIM_2.ViewModels;
 using EasyModbus;
@@ -18,6 +20,19 @@ namespace ACL_SIM_2.Services
         private readonly ProSimManager? _proSimManager;
         private readonly string _name;
         private bool _isDisposed;
+
+        /// <summary>
+        /// Interval between autopilot tracking loop iterations (ms).
+        /// </summary>
+        private const int AUTOPILOT_LOOP_INTERVAL_MS = 100;
+        private CancellationTokenSource? _autopilotLoopCts;
+        private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
+
+        private double LatestAutopilotTarget
+        {
+            get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _latestAutopilotTargetBits));
+            set => Interlocked.Exchange(ref _latestAutopilotTargetBits, BitConverter.DoubleToInt64Bits(value));
+        }
 
         public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null, object? modbusLock = null, ProSimManager? proSimManager = null)
         {
@@ -61,10 +76,12 @@ namespace ACL_SIM_2.Services
                 if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
                 {
                     _proSimManager.OnPitchCmdChanged += ProSimManager_OnAutopilotChanged;
+                    _proSimManager.OnElevatorChanged += ProSimManager_OnFlightControlChanged;
                 }
                 else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
                 {
                     _proSimManager.OnRollCmdChanged += ProSimManager_OnAutopilotChanged;
+                    _proSimManager.OnAileronLeftChanged += ProSimManager_OnFlightControlChanged;
                 }
             }
         }
@@ -115,14 +132,20 @@ namespace ACL_SIM_2.Services
             {
                 _axisVm.Underlying.AutopilotOn = autopilotOn;
 
-                // TODO: When autopilot is ON, move the motor to a target position based on a ProSim value
+                // MotorIsMoving follows autopilot state; actual movement is driven by
+                // ProSimManager_OnFlightControlChanged (elevator / aileron events).
+                _axisVm.Underlying.MotorIsMoving = autopilotOn;
+
                 if (autopilotOn)
                 {
-                    _axisVm.Underlying.MotorIsMoving = true;
+                    StartAutopilotTrackingLoop();
                 }
                 else
                 {
-                    _axisVm.Underlying.MotorIsMoving = false;
+                    // Autopilot disengaged — stop tracking loop, revert to
+                    // encoder-based dynamic torque, and quickly return to center.
+                    StopAutopilotTrackingLoop();
+                    try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
                 }
 
                 // Notify the ViewModel to update UI bindings
@@ -134,6 +157,68 @@ namespace ACL_SIM_2.Services
 
                 _ = UpdateTorqueAsync();
             }
+        }
+
+        /// <summary>
+        /// Handles ProSim flight control value changes (elevator for Pitch, aileron for Roll).
+        /// Stores the latest target for the background tracking loop to pick up.
+        /// Raw ProSim flight-control values are approximately -1..+1; multiply by 100 to
+        /// obtain the -100..+100 percentage expected by <see cref="AxisMovement.GoToPosition"/>.
+        /// </summary>
+        private void ProSimManager_OnFlightControlChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            if (_isDisposed || !_axisVm.Underlying.AutopilotOn) return;
+            LatestAutopilotTarget = Math.Max(-100.0, Math.Min(100.0, e.Value * 100.0));
+        }
+
+        /// <summary>
+        /// Starts a background loop that continuously commands the servo to follow
+        /// the latest ProSim target while autopilot is engaged.
+        /// </summary>
+        private void StartAutopilotTrackingLoop()
+        {
+            StopAutopilotTrackingLoop();
+            _autopilotLoopCts = new CancellationTokenSource();
+            var token = _autopilotLoopCts.Token;
+
+            Task.Run(async () =>
+            {
+                Debug.WriteLine($"[{_name}] Autopilot tracking loop started");
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var target = LatestAutopilotTarget;
+                        if (!double.IsNaN(target))
+                        {
+                            _axisMovement.GoToPosition(target);
+                        }
+                        await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[{_name}] Autopilot tracking error: {ex.Message}");
+                        try { await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token); }
+                        catch (OperationCanceledException) { break; }
+                    }
+                }
+                Debug.WriteLine($"[{_name}] Autopilot tracking loop stopped");
+            }, token);
+        }
+
+        /// <summary>
+        /// Stops the autopilot tracking loop and clears the stored target.
+        /// </summary>
+        private void StopAutopilotTrackingLoop()
+        {
+            if (_autopilotLoopCts != null)
+            {
+                _autopilotLoopCts.Cancel();
+                _autopilotLoopCts.Dispose();
+                _autopilotLoopCts = null;
+            }
+            LatestAutopilotTarget = double.NaN;
         }
 
         /// <summary>
@@ -302,9 +387,13 @@ namespace ACL_SIM_2.Services
         /// 0 = Center position
         /// +100 = Full right position
         /// </param>
-        public void GoToPosition(double targetPercent)
+        /// <param name="rpmOverride">
+        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
+        /// When null, the configured MotorSpeedRpm is used.
+        /// </param>
+        public void GoToPosition(double targetPercent, int? rpmOverride = null)
         {
-            _axisMovement.GoToPosition(targetPercent);
+            _axisMovement.GoToPosition(targetPercent, rpmOverride);
         }
 
         /// <summary>
@@ -572,6 +661,8 @@ namespace ACL_SIM_2.Services
             }
             catch { }
 
+            try { StopAutopilotTrackingLoop(); } catch { }
+
             try
             {
                 if (_proSimManager != null)
@@ -581,10 +672,12 @@ namespace ACL_SIM_2.Services
                     if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
                     {
                         _proSimManager.OnPitchCmdChanged -= ProSimManager_OnAutopilotChanged;
+                        _proSimManager.OnElevatorChanged -= ProSimManager_OnFlightControlChanged;
                     }
                     else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
                     {
                         _proSimManager.OnRollCmdChanged -= ProSimManager_OnAutopilotChanged;
+                        _proSimManager.OnAileronLeftChanged -= ProSimManager_OnFlightControlChanged;
                     }
                 }
             }
