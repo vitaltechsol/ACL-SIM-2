@@ -504,6 +504,9 @@ namespace ACL_SIM_2.Services
             double totalEncoderRange = Math.Abs(settings.FullRightPosition) + Math.Abs(settings.FullLeftPosition);
             double gain = totalEncoderRange / 1024.0; // magnitude only — sign unknown
             bool gainSignKnown = false;
+            int probeDirection = 1;
+            int noMotionCount = 0;
+            const double MIN_VALID_ENCODER_DELTA = 5.0;
 
             log($"[{_name}] Initial gain magnitude: {gain:F2} enc/ProSim (sign TBD)");
 
@@ -591,7 +594,8 @@ namespace ACL_SIM_2.Services
 
                     if (!gainSignKnown)
                     {
-                        moveUnits = PROBE_UNITS;
+                        int probeMagnitude = Math.Min(MAX_MOVE_UNITS, PROBE_UNITS * Math.Max(1, noMotionCount + 1));
+                        moveUnits = probeDirection * probeMagnitude;
                         log($"[{_name}] Probe move: {moveUnits} encoder units (gain sign unknown)");
                     }
                     else
@@ -626,10 +630,34 @@ namespace ACL_SIM_2.Services
 
                     log($"[{_name}] Result: ΔEnc={actualEncoderDelta:F0}, ΔProSim={actualProSimDelta:F1}");
 
-                    if (Math.Abs(actualProSimDelta) > 2.0 && Math.Abs(actualEncoderDelta) > 5.0)
+                    if (Math.Abs(actualEncoderDelta) <= MIN_VALID_ENCODER_DELTA)
+                    {
+                        noMotionCount++;
+                        _axisMovement.Stop();
+
+                        if (gainSignKnown)
+                        {
+                            log($"[{_name}] No encoder movement detected; discarding learned gain and retrying probe");
+                            gainSignKnown = false;
+                            probeDirection = gain < 0 ? -1 : 1;
+                        }
+                        else
+                        {
+                            probeDirection = -probeDirection;
+                            gain = probeDirection < 0 ? -Math.Abs(gain) : Math.Abs(gain);
+                            log($"[{_name}] Probe inconclusive (no encoder movement), retrying with opposite sign: {gain:F2}");
+                        }
+
+                        continue;
+                    }
+
+                    noMotionCount = 0;
+
+                    if (Math.Abs(actualProSimDelta) > 2.0 && Math.Abs(actualEncoderDelta) > MIN_VALID_ENCODER_DELTA)
                     {
                         gain = actualEncoderDelta / actualProSimDelta;
                         gainSignKnown = true;
+                        probeDirection = gain < 0 ? -1 : 1;
                         log($"[{_name}] Gain updated: {gain:F2} enc/ProSim");
                     }
                     else if (!gainSignKnown && Math.Abs(actualProSimDelta) > 0.5)
@@ -637,11 +665,13 @@ namespace ACL_SIM_2.Services
                         if (actualProSimDelta < 0)
                             gain = -Math.Abs(gain);
                         gainSignKnown = true;
+                        probeDirection = gain < 0 ? -1 : 1;
                         log($"[{_name}] Gain sign determined: {gain:F2} enc/ProSim");
                     }
                     else if (!gainSignKnown)
                     {
                         gain = -Math.Abs(gain);
+                        probeDirection = gain < 0 ? -1 : 1;
                         log($"[{_name}] Probe inconclusive, flipping sign: {gain:F2}");
                     }
                 }
