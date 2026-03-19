@@ -133,6 +133,18 @@ namespace ACL_SIM_2.ViewModels
 
         public bool MotorIsMoving => _axis.MotorIsMoving;
 
+        private bool _isCentering;
+        public bool IsCentering
+        {
+            get => _isCentering;
+            set
+            {
+                if (_isCentering == value) return;
+                _isCentering = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCentering)));
+            }
+        }
+
         // Normalized values for UI (0..1)
         public double EncoderNormalized
         {

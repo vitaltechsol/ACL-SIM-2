@@ -107,7 +107,8 @@
         </Border>
 
         <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,12,0,12" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <!-- Axis panels bound to ViewModel -->
+            <!-- Pitch axis panel -->
+            <Grid>
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
                     <Grid>
@@ -232,7 +233,20 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            <!-- Pitch centering overlay -->
+            <Border Margin="8,45,8,8" Background="#CC000000" CornerRadius="6"
+                    Visibility="{Binding Pitch.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    IsHitTestVisible="True">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Pitch" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                </StackPanel>
+            </Border>
+            </Grid>
 
+            <!-- Roll axis panel -->
+            <Grid>
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
                     <Grid>
@@ -357,7 +371,20 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            <!-- Roll centering overlay -->
+            <Border Margin="8,46,8,8" Background="#CC000000" CornerRadius="6"
+                    Visibility="{Binding Roll.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    IsHitTestVisible="True">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Roll" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                </StackPanel>
+            </Border>
+            </Grid>
 
+            <!-- Rudder axis panel -->
+            <Grid>
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
                     <Grid>
@@ -459,7 +486,20 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            <!-- Rudder centering overlay -->
+            <Border Margin="8,49,8,8" Background="#CC000000" CornerRadius="6"
+                    Visibility="{Binding Rudder.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    IsHitTestVisible="True">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Rudder" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                </StackPanel>
+            </Border>
+            </Grid>
 
+            <!-- Tiller axis panel -->
+            <Grid>
             <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
                 <StackPanel>
                     <Grid>
@@ -561,6 +601,17 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            <!-- Tiller centering overlay -->
+            <Border Margin="8,48,8,8" Background="#CC000000" CornerRadius="6"
+                    Visibility="{Binding Tiller.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    IsHitTestVisible="True">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Tiller" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                </StackPanel>
+            </Border>
+            </Grid>
         </UniformGrid>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">

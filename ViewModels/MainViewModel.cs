@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using ACL_SIM_2.Models;
@@ -180,6 +181,9 @@ namespace ACL_SIM_2.ViewModels
         public ICommand ClearErrorLogCommand { get; }
         public ICommand ConnectProSimCommand { get; }
         public ICommand CenterControlsCommand { get; }
+        public ICommand CancelCenteringCommand { get; }
+
+        private readonly Dictionary<string, CancellationTokenSource> _centeringCtsByAxis = new Dictionary<string, CancellationTokenSource>();
 
         private bool _isCentering;
         public bool IsCentering
@@ -308,6 +312,7 @@ namespace ACL_SIM_2.ViewModels
             ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
             ConnectProSimCommand = new RelayCommand(_ => ToggleProSimConnection());
             CenterControlsCommand = new RelayCommand(_ => CenterAllControls(), _ => CanCenterControls());
+            CancelCenteringCommand = new RelayCommand(CancelCentering);
 
             // Subscribe to ErrorLog collection changes to update ErrorLogText
             ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
@@ -484,19 +489,53 @@ namespace ACL_SIM_2.ViewModels
                    !IsCentering;
         }
 
+        private void UpdateCenteringState()
+        {
+            IsCentering = _centeringCtsByAxis.Count > 0;
+        }
+
+        private async System.Threading.Tasks.Task CenterAxisAsync(string axisName, AxisViewModel axisVm, Services.AxisManager axisManager, CancellationToken cancellationToken)
+        {
+            try
+            {
+                LogError($"[Center] Starting {axisName}...");
+
+                await axisManager.CenterToProSimPositionAsync(
+                    getProSimValue: () => GetProSimAxisValue(axisName),
+                    log: message => LogError($"[Center] {message}"),
+                    cancellationToken: cancellationToken
+                );
+            }
+            finally
+            {
+                if (_centeringCtsByAxis.TryGetValue(axisName, out var cts))
+                {
+                    cts.Dispose();
+                    _centeringCtsByAxis.Remove(axisName);
+                }
+
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    axisVm.Underlying.MotorIsMoving = false;
+                    axisVm.IsCentering = false;
+                    axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+                });
+
+                LogError($"[Center] {axisName} - MotorIsMoving disabled (back to normal torque)");
+                UpdateCenteringState();
+            }
+        }
+
         private async void CenterAllControls()
         {
             if (IsCentering || _proSimManager == null) return;
 
-            IsCentering = true;
             LogError("[Center] Starting concurrent centering for all axes...");
-
-            // Track which axes were enabled and had AutopilotOn set
-            var axesToCenter = new List<(string name, AxisViewModel vm, Services.AxisManager manager)>();
 
             try
             {
-                // First pass: Collect enabled axes and set AutopilotOn
+                var centeringTasks = new List<System.Threading.Tasks.Task>();
+
                 foreach (var axisName in AxisNames)
                 {
                     if (!_axes.TryGetValue(axisName, out var axisVm) || !axisVm.Enabled)
@@ -511,33 +550,27 @@ namespace ACL_SIM_2.ViewModels
                         continue;
                     }
 
-                    axesToCenter.Add((axisName, axisVm, axisManager));
+                    if (_centeringCtsByAxis.ContainsKey(axisName))
+                    {
+                        continue;
+                    }
 
-                    // Enable MotorIsMoving to use Movement Torque during centering
+                    var axisCts = new CancellationTokenSource();
+                    _centeringCtsByAxis[axisName] = axisCts;
+
                     axisVm.Underlying.MotorIsMoving = true;
+                    axisVm.IsCentering = true;
+                    axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                     LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
+
+                    centeringTasks.Add(CenterAxisAsync(axisName, axisVm, axisManager, axisCts.Token));
                 }
 
-                // Second pass: Start centering all axes concurrently (don't await individually)
-                var centeringTasks = new List<System.Threading.Tasks.Task>();
+                UpdateCenteringState();
 
-                foreach (var (axisName, axisVm, axisManager) in axesToCenter)
-                {
-                    LogError($"[Center] Starting {axisName}...");
-
-                    // Start centering task without awaiting (runs concurrently)
-                    var task = axisManager.CenterToProSimPositionAsync(
-                        getProSimValue: () => GetProSimAxisValue(axisName),
-                        log: message => LogError($"[Center] {message}")
-                    );
-
-                    centeringTasks.Add(task);
-                }
-
-                // Wait for all axes to finish centering concurrently
                 await System.Threading.Tasks.Task.WhenAll(centeringTasks);
 
-                LogError("[Center] All axes centering complete!");
+                LogError("[Center] All axis centering tasks complete!");
             }
             catch (System.Exception ex)
             {
@@ -545,14 +578,33 @@ namespace ACL_SIM_2.ViewModels
             }
             finally
             {
-                // Third pass: Disable MotorIsMoving for all axes that were centered
-                foreach (var (axisName, axisVm, _) in axesToCenter)
+                foreach (var kvp in _centeringCtsByAxis)
                 {
-                    axisVm.Underlying.MotorIsMoving = false;
-                    LogError($"[Center] {axisName} - MotorIsMoving disabled (back to normal torque)");
+                    kvp.Value.Dispose();
                 }
 
-                IsCentering = false;
+                _centeringCtsByAxis.Clear();
+                UpdateCenteringState();
+            }
+        }
+
+        private void CancelCentering(object? parameter)
+        {
+            var axisName = parameter?.ToString();
+            if (string.IsNullOrWhiteSpace(axisName))
+            {
+                return;
+            }
+
+            if (_axes.TryGetValue(axisName, out var axisVm))
+            {
+                axisVm.IsCentering = false;
+            }
+
+            if (_centeringCtsByAxis.TryGetValue(axisName, out var cts) && !cts.IsCancellationRequested)
+            {
+                LogError($"[Center] Cancelling centering for {axisName}...");
+                cts.Cancel();
             }
         }
 

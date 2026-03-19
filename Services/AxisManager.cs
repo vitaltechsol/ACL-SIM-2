@@ -435,8 +435,9 @@ namespace ACL_SIM_2.Services
         /// </summary>
         /// <param name="getProSimValue">Function to get the current ProSim axis value (0-1024 range, 512 = center)</param>
         /// <param name="log">Action to log status messages</param>
-        /// <returns>Task that completes when centering is done or fails</returns>
-        public async Task CenterToProSimPositionAsync(Func<double> getProSimValue, Action<string> log)
+        /// <param name="cancellationToken">Token to cancel centering early</param>
+        /// <returns>Task that completes when centering is done, cancelled, or fails</returns>
+        public async Task CenterToProSimPositionAsync(Func<double> getProSimValue, Action<string> log, CancellationToken cancellationToken = default)
         {
             const double TARGET_CENTER = 512.0;
             const double COARSE_TOLERANCE = 15.0;    // Enter fine-centering phase
@@ -472,9 +473,10 @@ namespace ACL_SIM_2.Services
                 double sum = 0;
                 for (int i = 0; i < SAMPLES_PER_READ; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     sum += getProSimValue();
                     if (i < SAMPLES_PER_READ - 1)
-                        await Task.Delay(SAMPLE_INTERVAL_MS);
+                        await Task.Delay(SAMPLE_INTERVAL_MS, cancellationToken);
                 }
                 return sum / SAMPLES_PER_READ;
             }
@@ -488,9 +490,10 @@ namespace ACL_SIM_2.Services
 
                 for (int s = 0; s < sampleCount; s++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     proSimSum += getProSimValue();
                     encoderSum += _axisVm.EncoderPosition;
-                    await Task.Delay(AVERAGING_SAMPLE_INTERVAL_MS);
+                    await Task.Delay(AVERAGING_SAMPLE_INTERVAL_MS, cancellationToken);
                 }
 
                 return (proSimSum / sampleCount, encoderSum / sampleCount);
@@ -511,6 +514,7 @@ namespace ACL_SIM_2.Services
 
                 for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     double error = currentProSim - TARGET_CENTER;
                     double errorMag = Math.Abs(error);
                     double currentEncoder = _axisVm.EncoderPosition;
@@ -526,7 +530,7 @@ namespace ACL_SIM_2.Services
                         {
                             // Stop motor and let it settle
                             _axisMovement.Stop();
-                            await Task.Delay(300);
+                            await Task.Delay(300, cancellationToken);
 
                             // Average ProSim and encoder over 2 seconds
                             var (avgProSim, avgEncoder) = await AverageOverWindowAsync();
@@ -554,7 +558,7 @@ namespace ACL_SIM_2.Services
 
                             double preCorrEncoder = _axisVm.EncoderPosition;
                             _axisMovement.MoveByUnits(correctionUnits);
-                            await Task.Delay(SETTLE_MS);
+                            await Task.Delay(SETTLE_MS, cancellationToken);
 
                             // Update gain from the correction move if possible
                             double postCorrProSim = await ReadAveragedProSimAsync();
@@ -572,7 +576,7 @@ namespace ACL_SIM_2.Services
                         // Max fine adjustments exhausted — accept last average
                         log($"[{_name}] Fine-centering: max adjustments reached, accepting current position");
                         _axisMovement.Stop();
-                        await Task.Delay(300);
+                        await Task.Delay(300, cancellationToken);
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
                         _axisVm.Underlying.EncoderCenterOffset = finalEncoder;
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
@@ -612,7 +616,7 @@ namespace ACL_SIM_2.Services
 
                     log($"[{_name}] Moving {moveUnits} encoder units");
                     _axisMovement.MoveByUnits(moveUnits);
-                    await Task.Delay(SETTLE_MS);
+                    await Task.Delay(SETTLE_MS, cancellationToken);
 
                     currentProSim = await ReadAveragedProSimAsync();
                     double postMoveEncoder = _axisVm.EncoderPosition;
@@ -643,6 +647,11 @@ namespace ACL_SIM_2.Services
                 }
 
                 log($"[{_name}] WARNING: Max iterations reached. Final position: {getProSimValue():F1}");
+            }
+            catch (OperationCanceledException)
+            {
+                _axisMovement.Stop();
+                log($"[{_name}] Centering cancelled");
             }
             catch (Exception ex)
             {
