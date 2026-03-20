@@ -13,6 +13,7 @@ namespace ACL_SIM_2.ViewModels
     {
         private readonly AxisViewModel _axisVm;
         private readonly AxisManager? _axisManager;
+        private readonly ProSimManager? _proSimManager;
         private readonly Func<double> _getProSimValue;
         private double _calibrationDisplayOffset;
         private double _testStartEncoder;
@@ -29,10 +30,11 @@ namespace ACL_SIM_2.ViewModels
         private bool _calibrationPerformed;
         private AxisSettings _savedSettingsSnapshot = new AxisSettings();
 
-        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null)
+        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null, ProSimManager? proSimManager = null)
         {
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _axisManager = axisManager;
+            _proSimManager = proSimManager;
             _getProSimValue = getProSimValue ?? (() => 512.0);
             AxisName = _axisVm.Name;
 
@@ -611,6 +613,8 @@ namespace ACL_SIM_2.ViewModels
         {
             try
             {
+                TryDisengageMcpAutopilot();
+
                 // Enable AutopilotOn so AxisManager sends movement torque to the motor
                 _axisVm.Underlying.AutopilotOn = true;
                 _axisVm.Underlying.RecalculateTorqueTarget();
@@ -647,6 +651,18 @@ namespace ACL_SIM_2.ViewModels
         private void ApplyMotionTuningPreview()
         {
             _axisManager?.ApplyMotionTuningPreview();
+        }
+
+        private void TryDisengageMcpAutopilot()
+        {
+            try
+            {
+                _proSimManager?.DisengageAP();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{AxisName}] Failed to disengage MCP AP before centering: {ex.Message}");
+            }
         }
 
         private void RestoreSavedSettingsSnapshot()
@@ -762,6 +778,7 @@ namespace ACL_SIM_2.ViewModels
                     try
                     {
                         System.Diagnostics.Debug.WriteLine($"[{AxisName}] Centering axis after settings window close...");
+                        TryDisengageMcpAutopilot();
 
                         // Enable AutopilotOn to use Movement Torque during centering
                         _axisVm.Underlying.AutopilotOn = true;

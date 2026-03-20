@@ -239,7 +239,7 @@
                     IsHitTestVisible="True">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
-                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
                     <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Pitch" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
                 </StackPanel>
             </Border>
@@ -377,7 +377,7 @@
                     IsHitTestVisible="True">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
-                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
                     <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Roll" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
                 </StackPanel>
             </Border>
@@ -492,7 +492,7 @@
                     IsHitTestVisible="True">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
-                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
                     <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Rudder" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
                 </StackPanel>
             </Border>
@@ -607,7 +607,7 @@
                     IsHitTestVisible="True">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
-                    <TextBlock Text="Do not touch controls" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
                     <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Tiller" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
                 </StackPanel>
             </Border>

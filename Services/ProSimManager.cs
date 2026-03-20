@@ -303,15 +303,15 @@ namespace ACL_SIM_2.Services
 
         public void PauseSim()
         {
-            WriteDataRefValue(PAUSE, 1);
+            WriteDataRefValue(PAUSE, true);
         }
 
         public void UnpauseSim()
         {
-            WriteDataRefValue(PAUSE, 0);
+            WriteDataRefValue(PAUSE, false);
         }
 
-        private void WriteDataRefValue(string dataRefName, double value)
+        private void WriteDataRefValue(string dataRefName, object value)
         {
             if (_isDisposed)
                 throw new ObjectDisposedException(nameof(ProSimManager));
@@ -321,6 +321,13 @@ namespace ACL_SIM_2.Services
 
             try
             {
+                var numericValue = value switch
+                {
+                    bool boolValue => boolValue ? 1.0 : 0.0,
+                    IConvertible convertible => convertible.ToDouble(System.Globalization.CultureInfo.InvariantCulture),
+                    _ => throw new InvalidOperationException($"Unsupported DataRef value type: {value.GetType().Name}")
+                };
+
                 var dataRef = GetWritableDataRef(dataRefName);
                 dataRef.value = value;
 
@@ -328,14 +335,14 @@ namespace ACL_SIM_2.Services
                 {
                     if (isBoolean)
                     {
-                        _boolValues[dataRefName] = value != 0;
+                        _boolValues[dataRefName] = value is bool boolValue ? boolValue : numericValue != 0;
                     }
                     else
                     {
-                        _doubleValues[dataRefName] = Math.Round(value, 3);
+                        _doubleValues[dataRefName] = Math.Round(numericValue, 3);
                     }
 
-                    InvokeChangeEvent(dataRefName, value);
+                    InvokeChangeEvent(dataRefName, numericValue);
                 }
             }
             catch (Exception ex)

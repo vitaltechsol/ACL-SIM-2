@@ -382,7 +382,7 @@ namespace ACL_SIM_2.ViewModels
             _axisManagers.TryGetValue(axisName, out var axisManager);
 
             // Open the axis setup window with AxisManager for position testing
-            var vm = new AxisSetupViewModel(axisVm, axisManager, () => GetProSimAxisValue(axisName));
+            var vm = new AxisSetupViewModel(axisVm, axisManager, () => GetProSimAxisValue(axisName), _proSimManager);
 
             // Subscribe to settings saved event to update encoder registration
             vm.OnSettingsSaved += (savedAxisName, rs485Ip, connectionSettingsChanged) =>
@@ -531,10 +531,21 @@ namespace ACL_SIM_2.ViewModels
             if (IsCentering || _proSimManager == null) return;
 
             LogError("[Center] Starting concurrent centering for all axes...");
+            var simPaused = false;
 
             try
             {
                 var centeringTasks = new List<System.Threading.Tasks.Task>();
+
+                try
+                {
+                    _proSimManager.DisengageAP();
+                    LogError("[Center] MCP AP disengage sent");
+                }
+                catch (System.Exception ex)
+                {
+                    LogError($"[Center] Failed to disengage MCP AP: {ex.Message}");
+                }
 
                 foreach (var axisName in AxisNames)
                 {
@@ -563,6 +574,20 @@ namespace ACL_SIM_2.ViewModels
                     axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                     LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
 
+                    if (!simPaused)
+                    {
+                        try
+                        {
+                            _proSimManager.PauseSim();
+                            simPaused = true;
+                            LogError("[Center] Simulator paused during centering");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            LogError($"[Center] Failed to pause simulator: {ex.Message}");
+                        }
+                    }
+
                     centeringTasks.Add(CenterAxisAsync(axisName, axisVm, axisManager, axisCts.Token));
                 }
 
@@ -585,6 +610,19 @@ namespace ACL_SIM_2.ViewModels
 
                 _centeringCtsByAxis.Clear();
                 UpdateCenteringState();
+
+                if (simPaused)
+                {
+                    try
+                    {
+                        _proSimManager.UnpauseSim();
+                        LogError("[Center] Simulator unpaused");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogError($"[Center] Failed to unpause simulator: {ex.Message}");
+                    }
+                }
             }
         }
 
