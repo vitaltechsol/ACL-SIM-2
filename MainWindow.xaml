@@ -142,8 +142,12 @@
                             <Run Text=" (" />
                             <Run Text="{Binding Pitch.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
+                               <TextBlock Text="+from Airspeed:" VerticalAlignment="Center" />
+   <TextBlock Text="{Binding Pitch.AirspeedAdditionalTorqueAppliedPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#FFC107" />
+              
                         </TextBlock>
                     </StackPanel>
+            
                     <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Pitch.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
                         <ProgressBar.Style>
                             <Style TargetType="ProgressBar">

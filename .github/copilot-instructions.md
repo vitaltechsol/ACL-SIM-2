@@ -6,3 +6,4 @@
 ## Motor Tuning Preferences
 - Prefer low-RPM motor tuning with finer-grained UI control, especially in the 2-5 RPM range. Keep RPM tuning as whole numbers only, while preserving the lower 1-15 RPM UI range.
 - Ensure setup/save logic avoids re-centering while autopilot is active.
+- Pitch encoder-based torque includes an airspeed-based additive percentage from `AxisSettings.AirspeedAdditionalTorquePercent`. Read IAS from ProSim `SPEED_IAS`, scale it from 0..500 IAS to 0..100% of that setting, and apply it only to encoder-position torque. Do not apply it while the motor is moving for autopilot/positioning or while hydraulics-off torque is active. Throttle airspeed-triggered torque refreshes to 50 ms.

@@ -178,6 +178,8 @@ namespace ACL_SIM_2.Models
         public bool CalibrationMode { get; set; }
 
         public double TorqueTarget { get; set; }
+        public double AirspeedIas { get; set; }
+        public double AirspeedAdditionalTorqueAppliedPercent { get; set; }
 
         /// <summary>
         /// Indicates the motor is actively being moved (centering, position test, or autopilot movement).
@@ -203,30 +205,8 @@ namespace ACL_SIM_2.Models
             EncoderCenterOffset = Settings.CenterPosition;
         }
 
-        // Update calculation of torque target based on encoder position and settings.
-        public void RecalculateTorqueTarget()
+        public double CalculateEncoderBaseTorqueDisplayPercent()
         {
-            // If in calibration mode, set torque to 0 and ignore all other calculations
-            if (CalibrationMode)
-            {
-                TorqueTarget = 0.0;
-                return;
-            }
-
-            // If MotorIsMoving (centering, position test, or autopilot movement), use MovingTorquePercentage
-            if (MotorIsMoving)
-            {
-                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
-                return;
-            }
-
-            // If hydraulics are off, use specified hydraulic off torque (fixed value)
-            if (!HydraulicsOn)
-            {
-                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.HydraulicOffTorquePercent);
-                return;
-            }
-
             // Relative position: 0 at center, negative=left, positive=right
             var relativePos = EncoderPosition - EncoderCenterOffset;
 
@@ -244,7 +224,56 @@ namespace ACL_SIM_2.Models
             // Interpolate torque display between min and max display settings
             var minDisp = Settings.MinTorquePercent;
             var maxDisp = Settings.MaxTorquePercent;
-            var displayTorque = minDisp + (maxDisp - minDisp) * magnitude;
+            return minDisp + (maxDisp - minDisp) * magnitude;
+        }
+
+        public double CalculateAirspeedAdditionalTorqueDisplayPercent()
+        {
+            if (!string.Equals(Name, "Pitch", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0.0;
+            }
+
+            var clampedSpeed = Math.Max(0.0, Math.Min(500.0, AirspeedIas));
+            return (clampedSpeed / 500.0) * Settings.AirspeedAdditionalTorquePercent;
+        }
+
+        public double CalculateTotalEncoderTorqueDisplayPercent()
+        {
+            var baseDisplayTorque = CalculateEncoderBaseTorqueDisplayPercent();
+            var additionalDisplayTorque = CalculateAirspeedAdditionalTorqueDisplayPercent();
+            return Math.Max(0.0, Math.Min(100.0, baseDisplayTorque + additionalDisplayTorque));
+        }
+
+        // Update calculation of torque target based on encoder position and settings.
+        public void RecalculateTorqueTarget()
+        {
+            // If in calibration mode, set torque to 0 and ignore all other calculations
+            if (CalibrationMode)
+            {
+                AirspeedAdditionalTorqueAppliedPercent = 0.0;
+                TorqueTarget = 0.0;
+                return;
+            }
+
+            // If MotorIsMoving (centering, position test, or autopilot movement), use MovingTorquePercentage
+            if (MotorIsMoving)
+            {
+                AirspeedAdditionalTorqueAppliedPercent = 0.0;
+                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
+                return;
+            }
+
+            // If hydraulics are off, use specified hydraulic off torque (fixed value)
+            if (!HydraulicsOn)
+            {
+                AirspeedAdditionalTorqueAppliedPercent = 0.0;
+                TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.HydraulicOffTorquePercent);
+                return;
+            }
+
+            AirspeedAdditionalTorqueAppliedPercent = CalculateAirspeedAdditionalTorqueDisplayPercent();
+            var displayTorque = CalculateTotalEncoderTorqueDisplayPercent();
 
             // Convert to actual torque scale
             TorqueTarget = Settings.ConvertTorqueDisplayToActual(displayTorque);

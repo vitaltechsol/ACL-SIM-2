@@ -29,8 +29,12 @@ namespace ACL_SIM_2.Services
         /// Lower values increase responsiveness; higher values reduce command churn and can smooth motion.
         /// </summary>
         private const int AUTOPILOT_LOOP_INTERVAL_MS = 250; //100
+        private const int AIRSPEED_TORQUE_THROTTLE_MS = 50;
         private CancellationTokenSource? _autopilotLoopCts;
         private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
+        private readonly object _airspeedUpdateLock = new object();
+        private long _lastAirspeedTorqueUpdateTick;
+        private bool _airspeedUpdateScheduled;
 
         private double LatestAutopilotTarget
         {
@@ -81,6 +85,8 @@ namespace ACL_SIM_2.Services
                 {
                     _proSimManager.OnPitchCmdChanged += ProSimManager_OnAutopilotChanged;
                     _proSimManager.OnElevatorChanged += ProSimManager_OnFlightControlChanged;
+                    _proSimManager.OnSpeedIasChanged += ProSimManager_OnSpeedIasChanged;
+                    _axisVm.Underlying.AirspeedIas = _proSimManager.SpeedIas;
                 }
                 else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
                 {
@@ -175,6 +181,71 @@ namespace ACL_SIM_2.Services
             LatestAutopilotTarget = Math.Max(-100.0, Math.Min(100.0, e.Value * 100.0));
         }
 
+        private void ProSimManager_OnSpeedIasChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            if (_isDisposed) return;
+
+            _axisVm.Underlying.AirspeedIas = e.Value;
+            RequestAirspeedTorqueUpdate();
+        }
+
+        private void RequestAirspeedTorqueUpdate()
+        {
+            int delayMs = 0;
+
+            lock (_airspeedUpdateLock)
+            {
+                var now = Environment.TickCount64;
+                var elapsedMs = _lastAirspeedTorqueUpdateTick == 0
+                    ? AIRSPEED_TORQUE_THROTTLE_MS
+                    : now - _lastAirspeedTorqueUpdateTick;
+
+                if (elapsedMs >= AIRSPEED_TORQUE_THROTTLE_MS)
+                {
+                    _lastAirspeedTorqueUpdateTick = now;
+                }
+                else
+                {
+                    if (_airspeedUpdateScheduled)
+                    {
+                        return;
+                    }
+
+                    _airspeedUpdateScheduled = true;
+                    delayMs = (int)Math.Max(1, AIRSPEED_TORQUE_THROTTLE_MS - elapsedMs);
+                }
+            }
+
+            if (delayMs == 0)
+            {
+                _ = UpdateTorqueAsync();
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(delayMs);
+
+                    lock (_airspeedUpdateLock)
+                    {
+                        _airspeedUpdateScheduled = false;
+                        _lastAirspeedTorqueUpdateTick = Environment.TickCount64;
+                    }
+
+                    await UpdateTorqueAsync();
+                }
+                catch
+                {
+                    lock (_airspeedUpdateLock)
+                    {
+                        _airspeedUpdateScheduled = false;
+                    }
+                }
+            });
+        }
+
         /// <summary>
         /// Starts a background loop that continuously commands the servo to follow
         /// the latest ProSim target while autopilot is engaged.
@@ -245,7 +316,12 @@ namespace ACL_SIM_2.Services
                     try
                     {
                         _torqueControl.SetTorqueBoth(0, 0);
+                        _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = 0.0;
+                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
+                        });
                     }
                     catch
                     {
@@ -276,7 +352,12 @@ namespace ACL_SIM_2.Services
                         _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
 
                         // Update ViewModel display value
+                        _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = settings.MovingTorquePercentage;
+                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
+                        });
                     }
                     catch
                     {
@@ -307,7 +388,12 @@ namespace ACL_SIM_2.Services
                         _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
 
                         // Update ViewModel display value
+                        _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = settings.HydraulicOffTorquePercent;
+                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
+                        });
                     }
                     catch
                     {
@@ -345,18 +431,25 @@ namespace ACL_SIM_2.Services
                     var maxTorqueDisplay = settings.MaxTorquePercent;
 
                     // Calculate display torque: min at center, max at limits (0-100 scale)
-                    var targetTorqueDisplay = minTorqueDisplay + (normalizedDistance * (maxTorqueDisplay - minTorqueDisplay));
-
-                    // Clamp to valid display range
-                    targetTorqueDisplay = Math.Max(0, Math.Min(maxTorqueDisplay, targetTorqueDisplay));
+                    var baseTorqueDisplay = minTorqueDisplay + (normalizedDistance * (maxTorqueDisplay - minTorqueDisplay));
+                    var airspeedAdditionalTorqueDisplay = _axisVm.Underlying.CalculateAirspeedAdditionalTorqueDisplayPercent();
+                    var targetTorqueDisplay = Math.Max(0.0, Math.Min(100.0, baseTorqueDisplay + airspeedAdditionalTorqueDisplay));
 
                     // Update ViewModel with display value for UI
+                    _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = airspeedAdditionalTorqueDisplay;
+                    _axisVm.Underlying.TorqueTarget = settings.ConvertTorqueDisplayToActual(targetTorqueDisplay);
                     _axisVm.CurrentTorque = targetTorqueDisplay;
+                    System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
+                        _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.Torque));
+                        _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.TorqueNormalized));
+                    });
 
                     // Convert to actual motor scale (0-300) and send to motor
                     try
                     {
-                        var targetTorqueActual = settings.ConvertTorqueDisplayToActual(targetTorqueDisplay);
+                        var targetTorqueActual = _axisVm.Underlying.TorqueTarget;
                         var torqueInt = (int)Math.Round(targetTorqueActual);
 
                         // Send to appropriate register based on direction
@@ -740,6 +833,7 @@ namespace ACL_SIM_2.Services
                     {
                         _proSimManager.OnPitchCmdChanged -= ProSimManager_OnAutopilotChanged;
                         _proSimManager.OnElevatorChanged -= ProSimManager_OnFlightControlChanged;
+                        _proSimManager.OnSpeedIasChanged -= ProSimManager_OnSpeedIasChanged;
                     }
                     else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
                     {

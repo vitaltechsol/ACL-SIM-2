@@ -72,6 +72,7 @@ namespace ACL_SIM_2.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TorqueNormalized)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderPercentage)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AirspeedAdditionalTorqueAppliedPercent)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HydraulicsOn)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AutopilotOn)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MotorIsMoving)));
@@ -132,6 +133,8 @@ namespace ACL_SIM_2.ViewModels
         public bool AutopilotOn => _axis.AutopilotOn;
 
         public bool MotorIsMoving => _axis.MotorIsMoving;
+
+        public double AirspeedAdditionalTorqueAppliedPercent => _axis.AirspeedAdditionalTorqueAppliedPercent;
 
         private bool _isCentering;
         public bool IsCentering
