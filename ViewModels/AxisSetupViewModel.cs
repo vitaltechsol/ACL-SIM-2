@@ -257,6 +257,19 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        public double AirspeedAdditionalTorquePercent
+        {
+            get => Settings.AirspeedAdditionalTorquePercent;
+            set
+            {
+                var clamped = Math.Max(1.0, Math.Min(50.0, value));
+                if (Math.Abs(Settings.AirspeedAdditionalTorquePercent - clamped) < 0.0001) return;
+
+                Settings.AirspeedAdditionalTorquePercent = clamped;
+                OnPropertyChanged(nameof(AirspeedAdditionalTorquePercent));
+            }
+        }
+
         // Communication / driver settings
         public string RS485Ip
         {
@@ -480,7 +493,7 @@ namespace ACL_SIM_2.ViewModels
                 Settings.Enabled = loaded.Enabled;
                 Settings.RS485Ip = loaded.RS485Ip;
                 Settings.DriverId = loaded.DriverId;
-                Settings.AirspeedAdditionalTorquePercent = loaded.AirspeedAdditionalTorquePercent;
+                Settings.AirspeedAdditionalTorquePercent = Math.Max(1.0, Math.Min(50.0, loaded.AirspeedAdditionalTorquePercent));
                 Settings.StallAdditionalTorquePercent = loaded.StallAdditionalTorquePercent;
 
                 OnPropertyChanged(string.Empty);
@@ -491,6 +504,7 @@ namespace ACL_SIM_2.ViewModels
 
         private void Save()
         {
+            Settings.AirspeedAdditionalTorquePercent = Math.Max(1.0, Math.Min(50.0, Settings.AirspeedAdditionalTorquePercent));
             SettingsService.SaveAxisSettings(AxisName, Settings);
             _savedSettingsSnapshot = Settings.Clone();
 

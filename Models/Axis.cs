@@ -114,7 +114,7 @@ namespace ACL_SIM_2.Models
         public int DriverId { get; set; } = 1;
 
         // Pitch-specific tuning
-        public double AirspeedAdditionalTorquePercent { get; set; } = 10.0; // 1..100
+        public double AirspeedAdditionalTorquePercent { get; set; } = 10.0; // 1..50
         public double StallAdditionalTorquePercent { get; set; } = 10.0; // 1..100
 
         public double ConvertTorqueDisplayToActual(double display)
@@ -235,7 +235,8 @@ namespace ACL_SIM_2.Models
             }
 
             var clampedSpeed = Math.Max(0.0, Math.Min(500.0, AirspeedIas));
-            return (clampedSpeed / 500.0) * Settings.AirspeedAdditionalTorquePercent;
+            var configuredAdditionalPercent = Math.Max(1.0, Math.Min(50.0, Settings.AirspeedAdditionalTorquePercent));
+            return (clampedSpeed / 500.0) * configuredAdditionalPercent;
         }
 
         public double CalculateTotalEncoderTorqueDisplayPercent()
