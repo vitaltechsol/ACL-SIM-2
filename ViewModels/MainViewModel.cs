@@ -391,6 +391,20 @@ namespace ACL_SIM_2.ViewModels
                 {
                     try
                     {
+                        if (axisVm.AutopilotOn)
+                        {
+                            if (connectionSettingsChanged)
+                            {
+                                LogError($"[{savedAxisName}] Settings saved while autopilot is active. Connection changes will apply after autopilot is off.");
+                            }
+                            else
+                            {
+                                LogError($"[{savedAxisName}] Settings saved while autopilot is active. Skipped axis reset/re-center.");
+                            }
+
+                            return;
+                        }
+
                         // Only do full reconnection if connection settings (RS485 IP or Driver ID) changed
                         if (connectionSettingsChanged)
                         {
@@ -414,7 +428,7 @@ namespace ACL_SIM_2.ViewModels
                                 var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
                                 if (modbusClient != null && modbusLock != null)
                                 {
-                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock);
+                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager);
                                 }
 
                                 LogError($"[{savedAxisName}] Connection settings changed - encoder and torque control reconnected");
@@ -422,21 +436,7 @@ namespace ACL_SIM_2.ViewModels
                         }
                         else
                         {
-                            // Connection settings didn't change - just recreate AxisManager with existing ModbusClient
-                            // This allows settings like RPM, torque, etc. to be updated without reconnecting
-                            if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
-                            {
-                                oldManager?.Dispose();
-                                _axisManagers[savedAxisName] = null;
-                            }
-
-                            var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
-                            var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
-                            if (modbusClient != null && modbusLock != null)
-                            {
-                                _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock);
-                                LogError($"[{savedAxisName}] Settings updated (no reconnection needed)");
-                            }
+                            LogError($"[{savedAxisName}] Settings saved");
                         }
                     }
                     catch (System.Exception ex)

@@ -237,17 +237,17 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
+            var requestedRpm = rpmOverride.HasValue ? rpmOverride.Value : _axis.Settings.MotorSpeedRpm;
             var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
             var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
             var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
             var commandType = applyFiltering ? "TrackTargetPosition" : "GoToPosition";
 
-            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {rpm} RPM");
+            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {requestedRpm} RPM");
 
             try
             {
-                ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
+                ServoMoveTo(pulses, requestedRpm, accelMode, accelParam1, accelParam2, slot: 0);
 
                 lock (_targetLock)
                 {
@@ -450,16 +450,16 @@ namespace ACL_SIM_2.Services
             if (_axis.Settings.ReversedMotor)
                 pulses = -pulses;
 
-            var rpm = _axis.Settings.MotorSpeedRpm;
+            var requestedRpm = _axis.Settings.MotorSpeedRpm;
             var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
             var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
             var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
 
-            Debug.WriteLine($"[{_axis.Name}] MoveByUnits: {encoderUnits} enc → {pulses} pulses @ {rpm} RPM");
+            Debug.WriteLine($"[{_axis.Name}] MoveByUnits: {encoderUnits} enc → {pulses} pulses @ {requestedRpm} RPM");
 
             try
             {
-                ServoMoveTo(pulses, rpm, accelMode, accelParam1, accelParam2, slot: 0);
+                ServoMoveTo(pulses, requestedRpm, accelMode, accelParam1, accelParam2, slot: 0);
             }
             catch (Exception ex)
             {

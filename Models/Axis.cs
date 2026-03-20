@@ -66,8 +66,7 @@ namespace ACL_SIM_2.Models
 
         /// <summary>
         /// Motor speed in RPM for position movements.
-        /// Range: 0-3000 rpm. Higher values = faster movement.
-        /// Default: 10 RPM for very smooth, controlled movements.
+        /// Setup UI exposes a low-speed tuning range of 1-15 RPM for smoother motion.
         /// </summary>
         public int MotorSpeedRpm { get; set; } = 8;
 

@@ -179,15 +179,20 @@
                         </Grid.ColumnDefinitions>
                         <Slider Grid.Column="0"
                                 Minimum="1"
-                                Maximum="50"
+                                Maximum="15"
                                 TickFrequency="1"
                                 IsSnapToTickEnabled="True"
+                                AutoToolTipPlacement="BottomRight"
                                 Value="{Binding MotorSpeedRpm}"/>
                         <TextBlock Grid.Column="1"
                                    Margin="12,0,0,0"
                                    VerticalAlignment="Center"
                                    Text="{Binding MotorSpeedRpm, StringFormat={}{0} RPM}"/>
                     </Grid>
+                    <TextBlock Text="Best smooth range is usually between 2 and 5 RPM."
+                               Margin="0,2,0,0"
+                               Foreground="LightGray"
+                               TextWrapping="Wrap"/>
 
                     <TextBlock Text="How strong should movement feel?" Margin="0,10,0,0" FontWeight="SemiBold"/>
                     <Grid Margin="0,4,0,0">

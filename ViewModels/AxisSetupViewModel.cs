@@ -113,8 +113,10 @@ namespace ACL_SIM_2.ViewModels
             get => Settings.MotorSpeedRpm;
             set
             {
-                if (Settings.MotorSpeedRpm == value) return;
-                Settings.MotorSpeedRpm = value;
+                var clamped = Math.Max(1, Math.Min(15, value));
+                if (Settings.MotorSpeedRpm == clamped) return;
+
+                Settings.MotorSpeedRpm = clamped;
                 OnPropertyChanged(nameof(MotorSpeedRpm));
                 ApplyMotionTuningPreview();
             }
