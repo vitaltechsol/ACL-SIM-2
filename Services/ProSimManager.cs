@@ -47,6 +47,8 @@ namespace ACL_SIM_2.Services
         private bool _isDisposed;
 
         private readonly ProSimConnect connection;
+        private DataRef? _mcpApDisengageWriteRef;
+        private DataRef? _pauseWriteRef;
 
         // DataRef collections
         private readonly Dictionary<string, DataRef> _dataRefs = new();
@@ -294,6 +296,64 @@ namespace ACL_SIM_2.Services
             }
         }
 
+        public void DisengageAP()
+        {
+            WriteDataRefValue(MCP_AP_DISENGAGE, 1);
+        }
+
+        public void PauseSim()
+        {
+            WriteDataRefValue(PAUSE, 1);
+        }
+
+        public void UnpauseSim()
+        {
+            WriteDataRefValue(PAUSE, 0);
+        }
+
+        private void WriteDataRefValue(string dataRefName, double value)
+        {
+            if (_isDisposed)
+                throw new ObjectDisposedException(nameof(ProSimManager));
+
+            if (State != ConnectionState.Connected)
+                throw new InvalidOperationException("Not connected to ProSim");
+
+            try
+            {
+                var dataRef = GetWritableDataRef(dataRefName);
+                dataRef.value = value;
+
+                if (_dataRefMetadata.TryGetValue(dataRefName, out var isBoolean))
+                {
+                    if (isBoolean)
+                    {
+                        _boolValues[dataRefName] = value != 0;
+                    }
+                    else
+                    {
+                        _doubleValues[dataRefName] = Math.Round(value, 3);
+                    }
+
+                    InvokeChangeEvent(dataRefName, value);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to write value for '{dataRefName}': {ex.Message}", ex);
+            }
+        }
+
+        private DataRef GetWritableDataRef(string dataRefName)
+        {
+            return dataRefName switch
+            {
+                MCP_AP_DISENGAGE => _mcpApDisengageWriteRef ??= new DataRef(MCP_AP_DISENGAGE, connection),
+                PAUSE => _pauseWriteRef ??= new DataRef(PAUSE, connection),
+                _ => new DataRef(dataRefName, connection)
+            };
+        }
+
         private void SetStatus(ConnectionState state, string message)
         {
             StatusMessage = message;
@@ -349,6 +409,8 @@ namespace ACL_SIM_2.Services
                 _dataRefs.Clear();
                 _doubleValues.Clear();
                 _boolValues.Clear();
+                _mcpApDisengageWriteRef = null;
+                _pauseWriteRef = null;
             }
             catch (Exception ex)
             {
