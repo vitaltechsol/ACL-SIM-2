@@ -134,6 +134,8 @@ namespace ACL_SIM_2.ViewModels
 
         public bool MotorIsMoving => _axis.MotorIsMoving;
 
+        public bool IsTrimming => _axis.IsTrimming;
+
         public double AirspeedAdditionalTorqueAppliedPercent => _axis.AirspeedAdditionalTorqueAppliedPercent;
 
         private bool _isCentering;

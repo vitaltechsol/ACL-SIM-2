@@ -33,8 +33,17 @@ namespace ACL_SIM_2.Services
         private CancellationTokenSource? _autopilotLoopCts;
         private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
         private readonly object _airspeedUpdateLock = new object();
+        private readonly object _trimStateLock = new object();
+        private readonly object _trimCommandLock = new object();
         private long _lastAirspeedTorqueUpdateTick;
         private bool _airspeedUpdateScheduled;
+        private CancellationTokenSource? _trimStateCts;
+        private double _pendingTrimPercent;
+        private long _lastTrimUpdateTick;
+        private bool _trimMoveLoopRunning;
+
+        private const int TRIM_TORQUE_HOLD_MS = 1000;
+        private const int TRIM_FILTER_MS = 100;
 
         private double LatestAutopilotTarget
         {
@@ -92,6 +101,11 @@ namespace ACL_SIM_2.Services
                 {
                     _proSimManager.OnRollCmdChanged += ProSimManager_OnAutopilotChanged;
                     _proSimManager.OnAileronLeftChanged += ProSimManager_OnFlightControlChanged;
+                    _proSimManager.OnTrimAileronChanged += ProSimManager_OnTrimChanged;
+                }
+                else if (string.Equals(_name, "Rudder", StringComparison.OrdinalIgnoreCase))
+                {
+                    _proSimManager.OnTrimRudderChanged += ProSimManager_OnTrimChanged;
                 }
             }
         }
@@ -152,7 +166,7 @@ namespace ACL_SIM_2.Services
                 }
                 else
                 {
-                    // Autopilot disengaged — stop tracking loop, revert to
+                    // Autopilot disengaged ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â stop tracking loop, revert to
                     // encoder-based dynamic torque, and quickly return to center.
                     StopAutopilotTrackingLoop();
                     try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
@@ -187,6 +201,168 @@ namespace ACL_SIM_2.Services
 
             _axisVm.Underlying.AirspeedIas = e.Value;
             RequestAirspeedTorqueUpdate();
+        }
+
+        private void ProSimManager_OnTrimChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+            {
+                return;
+            }
+
+            ScheduleTrimMove(ScaleTrimToPercent(e.Value));
+        }
+
+
+        private double ScaleTrimToPercent(double trimValue)
+        {
+            var sign = Math.Sign(trimValue);
+            var magnitude = Math.Abs(trimValue);
+
+            if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
+            {
+                return sign * Math.Min(52.0, (magnitude / 10.0) * 52.0);
+            }
+
+            if (string.Equals(_name, "Rudder", StringComparison.OrdinalIgnoreCase))
+            {
+                return sign * Math.Min(100.0, (magnitude / 15.0) * 100.0);
+            }
+
+            return trimValue;
+        }
+
+        private void ScheduleTrimMove(double trimPercent)
+        {
+            var shouldStartLoop = false;
+
+            lock (_trimCommandLock)
+            {
+                _pendingTrimPercent = trimPercent;
+                _lastTrimUpdateTick = Environment.TickCount64;
+
+                if (!_trimMoveLoopRunning)
+                {
+                    _trimMoveLoopRunning = true;
+                    shouldStartLoop = true;
+                }
+            }
+
+            if (shouldStartLoop)
+            {
+                _ = Task.Run(RunTrimMoveLoopAsync);
+            }
+        }
+
+        private async Task RunTrimMoveLoopAsync()
+        {
+            double lastSentTrimPercent = double.NaN;
+
+            try
+            {
+                while (!_isDisposed)
+                {
+                    double trimPercent;
+                    long lastTrimUpdateTick;
+
+                    lock (_trimCommandLock)
+                    {
+                        trimPercent = _pendingTrimPercent;
+                        lastTrimUpdateTick = _lastTrimUpdateTick;
+                    }
+
+                    if (_axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                    {
+                        return;
+                    }
+
+                    if (double.IsNaN(lastSentTrimPercent) || Math.Abs(trimPercent - lastSentTrimPercent) > 0.001)
+                    {
+                        BeginTrimState();
+                        _axisMovement.GoToPosition(trimPercent);
+                        lastSentTrimPercent = trimPercent;
+                    }
+
+                    await Task.Delay(TRIM_FILTER_MS);
+
+                    if (Environment.TickCount64 - lastTrimUpdateTick >= TRIM_FILTER_MS)
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_name}] Trim move failed: {ex.Message}");
+            }
+            finally
+            {
+                var shouldRestartLoop = false;
+
+                lock (_trimCommandLock)
+                {
+                    _trimMoveLoopRunning = false;
+
+                    if (!_isDisposed &&
+                        !_axisVm.Underlying.CalibrationMode &&
+                        !_axisVm.Underlying.AutopilotOn &&
+                        Environment.TickCount64 - _lastTrimUpdateTick < TRIM_FILTER_MS)
+                    {
+                        _trimMoveLoopRunning = true;
+                        shouldRestartLoop = true;
+                    }
+                }
+
+                if (shouldRestartLoop)
+                {
+                    _ = Task.Run(RunTrimMoveLoopAsync);
+                }
+            }
+        }
+
+        private void BeginTrimState()
+        {
+            CancellationTokenSource trimStateCts;
+
+            lock (_trimStateLock)
+            {
+                _trimStateCts?.Cancel();
+                _trimStateCts?.Dispose();
+                _trimStateCts = new CancellationTokenSource();
+                trimStateCts = _trimStateCts;
+            }
+
+            _axisVm.Underlying.IsTrimming = true;
+            NotifyTrimStateChanged();
+            _ = UpdateTorqueAsync();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TRIM_TORQUE_HOLD_MS, trimStateCts.Token);
+
+                    if (trimStateCts.Token.IsCancellationRequested || _isDisposed)
+                    {
+                        return;
+                    }
+
+                    _axisVm.Underlying.IsTrimming = false;
+                    NotifyTrimStateChanged();
+                    await UpdateTorqueAsync();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }, trimStateCts.Token);
+        }
+
+        private void NotifyTrimStateChanged()
+        {
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.IsTrimming));
+            });
         }
 
         private void RequestAirspeedTorqueUpdate()
@@ -332,8 +508,8 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // If MotorIsMoving (centering, position test, or autopilot movement), use fixed MovingTorque for both directions
-            if (_axisVm.Underlying.MotorIsMoving)
+            // If MotorIsMoving or IsTrimming, use fixed MovingTorque for both directions
+            if (_axisVm.Underlying.MotorIsMoving || _axisVm.Underlying.IsTrimming)
             {
                 await Task.Run(() =>
                 {
@@ -558,12 +734,12 @@ namespace ACL_SIM_2.Services
         {
             const double TARGET_CENTER = 512.0;
             const double COARSE_TOLERANCE = 15.0;    // Enter fine-centering phase
-            const double FINE_TOLERANCE = 2.0;       // Final accuracy target (±2 ProSim units, averaged)
+            const double FINE_TOLERANCE = 2.0;       // Final accuracy target (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±2 ProSim units, averaged)
             const int MAX_ITERATIONS = 60;
             const int SETTLE_MS = 400;
             const int MAX_FINE_ADJUSTMENTS = 10;     // Max correction cycles in fine phase
 
-            // Per-read averaging to smooth ±10-unit ProSim noise
+            // Per-read averaging to smooth ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±10-unit ProSim noise
             const int SAMPLES_PER_READ = 5;
             const int SAMPLE_INTERVAL_MS = 40;
 
@@ -619,7 +795,7 @@ namespace ACL_SIM_2.Services
             // Signed gain: encoder units to move per ProSim unit of desired change.
             var settings = _axisVm.Underlying.Settings;
             double totalEncoderRange = Math.Abs(settings.FullRightPosition) + Math.Abs(settings.FullLeftPosition);
-            double gain = totalEncoderRange / 1024.0; // magnitude only — sign unknown
+            double gain = totalEncoderRange / 1024.0; // magnitude only ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sign unknown
             bool gainSignKnown = false;
             int probeDirection = 1;
             int noMotionCount = 0;
@@ -645,7 +821,7 @@ namespace ACL_SIM_2.Services
 
                     log($"[{_name}] Iter {iteration + 1}: ProSim={currentProSim:F1}, Error={error:F1}, Enc={currentEncoder:F0}");
 
-                    // Within coarse tolerance → enter fine-centering phase
+                    // Within coarse tolerance ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ enter fine-centering phase
                     if (errorMag <= COARSE_TOLERANCE)
                     {
                         log($"[{_name}] Within coarse tolerance ({COARSE_TOLERANCE}), entering fine-centering phase...");
@@ -666,11 +842,11 @@ namespace ACL_SIM_2.Services
                             if (Math.Abs(avgError) <= FINE_TOLERANCE)
                             {
                                 _axisVm.Underlying.EncoderCenterOffset = avgEncoder;
-                                log($"[{_name}] Centered successfully (±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
+                                log($"[{_name}] Centered successfully (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
                                 return;
                             }
 
-                            // Averaged error still too large — make a small correction
+                            // Averaged error still too large ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â make a small correction
                             // Use calibrated gain; if gain isn't calibrated yet, use magnitude with sign guess
                             double correction = gain * (-avgError);
                             int correctionUnits = (int)Math.Round(correction * 0.5); // Conservative 50% of estimated
@@ -697,7 +873,7 @@ namespace ACL_SIM_2.Services
                             }
                         }
 
-                        // Max fine adjustments exhausted — accept last average
+                        // Max fine adjustments exhausted ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â accept last average
                         log($"[{_name}] Fine-centering: max adjustments reached, accepting current position");
                         _axisMovement.Stop();
                         await Task.Delay(300, cancellationToken);
@@ -749,7 +925,7 @@ namespace ACL_SIM_2.Services
                     double actualEncoderDelta = postMoveEncoder - preMoveEncoder;
                     double actualProSimDelta = currentProSim - preMoveProSim;
 
-                    log($"[{_name}] Result: ΔEnc={actualEncoderDelta:F0}, ΔProSim={actualProSimDelta:F1}");
+                    log($"[{_name}] Result: ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂEnc={actualEncoderDelta:F0}, ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂProSim={actualProSimDelta:F1}");
 
                     if (Math.Abs(actualEncoderDelta) <= MIN_VALID_ENCODER_DELTA)
                     {
@@ -825,6 +1001,17 @@ namespace ACL_SIM_2.Services
 
             try
             {
+                lock (_trimStateLock)
+                {
+                    _trimStateCts?.Cancel();
+                    _trimStateCts?.Dispose();
+                    _trimStateCts = null;
+                }
+            }
+            catch { }
+
+            try
+            {
                 if (_proSimManager != null)
                 {
                     _proSimManager.OnHydraulicsAvailableChanged -= ProSimManager_OnHydraulicsAvailableChanged;
@@ -839,6 +1026,11 @@ namespace ACL_SIM_2.Services
                     {
                         _proSimManager.OnRollCmdChanged -= ProSimManager_OnAutopilotChanged;
                         _proSimManager.OnAileronLeftChanged -= ProSimManager_OnFlightControlChanged;
+                        _proSimManager.OnTrimAileronChanged -= ProSimManager_OnTrimChanged;
+                    }
+                    else if (string.Equals(_name, "Rudder", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _proSimManager.OnTrimRudderChanged -= ProSimManager_OnTrimChanged;
                     }
                 }
             }

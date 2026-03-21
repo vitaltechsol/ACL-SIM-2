@@ -187,6 +187,8 @@ namespace ACL_SIM_2.Models
         /// </summary>
         public bool MotorIsMoving { get; set; }
 
+        public bool IsTrimming { get; set; }
+
         /// <summary>
         /// Encoder offset applied so that (RawEncoder - EncoderCenterOffset) == 0 when the axis is at center.
         /// Initialized to 0 on startup. Updated to the actual raw encoder value after motor centering
@@ -257,8 +259,8 @@ namespace ACL_SIM_2.Models
                 return;
             }
 
-            // If MotorIsMoving (centering, position test, or autopilot movement), use MovingTorquePercentage
-            if (MotorIsMoving)
+            // If MotorIsMoving or IsTrimming, use MovingTorquePercentage
+            if (MotorIsMoving || IsTrimming)
             {
                 AirspeedAdditionalTorqueAppliedPercent = 0.0;
                 TorqueTarget = Settings.ConvertTorqueDisplayToActual(Settings.MovingTorquePercentage);
@@ -288,3 +290,4 @@ namespace ACL_SIM_2.Models
         }
     }
 }
+

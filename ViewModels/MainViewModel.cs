@@ -47,6 +47,48 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        private double _pitchTrim;
+        public double PitchTrim
+        {
+            get => _pitchTrim;
+            set
+            {
+                if (Math.Abs(_pitchTrim - value) > 0.001)
+                {
+                    _pitchTrim = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PitchTrim)));
+                }
+            }
+        }
+
+        private double _rollTrim;
+        public double RollTrim
+        {
+            get => _rollTrim;
+            set
+            {
+                if (Math.Abs(_rollTrim - value) > 0.001)
+                {
+                    _rollTrim = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RollTrim)));
+                }
+            }
+        }
+
+        private double _rudderTrim;
+        public double RudderTrim
+        {
+            get => _rudderTrim;
+            set
+            {
+                if (Math.Abs(_rudderTrim - value) > 0.001)
+                {
+                    _rudderTrim = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RudderTrim)));
+                }
+            }
+        }
+
         // ProSim properties
         private string _proSimIp = "127.0.0.1";
         public string ProSimIp
@@ -221,6 +263,9 @@ namespace ACL_SIM_2.ViewModels
                 _proSimManager.OnTillerCaptChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => TillerProSimAxis = e.Value);
                 _proSimManager.OnElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchFlightControl = e.Value * 100);
                 _proSimManager.OnAileronRightChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollFlightControl = e.Value * 100);
+                _proSimManager.OnTrimElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchTrim = e.Value);
+                _proSimManager.OnTrimAileronChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollTrim = e.Value);
+                _proSimManager.OnTrimRudderChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RudderTrim = e.Value);
 
                 // Auto-connect if enabled in settings
                 if (globalSettings?.AutoConnectProsim == true)
