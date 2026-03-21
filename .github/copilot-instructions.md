@@ -15,3 +15,4 @@
 - For trim movement, run motor commands off the event thread, use latest-value-wins overriding behavior, and add a 100 ms smoothing/filter delay before sending movement commands.
 - When trim turns off, convert the trim percentage back to encoder units and apply it as a temporary runtime center shift by updating the current center and keeping torque range relative to the new center.
 - Keep trim center shifts relative to the stored runtime base center. When trim turns off, update `EncoderCenterOffset` from that base center plus the converted trim offset, while leaving `FullLeftPosition` and `FullRightPosition` as relative distances so the effective torque range becomes centered around the new runtime center.
+- Every trim move must also be calculated from that stored runtime base center, not from the last trimmed `EncoderCenterOffset`. The `Center Controls` result is the true center trim percentages are based on until centering is run again.

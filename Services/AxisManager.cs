@@ -281,6 +281,7 @@ namespace ACL_SIM_2.Services
 
                     if (double.IsNaN(lastSentTrimPercent) || Math.Abs(trimPercent - lastSentTrimPercent) > 0.001)
                     {
+                        ApplyRuntimeCenterOffset(_trimBaseCenterOffset);
                         BeginTrimState();
                         _axisMovement.GoToPosition(trimPercent);
                         _lastAppliedTrimPercent = trimPercent;
@@ -372,7 +373,12 @@ namespace ACL_SIM_2.Services
 
         private void ApplyTrimOffsetToCenter()
         {
-            _axisVm.Underlying.EncoderCenterOffset = _trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(_lastAppliedTrimPercent);
+            ApplyRuntimeCenterOffset(_trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(_lastAppliedTrimPercent));
+        }
+
+        private void ApplyRuntimeCenterOffset(double encoderCenterOffset)
+        {
+            _axisVm.Underlying.EncoderCenterOffset = encoderCenterOffset;
 
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
@@ -870,8 +876,8 @@ namespace ACL_SIM_2.Services
                             // Check if averaged position is within fine tolerance
                             if (Math.Abs(avgError) <= FINE_TOLERANCE)
                             {
-                                _axisVm.Underlying.EncoderCenterOffset = avgEncoder;
                                 _trimBaseCenterOffset = avgEncoder;
+                                ApplyRuntimeCenterOffset(avgEncoder);
                                 log($"[{_name}] Centered successfully (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
                                 return;
                             }
@@ -908,8 +914,8 @@ namespace ACL_SIM_2.Services
                         _axisMovement.Stop();
                         await Task.Delay(300, cancellationToken);
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
-                        _axisVm.Underlying.EncoderCenterOffset = finalEncoder;
                         _trimBaseCenterOffset = finalEncoder;
+                        ApplyRuntimeCenterOffset(finalEncoder);
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
                         return;
                     }
