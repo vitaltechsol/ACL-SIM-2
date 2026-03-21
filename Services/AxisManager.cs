@@ -41,6 +41,8 @@ namespace ACL_SIM_2.Services
         private double _pendingTrimPercent;
         private long _lastTrimUpdateTick;
         private bool _trimMoveLoopRunning;
+        private double _trimBaseCenterOffset;
+        private double _lastAppliedTrimPercent;
 
         private const int TRIM_TORQUE_HOLD_MS = 1000;
         private const int TRIM_FILTER_MS = 100;
@@ -56,6 +58,7 @@ namespace ACL_SIM_2.Services
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _proSimManager = proSimManager;
+            _trimBaseCenterOffset = _axisVm.Underlying.EncoderCenterOffset;
 
             // Create torque control if ModbusClient is provided
             if (modbusClient != null && !string.IsNullOrWhiteSpace(axisVm.Underlying.Settings.RS485Ip))
@@ -280,6 +283,7 @@ namespace ACL_SIM_2.Services
                     {
                         BeginTrimState();
                         _axisMovement.GoToPosition(trimPercent);
+                        _lastAppliedTrimPercent = trimPercent;
                         lastSentTrimPercent = trimPercent;
                     }
 
@@ -347,6 +351,7 @@ namespace ACL_SIM_2.Services
                         return;
                     }
 
+                    ApplyTrimOffsetToCenter();
                     _axisVm.Underlying.IsTrimming = false;
                     NotifyTrimStateChanged();
                     await UpdateTorqueAsync();
@@ -363,6 +368,30 @@ namespace ACL_SIM_2.Services
             {
                 _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.IsTrimming));
             });
+        }
+
+        private void ApplyTrimOffsetToCenter()
+        {
+            _axisVm.Underlying.EncoderCenterOffset = _trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(_lastAppliedTrimPercent);
+
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderNormalized));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.Torque));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.TorqueNormalized));
+            });
+        }
+
+        private double ConvertTrimPercentToEncoderOffset(double trimPercent)
+        {
+            if (trimPercent >= 0)
+            {
+                return (trimPercent / 100.0) * _axisVm.Underlying.Settings.FullRightPosition;
+            }
+
+            return (trimPercent / 100.0) * Math.Abs(_axisVm.Underlying.Settings.FullLeftPosition);
         }
 
         private void RequestAirspeedTorqueUpdate()
@@ -842,6 +871,7 @@ namespace ACL_SIM_2.Services
                             if (Math.Abs(avgError) <= FINE_TOLERANCE)
                             {
                                 _axisVm.Underlying.EncoderCenterOffset = avgEncoder;
+                                _trimBaseCenterOffset = avgEncoder;
                                 log($"[{_name}] Centered successfully (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
                                 return;
                             }
@@ -879,6 +909,7 @@ namespace ACL_SIM_2.Services
                         await Task.Delay(300, cancellationToken);
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
                         _axisVm.Underlying.EncoderCenterOffset = finalEncoder;
+                        _trimBaseCenterOffset = finalEncoder;
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
                         return;
                     }
