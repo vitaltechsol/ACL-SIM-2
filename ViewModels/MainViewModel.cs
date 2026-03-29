@@ -31,6 +31,8 @@ namespace ACL_SIM_2.ViewModels
         public AxisViewModel Rudder => _axes["Rudder"];
         public AxisViewModel Tiller => _axes["Tiller"];
 
+        private bool _hasCenteredControls = false;
+
         public ObservableCollection<string> ErrorLog { get; } = new ObservableCollection<string>();
 
         private string _errorLogText = string.Empty;
@@ -371,6 +373,12 @@ namespace ACL_SIM_2.ViewModels
                 ProSimConnectionState = e.State;
                 ProSimStatusMessage = e.Message;
                 LogError($"[ProSim] {e.Message}");
+                if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected 
+                    && !_hasCenteredControls 
+                    && CanCenterControls())
+                {
+                   CenterAllControls();
+                }
             });
         }
 
@@ -639,6 +647,7 @@ namespace ACL_SIM_2.ViewModels
                 UpdateCenteringState();
 
                 await System.Threading.Tasks.Task.WhenAll(centeringTasks);
+                _hasCenteredControls = true;
 
                 LogError("[Center] All axis centering tasks complete!");
             }
