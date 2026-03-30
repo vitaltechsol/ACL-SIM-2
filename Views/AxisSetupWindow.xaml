@@ -87,6 +87,8 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <TextBlock Text="Current Encoder:" Width="120" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding EncoderPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
+                        <TextBlock Text="ProSim Position:" Width="120" Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding ProSimPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">

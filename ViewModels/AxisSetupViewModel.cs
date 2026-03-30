@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading;
+using System.Windows.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -29,6 +30,10 @@ namespace ACL_SIM_2.ViewModels
         private CancellationTokenSource? _toastCts;
         private bool _calibrationPerformed;
         private AxisSettings _savedSettingsSnapshot = new AxisSettings();
+        private DispatcherTimer? _proSimTimer;
+        private EventHandler? _proSimTimerTickHandler;
+        private double _lastProSimRaw = double.NaN;
+        private PropertyChangedEventHandler? _axisVmPropertyChangedHandler;
 
         public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null, ProSimManager? proSimManager = null)
         {
@@ -38,18 +43,34 @@ namespace ACL_SIM_2.ViewModels
             _getProSimValue = getProSimValue ?? (() => 512.0);
             AxisName = _axisVm.Name;
 
+            // Start a timer to refresh the ProSimPosition display periodically
+            try
+            {
+                _proSimTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+                _proSimTimerTickHandler = (s, e) => OnPropertyChanged(nameof(ProSimPosition));
+                _proSimTimer.Tick += _proSimTimerTickHandler;
+                _proSimTimer.Start();
+            }
+            catch
+            {
+                // Ignore if dispatcher not available in some test contexts
+            }
+
             // Store original connection settings to detect changes
             _originalRS485Ip = _axisVm.Underlying.Settings.RS485Ip;
             _originalDriverId = _axisVm.Underlying.Settings.DriverId;
 
             // Subscribe to AxisViewModel PropertyChanged to update encoder position in real-time
-            _axisVm.PropertyChanged += (s, e) =>
+            _axisVmPropertyChangedHandler = new PropertyChangedEventHandler((s, e) =>
             {
                 if (e.PropertyName == nameof(AxisViewModel.EncoderPosition))
                 {
                     OnPropertyChanged(nameof(EncoderPosition));
                 }
-            };
+            });
+            _axisVm.PropertyChanged += _axisVmPropertyChangedHandler;
+
+            // ProSim mapped position property (bindable) is implemented below
 
             // Initialize values from underlying settings
             LoadSettings();
@@ -66,6 +87,24 @@ namespace ACL_SIM_2.ViewModels
         }
 
         public string AxisName { get; }
+
+        public double ProSimPosition
+        {
+            get
+            {
+                try
+                {
+                    var raw = _getProSimValue();
+                    // Map 0..1024 to -100..100 where 0 -> -100, 512 -> 0, 1024 -> 100
+                    var mapped = (raw - 512.0) / 512.0 * 100.0;
+                    return mapped;
+                }
+                catch
+                {
+                    return 0.0;
+                }
+            }
+        }
 
         public double EncoderPosition => IsCalibrationMode
             ? _axisVm.EncoderPosition + _calibrationDisplayOffset
@@ -463,6 +502,30 @@ namespace ACL_SIM_2.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        public void DisposeTimerIfNeeded()
+        {
+            try
+            {
+                if (_proSimTimer != null && _proSimTimerTickHandler != null)
+                {
+                    _proSimTimer.Tick -= _proSimTimerTickHandler;
+                    _proSimTimer.Stop();
+                    _proSimTimer = null;
+                    _proSimTimerTickHandler = null;
+                }
+
+                if (_axisVm != null && _axisVmPropertyChangedHandler != null)
+                {
+                    _axisVm.PropertyChanged -= _axisVmPropertyChangedHandler;
+                    _axisVmPropertyChangedHandler = null;
+                }
+            }
+            catch
+            {
+                // ignore cleanup exceptions
+            }
+        }
 
         private void LoadSettings()
         {

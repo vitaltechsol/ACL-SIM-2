@@ -21,6 +21,9 @@ namespace ACL_SIM_2.Views
 
             // Clean up any active test functions and re-center the axis
             _ = _viewModel.CleanupAndCenterAsync();
+
+            // Stop ProSim timer in viewmodel if running
+            _viewModel.DisposeTimerIfNeeded();
         }
     }
 }
