@@ -245,7 +245,7 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            SetStatus(ConnectionState.Connected, $"Connected to {prosimIp}");
+            SetStatus(ConnectionState.Connected, $"Connected");
         }
 
         /// <summary>
@@ -382,7 +382,7 @@ namespace ACL_SIM_2.Services
         private void Connection_onConnect()
         {
             // Called when ProSim notifies successful connection
-            SetStatus(ConnectionState.Connected, $"Connected to {_lastConnectedIp}");
+            SetStatus(ConnectionState.Connected, $"Connected");
             InitializeDataRefs();
         }
 

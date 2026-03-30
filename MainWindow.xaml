@@ -60,19 +60,19 @@
                 <Button Content="Connect" Command="{Binding ConnectProSimCommand}" Width="80" Height="28">
                     <Button.Style>
                         <Style TargetType="Button">
-                            <Setter Property="Background" Value="#007acc"/>
+                            <Setter Property="Background" Value="#FF368883"/>
                             <Setter Property="Foreground" Value="White"/>
                             <Setter Property="BorderThickness" Value="0"/>
                             <Setter Property="Cursor" Value="Hand"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connected">
                                     <Setter Property="Content" Value="Disconnect"/>
-                                    <Setter Property="Background" Value="#d13438"/>
+                                    <Setter Property="Background" Value="#FF6D847B"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding ProSimConnectionState}" Value="Connecting">
                                     <Setter Property="Content" Value="Connecting..."/>
                                     <Setter Property="IsEnabled" Value="False"/>
-                                    <Setter Property="Background" Value="#555555"/>
+                                    <Setter Property="Background" Value="#FFD87028"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -82,9 +82,9 @@
         </Grid>
 
         <!-- Center Controls Button -->
-        <Button Grid.Row="1" Content="Center Controls" Command="{Binding CenterControlsCommand}" 
-                Width="140" Height="32" Margin="0,12,0,0" 
-                HorizontalAlignment="Left" FontWeight="SemiBold">
+        <Button Content="Center Controls" Command="{Binding CenterControlsCommand}" 
+                Width="140" Height="32" Margin="293,11,0,33" 
+                HorizontalAlignment="Left" FontWeight="SemiBold" Grid.RowSpan="2">
             <Button.Style>
                 <Style TargetType="Button">
                     <Setter Property="Background" Value="#28a745"/>
@@ -102,43 +102,43 @@
             </Button.Style>
         </Button>
 
-        <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,12,0,12" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,0,0,24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <!-- Pitch axis panel -->
             <Grid>
-            <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Pitch" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+                            <TextBlock Text="Pitch" FontSize="16" FontWeight="Bold" Grid.Column="0" />
 
-                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
-                            <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
-                            <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch" IsEnabled="{Binding Pitch.Enabled}" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <CheckBox IsChecked="{Binding Pitch.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
+                                <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Pitch" IsEnabled="{Binding Pitch.Enabled}" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Encoder:" />
+                            <TextBlock Text="{Binding Pitch.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                         </StackPanel>
-                    </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Encoder:" />
-                        <TextBlock Text="{Binding Pitch.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
-                    </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Pitch.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
-                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
-                            <Run Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                        <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Pitch.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
                             <Run Text=" (" />
                             <Run Text="{Binding Pitch.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
@@ -146,495 +146,495 @@
    <TextBlock Text="{Binding Pitch.AirspeedAdditionalTorqueAppliedPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#FFC107" />
               
                         </TextBlock>
+                        </StackPanel>
+
+                        <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Pitch.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Pitch.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PitchProSimAxis, StringFormat={}{0:F0}}" Width="28" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Flight Ctrl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PitchFlightControl, StringFormat={}{0:F2}}"  Width="32" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                    <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PitchTrim, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12" Fill="{Binding Pitch.ConnectionBrush}" />
+                                    <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Pitch.HydraulicsOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Pitch.AutopilotOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Pitch.MotorIsMoving}" Value="True">
+                                                        <Setter Property="Fill" Value="Orange" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-            
-                    <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Pitch.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Pitch.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding PitchProSimAxis, StringFormat={}{0:F0}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Flight Ctrl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding PitchFlightControl, StringFormat={}{0:F4}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                                <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding PitchTrim, StringFormat={}{0:F3}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12" Fill="{Binding Pitch.ConnectionBrush}" />
-                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Pitch.HydraulicsOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Pitch.AutopilotOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Pitch.MotorIsMoving}" Value="True">
-                                                    <Setter Property="Fill" Value="Orange" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-            <!-- Pitch centering overlay -->
-            <Border Margin="8,45,8,8" Background="#CC000000" CornerRadius="6"
+                </Border>
+                <!-- Pitch centering overlay -->
+                <Border Margin="8,45,8,8" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Pitch.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
                         <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Pitch" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                </StackPanel>
-            </Border>
+                        <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Pitch" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Roll axis panel -->
             <Grid>
-            <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Roll" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+                            <TextBlock Text="Roll" FontSize="16" FontWeight="Bold" Grid.Column="0" />
 
-                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
-                            <CheckBox IsChecked="{Binding Roll.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Background="White" Foreground="White" />
-                            <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click" IsEnabled="{Binding Roll.Enabled}" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <CheckBox IsChecked="{Binding Roll.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Background="White" Foreground="White" />
+                                <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Roll" Click="Button_Click" IsEnabled="{Binding Roll.Enabled}" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Encoder:" />
+                            <TextBlock Text="{Binding Roll.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                         </StackPanel>
-                    </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Encoder:" />
-                        <TextBlock Text="{Binding Roll.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
-                    </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Roll.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
-                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
-                            <Run Text="{Binding Roll.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                        <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Roll.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Roll.CurrentTorque, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
                             <Run Text=" (" />
                             <Run Text="{Binding Roll.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
-                        </TextBlock>
+                            </TextBlock>
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Roll.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Roll.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding RollProSimAxis, StringFormat={}{0:F0}}" Width="28" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Flight Ctrl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding RollFlightControl, StringFormat={}{0:F2}}" Width="32" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                    <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding RollTrim, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12" Fill="{Binding Roll.ConnectionBrush}" />
+                                    <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Roll.HydraulicsOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Roll.AutopilotOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Roll.MotorIsMoving}" Value="True">
+                                                        <Setter Property="Fill" Value="Orange" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Roll.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Roll.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding RollProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Flight Ctrl:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding RollFlightControl, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightGreen" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                                <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding RollTrim, StringFormat={}{0:F3}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12" Fill="{Binding Roll.ConnectionBrush}" />
-                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Roll.HydraulicsOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Roll.AutopilotOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Auto Pilot" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Roll.MotorIsMoving}" Value="True">
-                                                    <Setter Property="Fill" Value="Orange" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-            <!-- Roll centering overlay -->
-            <Border Margin="8,46,8,8" Background="#CC000000" CornerRadius="6"
+                </Border>
+                <!-- Roll centering overlay -->
+                <Border Margin="8,46,8,8" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Roll.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
                         <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Roll" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                </StackPanel>
-            </Border>
+                        <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Roll" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Rudder axis panel -->
             <Grid>
-            <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Rudder" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+                            <TextBlock Text="Rudder" FontSize="16" FontWeight="Bold" Grid.Column="0" />
 
-                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
-                            <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
-                            <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder" IsEnabled="{Binding Rudder.Enabled}" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <CheckBox IsChecked="{Binding Rudder.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
+                                <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Rudder" IsEnabled="{Binding Rudder.Enabled}" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Encoder:" />
+                            <TextBlock Text="{Binding Rudder.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                         </StackPanel>
-                    </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Encoder:" />
-                        <TextBlock Text="{Binding Rudder.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
-                    </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Rudder.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
-                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
-                            <Run Text="{Binding Rudder.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                        <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Rudder.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Rudder.CurrentTorque, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
                             <Run Text=" (" />
                             <Run Text="{Binding Rudder.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
-                        </TextBlock>
+                            </TextBlock>
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Rudder.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Rudder.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding RudderProSimAxis, StringFormat={}{0:F0}}" Width="24" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding RudderTrim, StringFormat={}{0:F2}}" FontSize="11" Width="26" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12" Fill="{Binding Rudder.ConnectionBrush}" />
+                                    <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Rudder.HydraulicsOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Rudder.MotorIsMoving}" Value="True">
+                                                        <Setter Property="Fill" Value="Orange" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Rudder.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Rudder.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding RudderProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Trim:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding RudderTrim, StringFormat={}{0:F3}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#FFC107" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12" Fill="{Binding Rudder.ConnectionBrush}" />
-                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Rudder.HydraulicsOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Rudder.MotorIsMoving}" Value="True">
-                                                    <Setter Property="Fill" Value="Orange" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-            <!-- Rudder centering overlay -->
-            <Border Margin="8,49,8,8" Background="#CC000000" CornerRadius="6"
+                </Border>
+                <!-- Rudder centering overlay -->
+                <Border Margin="8,49,8,8" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Rudder.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
                         <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Rudder" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                </StackPanel>
-            </Border>
+                        <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Rudder" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Tiller axis panel -->
             <Grid>
-            <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <Border Margin="8" Background="#252525" CornerRadius="6" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Tiller" FontSize="16" FontWeight="Bold" Grid.Column="0" />
+                            <TextBlock Text="Tiller" FontSize="16" FontWeight="Bold" Grid.Column="0" />
 
-                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
-                            <CheckBox IsChecked="{Binding Tiller.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
-                            <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <CheckBox IsChecked="{Binding Tiller.Enabled, Mode=TwoWay}" Content="Enable" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White" />
+                                <Button Content="Setup" Command="{Binding SetupCommand}" CommandParameter="Tiller" IsEnabled="{Binding Tiller.Underlying.Settings.Enabled}" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Encoder:" />
+                            <TextBlock Text="{Binding Tiller.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                         </StackPanel>
-                    </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Encoder:" />
-                        <TextBlock Text="{Binding Tiller.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
-                    </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Tiller.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Torque:" VerticalAlignment="Center" />
-                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
-                            <Run Text="{Binding Tiller.CurrentTorque, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
+                        <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Tiller.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Torque:" VerticalAlignment="Center" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Run Text="{Binding Tiller.CurrentTorque, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
                             <Run Text=" (" />
                             <Run Text="{Binding Tiller.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
-                        </TextBlock>
+                            </TextBlock>
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Tiller.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Tiller.Enabled}" Value="False">
+                                            <Setter Property="Value" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding TillerProSimAxis, StringFormat={}{0:F0}}" Width="24" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12" Fill="{Binding Tiller.ConnectionBrush}" />
+                                    <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Tiller.HydraulicsOn}" Value="True">
+                                                        <Setter Property="Fill" Value="LimeGreen" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                    <Ellipse Width="12" Height="12">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="Red" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Tiller.MotorIsMoving}" Value="True">
+                                                        <Setter Property="Fill" Value="Orange" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-                    <ProgressBar Minimum="0" Maximum="100" Height="14" Value="{Binding Tiller.EncoderPercentage, Mode=OneWay}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Tiller.Enabled}" Value="False">
-                                        <Setter Property="Value" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                <TextBlock Text="Prosim Axis:" Margin="0,0,4,0" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding TillerProSimAxis, StringFormat={}{0:F2}}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12" Fill="{Binding Tiller.ConnectionBrush}" />
-                                <TextBlock Text="RS485" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Tiller.HydraulicsOn}" Value="True">
-                                                    <Setter Property="Fill" Value="LimeGreen" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Hydraulics" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <Ellipse Width="12" Height="12">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="Red" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Tiller.MotorIsMoving}" Value="True">
-                                                    <Setter Property="Fill" Value="Orange" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Moving" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-            <!-- Tiller centering overlay -->
-            <Border Margin="8,48,8,8" Background="#CC000000" CornerRadius="6"
+                </Border>
+                <!-- Tiller centering overlay -->
+                <Border Margin="8,48,8,8" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Tiller.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4" />
                         <TextBlock Text="Do not touch controls - Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                    <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Tiller" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                </StackPanel>
-            </Border>
+                        <Button Content="Cancel" Width="80" Height="28" Command="{Binding CancelCenteringCommand}" CommandParameter="Tiller" Background="#d13438" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </UniformGrid>
 
@@ -642,7 +642,7 @@
         <Border Grid.Row="3" Background="#1a1a1a" CornerRadius="4" Padding="8" Margin="0,8,0,0">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
-                    <TextBlock Text="Error Log" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                    <TextBlock Text="Status Log" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Left" />
                     <Button Content="Clear" FontSize="10" Padding="4,2" HorizontalAlignment="Right" Command="{Binding ClearErrorLogCommand}" />
                 </Grid>
                 <TextBox Text="{Binding ErrorLogText, Mode=OneWay}" 
@@ -651,7 +651,7 @@
                          VerticalScrollBarVisibility="Auto" 
                          HorizontalScrollBarVisibility="Disabled"
                          FontSize="10" 
-                         Foreground="#ff6b6b" 
+                         Foreground="#FFE6E6E6" 
                          Background="Transparent" 
                          BorderThickness="0"
                          Padding="0"
