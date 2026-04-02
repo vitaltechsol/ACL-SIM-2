@@ -32,6 +32,7 @@ namespace ACL_SIM_2.ViewModels
         public AxisViewModel Tiller => _axes["Tiller"];
 
         private bool _hasCenteredControls = false;
+        private bool _autoCenterOnStartup = false;
 
         public ObservableCollection<string> ErrorLog { get; } = new ObservableCollection<string>();
 
@@ -250,6 +251,7 @@ namespace ACL_SIM_2.ViewModels
             if (globalSettings != null)
             {
                 ProSimIp = globalSettings.ProsimIp ?? "127.0.0.1";
+                _autoCenterOnStartup = globalSettings.AutoCenterOnStartup;
             }
 
             // Initialize ProSim Manager
@@ -374,6 +376,7 @@ namespace ACL_SIM_2.ViewModels
                 ProSimStatusMessage = e.Message;
                 LogError($"[ProSim] {e.Message}");
                 if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected 
+                    && _autoCenterOnStartup
                     && !_hasCenteredControls 
                     && CanCenterControls())
                 {
