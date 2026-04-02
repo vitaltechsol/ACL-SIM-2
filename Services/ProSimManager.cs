@@ -12,23 +12,34 @@ namespace ACL_SIM_2.Services
     public class ProSimManager : IDisposable
     {
         // DataRef Constants
+        // These values are used to caluculate the Auto-Pilot Position:
         public const string AILERON_LEFT = "aircraft.flightControls.leftAileron";
         public const string AILERON_RIGHT = "aircraft.flightControls.rightAileron";
         public const string ELEVATOR = "aircraft.flightControls.elevator";
+        // To caluclate if the axis is trimming and position 
         public const string TRIM_ELEVATOR = "aircraft.flightControls.trim.elevator";
         public const string TRIM_AILERON = "aircraft.flightControls.trim.aileron.units";
         public const string TRIM_RUDDER = "aircraft.flightControls.trim.rudder.units";
+        // If aircrasft is stalling, add additional torque
         public const string IS_STALLING = "system.gates.B_STICKSHAKER";
+        // To add additional torque based on airspeed
         public const string SPEED_IAS = "aircraft.speed.ias";
+        // To center motors based on axis position
         public const string AILERON_CPTN = "system.analog.A_FC_AILERON_CAPT";
         public const string ELEVATOR_CPTN = "system.analog.A_FC_ELEVATOR_CAPT";
         public const string RUDDER_CAPT = "system.analog.A_FC_RUDDER_CAPT";
         public const string TILLER_CAPT = "system.analog.A_FC_TILLER_CAPT";
+        // Is auto-pilot on for Pitch 
         public const string PITCH_CMD = "system.gates.B_PITCH_CMD";
+        // Is auto-pilot on for Roll 
         public const string ROLL_CMD = "system.gates.B_ROLL_CMD";
+        // Is Hydraulic system Available
         public const string HYDRAULICS_AVAILABLE = "system.gates.B_HYDRAULICS_AVAILABLE";
+        // Has auto-pilot been disangage
         public const string MCP_AP_DISENGAGE = "system.switches.S_MCP_AP_DISENGAGE";
+        // For pausing the sumulator
         public const string PAUSE = "simulator.pause";
+        // Not used (Todo: remove)
         public const string SPEED_GROUND = "aircraft.speed.ground";
 
         public enum ConnectionState
