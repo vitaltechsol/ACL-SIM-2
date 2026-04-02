@@ -93,7 +93,18 @@
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <StackPanel Margin="0,0,16,0">
-                            <TextBlock Text="Full Left Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                            <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Full Left Position:"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                <Setter Property="Text" Value="Full Forward Position:"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding Settings.FullLeftPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
@@ -101,7 +112,18 @@
                             <TextBlock Text="{Binding Settings.CenterPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                         <StackPanel>
-                            <TextBlock Text="Full Right Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                            <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Full Right Position:"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                <Setter Property="Text" Value="Full Aft Position:"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding Settings.FullRightPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </StackPanel>
@@ -134,8 +156,30 @@
                             </Style>
                         </StackPanel.Style>
                         <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
-                        <Button Content="Set Full Right" Width="120" Margin="0,0,8,0" Command="{Binding SetFullRightCommand}" />
-                        <Button Content="Set Full Left" Width="120" Command="{Binding SetFullLeftCommand}" />
+                        <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullRightCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Content" Value="Set Full Right"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                            <Setter Property="Content" Value="Set Full Aft"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Width="120" Command="{Binding SetFullLeftCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Content" Value="Set Full Left"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                            <Setter Property="Content" Value="Set Full Forward"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White" />

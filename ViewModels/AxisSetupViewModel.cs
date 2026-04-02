@@ -29,6 +29,7 @@ namespace ACL_SIM_2.ViewModels
         private bool _showToast;
         private CancellationTokenSource? _toastCts;
         private bool _calibrationPerformed;
+        private bool _isCenterSet;
         private AxisSettings _savedSettingsSnapshot = new AxisSettings();
         private DispatcherTimer? _proSimTimer;
         private EventHandler? _proSimTimerTickHandler;
@@ -76,8 +77,8 @@ namespace ACL_SIM_2.ViewModels
             LoadSettings();
 
             SetCenterCommand = new RelayCommand(_ => SetCenter());
-            SetFullRightCommand = new RelayCommand(_ => SetFullRight());
-            SetFullLeftCommand = new RelayCommand(_ => SetFullLeft());
+            SetFullRightCommand = new RelayCommand(_ => SetFullRight(), _ => _isCenterSet);
+            SetFullLeftCommand = new RelayCommand(_ => SetFullLeft(), _ => _isCenterSet);
             ToggleReversedCommand = new RelayCommand(_ => ToggleReversed());
             SaveCommand = new RelayCommand(_ => Save());
             TogglePositionTestCommand = new RelayCommand(_ => TogglePositionTest());
@@ -484,6 +485,18 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        public bool IsCenterSet
+        {
+            get => _isCenterSet;
+            private set
+            {
+                if (_isCenterSet == value) return;
+                _isCenterSet = value;
+                OnPropertyChanged(nameof(IsCenterSet));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
         public ICommand SetFullLeftCommand { get; }
@@ -598,6 +611,8 @@ namespace ACL_SIM_2.ViewModels
             // (EncoderPercentage, torque, PercentToEncoderPosition) remain correct.
             _axisVm.Underlying.EncoderCenterOffset = rawEncoder;
 
+            IsCenterSet = true;
+
             OnPropertyChanged(nameof(EncoderPosition));
             OnPropertyChanged(nameof(Settings));
 
@@ -676,8 +691,9 @@ namespace ACL_SIM_2.ViewModels
             }
             else
             {
-                // Entering calibration mode: reset display offset
+                // Entering calibration mode: reset display offset and center-set state
                 _calibrationDisplayOffset = 0;
+                IsCenterSet = false;
                 IsCalibrationMode = true;
             }
         }
