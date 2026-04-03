@@ -697,8 +697,11 @@ namespace ACL_SIM_2.ViewModels
                 // captured this session and full left is physically greater than full right.
                 if (_isFullRightSet && Settings.FullLeftPosition > Settings.FullRightPosition)
                 {
+                    Settings.FullLeftPosition *= -1;
+                    Settings.FullRightPosition *= -1;
                     Reversed = true;
                     OnPropertyChanged(nameof(Reversed));
+                    OnPropertyChanged(nameof(Settings));
                 }
 
                 // Restore EncoderCenterOffset to the raw encoder value at calibration center
