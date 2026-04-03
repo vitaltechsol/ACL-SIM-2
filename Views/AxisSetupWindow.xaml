@@ -99,7 +99,7 @@
                                         <Setter Property="Text" Value="Full Left Position:"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Forward Position:"/>
+                                                <Setter Property="Text" Value="Full Back Position:"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -118,7 +118,7 @@
                                         <Setter Property="Text" Value="Full Right Position:"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Aft Position:"/>
+                                                <Setter Property="Text" Value="Full Foward Position:"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -155,26 +155,27 @@
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
-                        <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
                         <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullRightCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Content" Value="Set Full Right"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Aft"/>
+                                            <Setter Property="Content" Value="Set Full Forward"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <Button Width="120" Command="{Binding SetFullLeftCommand}">
+                            <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
+
+                            <Button Width="120" Command="{Binding SetFullLeftCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Content" Value="Set Full Left"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Forward"/>
+                                            <Setter Property="Content" Value="Set Full Back"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -193,10 +194,6 @@
                     <Slider Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
                     <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
                     <Slider Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Content="Start Movement Test" Width="140" Command="{Binding StartMovementTestCommand}" />
-                        <Button Content="Verify" Width="80" Margin="8,0,0,0" Command="{Binding VerifyMovementTestCommand}" />
-                    </StackPanel>
                 </StackPanel>
             </GroupBox>
 

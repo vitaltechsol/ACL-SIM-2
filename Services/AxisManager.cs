@@ -629,6 +629,7 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
+            // Normal operation: calculate torque based on encoder position and settings
             try
             {
                 await Task.Run(() =>
@@ -677,17 +678,12 @@ namespace ACL_SIM_2.Services
                         var targetTorqueActual = _axisVm.Underlying.TorqueTarget;
                         var torqueInt = (int)Math.Round(targetTorqueActual);
 
-                        // Send to appropriate register based on direction
-                        if (relativePos >= 0)
-                        {
-                            // Positive offset (right direction): use right register (register 8)
-                            _torqueControl.SetTorqueRight(torqueInt);
-                        }
-                        else
-                        {
-                            // Negative offset (left direction): use left register (register 9)
-                            _torqueControl.SetTorqueLeft(torqueInt);
-                        }
+                        // Both registers must reflect the positional torque at all times.
+                        // The motor's self-centering force is applied in the direction OPPOSITE
+                        // to displacement: when at right, the motor pushes left (register 9);
+                        // when at left, the motor pushes right (register 8).  Using SetTorqueBoth ensures the full position-based
+                        // resistance is always active in both directions
+                        _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
                     }
                     catch
                     {
