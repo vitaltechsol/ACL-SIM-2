@@ -70,6 +70,10 @@ namespace ACL_SIM_2.ViewModels
                 {
                     OnPropertyChanged(nameof(EncoderPosition));
                 }
+                else if (e.PropertyName == nameof(AxisViewModel.IsCentering))
+                {
+                    OnPropertyChanged(nameof(IsCentering));
+                }
             });
             _axisVm.PropertyChanged += _axisVmPropertyChangedHandler;
 
@@ -490,6 +494,8 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        public bool IsCentering => _axisVm.IsCentering;
+
         public bool IsCenterSet
         {
             get => _isCenterSet;
@@ -717,6 +723,11 @@ namespace ACL_SIM_2.ViewModels
 
                 _calibrationPerformed = true;
 
+                // Auto-save calibration results so the snapshot is up to date
+                // and CleanupAndCenterAsync won't restore stale values on close.
+                SettingsService.SaveAxisSettings(AxisName, Settings);
+                _savedSettingsSnapshot = Settings.Clone();
+
                 // Center the axis via AxisManager so EncoderCenterOffset is set from the actual encoder
                 if (_axisManager != null)
                 {
@@ -745,9 +756,26 @@ namespace ACL_SIM_2.ViewModels
         /// </summary>
         private async Task CenterAxisViaManagerAsync()
         {
+            var simWasAlreadyPaused = false;
             try
             {
                 TryDisengageMcpAutopilot();
+
+                // Capture whether the sim was already paused before we touch it
+                simWasAlreadyPaused = _proSimManager?.Pause ?? false;
+
+                // Show centering overlay and enable movement torque
+                _axisVm.Underlying.MotorIsMoving = true;
+                _axisVm.IsCentering = true;
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+                OnPropertyChanged(nameof(IsCentering));
+
+                // Pause the sim only if it wasn't already paused
+                if (!simWasAlreadyPaused)
+                {
+                    try { _proSimManager?.PauseSim(); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[{AxisName}] Failed to pause sim: {ex.Message}"); }
+                }
 
                 // Enable AutopilotOn so AxisManager sends movement torque to the motor
                 _axisVm.Underlying.AutopilotOn = true;
@@ -763,15 +791,28 @@ namespace ACL_SIM_2.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[{AxisName}] Post-calibration centering failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[{AxisName}] Post-calibration centering failed: {ex.Message}");
                 ShowToastNotification($"⚠ Centering failed: {ex.Message}");
             }
             finally
             {
                 _axisVm.Underlying.AutopilotOn = false;
                 _axisVm.Underlying.RecalculateTorqueTarget();
+                _axisVm.Underlying.MotorIsMoving = false;
+                _axisVm.IsCentering = false;
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                 _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+                OnPropertyChanged(nameof(IsCentering));
+
+                // Only unpause if we were the ones who paused it
+                if (!simWasAlreadyPaused)
+                {
+                    try { _proSimManager?.UnpauseSim(); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[{AxisName}] Failed to unpause sim: {ex.Message}"); }
+                }
+
+                // Clear flag so closing the window doesn't trigger a second centering pass
+                _calibrationPerformed = false;
             }
         }
 
