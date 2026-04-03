@@ -1,4 +1,4 @@
-<Window x:Class="ACL_SIM_2.Views.AxisSetupWindow"
+﻿<Window x:Class="ACL_SIM_2.Views.AxisSetupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -155,27 +155,51 @@
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
-                        <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullRightCommand}">
+
+                        <!-- Step 1: Set Center - visible until center is set -->
+                        <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
-                                    <Setter Property="Content" Value="Set Full Right"/>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Forward"/>
+                                        <DataTrigger Binding="{Binding ShowSetCenterButton}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
                         </Button>
-                            <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}" />
 
-                            <Button Width="120" Command="{Binding SetFullLeftCommand}">
+                        <!-- Step 2: Set Full Left - visible after center is set, until full left is set -->
+                        <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullLeftCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                     <Setter Property="Content" Value="Set Full Left"/>
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowSetFullLeftButton}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
                                             <Setter Property="Content" Value="Set Full Back"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
+                        <!-- Step 3: Set Full Right - visible after full left is set -->
+                        <Button Width="120" Command="{Binding SetFullRightCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Content" Value="Set Full Right"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowSetFullRightButton}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                            <Setter Property="Content" Value="Set Full Forward"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -478,3 +502,4 @@
         </StackPanel>
     </Grid>
 </Window>
+

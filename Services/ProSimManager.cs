@@ -12,7 +12,7 @@ namespace ACL_SIM_2.Services
     public class ProSimManager : IDisposable
     {
         // DataRef Constants
-        // These values are used to calculate the Auto-Pilot position (Also difference in target for auto-pilot discconect from control movement):
+        // These values are used to calculate the Auto-Pilot position (Also difference in target for auto-pilot disconnect from control movement):
         public const string AILERON_LEFT = "aircraft.flightControls.leftAileron";
         public const string AILERON_RIGHT = "aircraft.flightControls.rightAileron";
         public const string ELEVATOR = "aircraft.flightControls.elevator";

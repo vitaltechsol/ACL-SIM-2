@@ -20,6 +20,8 @@ namespace ACL_SIM_2.ViewModels
         private double _testStartEncoder;
         private bool _isPositionTestEnabled;
         private bool _isHydraulicTestEnabled;
+        private bool _isFullLeftSet;
+        private bool _isFullRightSet;
         private bool _isCalibrationMode;
         private double _targetPosition = 0.0;
         private readonly string _originalRS485Ip;
@@ -77,7 +79,7 @@ namespace ACL_SIM_2.ViewModels
             LoadSettings();
 
             SetCenterCommand = new RelayCommand(_ => SetCenter());
-            SetFullRightCommand = new RelayCommand(_ => SetFullRight(), _ => _isCenterSet);
+            SetFullRightCommand = new RelayCommand(_ => SetFullRight(), _ => _isFullLeftSet);
             SetFullLeftCommand = new RelayCommand(_ => SetFullLeft(), _ => _isCenterSet);
             ToggleReversedCommand = new RelayCommand(_ => ToggleReversed());
             SaveCommand = new RelayCommand(_ => Save());
@@ -449,6 +451,9 @@ namespace ACL_SIM_2.ViewModels
                 if (_isCalibrationMode == value) return;
                 _isCalibrationMode = value;
                 OnPropertyChanged(nameof(IsCalibrationMode));
+                OnPropertyChanged(nameof(ShowSetCenterButton));
+                OnPropertyChanged(nameof(ShowSetFullLeftButton));
+                OnPropertyChanged(nameof(ShowSetFullRightButton));
 
                 // Set CalibrationMode flag on the underlying Axis to set torque to 0
                 _axisVm.Underlying.CalibrationMode = value;
@@ -493,9 +498,31 @@ namespace ACL_SIM_2.ViewModels
                 if (_isCenterSet == value) return;
                 _isCenterSet = value;
                 OnPropertyChanged(nameof(IsCenterSet));
+                OnPropertyChanged(nameof(ShowSetCenterButton));
+                OnPropertyChanged(nameof(ShowSetFullLeftButton));
+                OnPropertyChanged(nameof(ShowSetFullRightButton));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
+
+        public bool IsFullLeftSet
+        {
+            get => _isFullLeftSet;
+            private set
+            {
+                if (_isFullLeftSet == value) return;
+                _isFullLeftSet = value;
+                OnPropertyChanged(nameof(IsFullLeftSet));
+                OnPropertyChanged(nameof(ShowSetCenterButton));
+                OnPropertyChanged(nameof(ShowSetFullLeftButton));
+                OnPropertyChanged(nameof(ShowSetFullRightButton));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool ShowSetCenterButton => IsCalibrationMode && !IsCenterSet;
+        public bool ShowSetFullLeftButton => IsCalibrationMode && IsCenterSet && !IsFullLeftSet;
+        public bool ShowSetFullRightButton => IsCalibrationMode && IsCenterSet && IsFullLeftSet;
 
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
@@ -612,6 +639,8 @@ namespace ACL_SIM_2.ViewModels
             _axisVm.Underlying.EncoderCenterOffset = rawEncoder;
 
             IsCenterSet = true;
+            IsFullLeftSet = false;
+            _isFullRightSet = false;
 
             OnPropertyChanged(nameof(EncoderPosition));
             OnPropertyChanged(nameof(Settings));
@@ -628,6 +657,7 @@ namespace ACL_SIM_2.ViewModels
             // Store relative distance from center (positive value)
             var relativePosition = _axisVm.EncoderPosition + _calibrationDisplayOffset;
             Settings.FullRightPosition = relativePosition;
+            _isFullRightSet = true;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
@@ -642,6 +672,8 @@ namespace ACL_SIM_2.ViewModels
             // Store relative distance from center (negative value)
             var relativePosition = _axisVm.EncoderPosition + _calibrationDisplayOffset;
             Settings.FullLeftPosition = relativePosition;
+            IsFullLeftSet = true;
+            _isFullRightSet = false;
             OnPropertyChanged(nameof(Settings));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
@@ -661,9 +693,13 @@ namespace ACL_SIM_2.ViewModels
         {
             if (IsCalibrationMode)
             {
-                // Exiting calibration mode (Done): auto-detect motor direction
-                Reversed = Settings.FullLeftPosition > Settings.FullRightPosition;
-                OnPropertyChanged(nameof(Reversed));
+                // Exiting calibration mode (Done): only mark reversed when both endpoints were
+                // captured this session and full left is physically greater than full right.
+                if (_isFullRightSet && Settings.FullLeftPosition > Settings.FullRightPosition)
+                {
+                    Reversed = true;
+                    OnPropertyChanged(nameof(Reversed));
+                }
 
                 // Restore EncoderCenterOffset to the raw encoder value at calibration center
                 // so GoToPosition(0) targets the correct physical position.
@@ -691,9 +727,11 @@ namespace ACL_SIM_2.ViewModels
             }
             else
             {
-                // Entering calibration mode: reset display offset and center-set state
+                // Entering calibration mode: reset display offset and all calibration step flags
                 _calibrationDisplayOffset = 0;
                 IsCenterSet = false;
+                IsFullLeftSet = false;
+                _isFullRightSet = false;
                 IsCalibrationMode = true;
             }
         }
