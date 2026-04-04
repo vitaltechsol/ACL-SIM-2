@@ -50,7 +50,11 @@ namespace ACL_SIM_2.ViewModels
             try
             {
                 _proSimTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-                _proSimTimerTickHandler = (s, e) => OnPropertyChanged(nameof(ProSimPosition));
+                _proSimTimerTickHandler = (s, e) =>
+                {
+                    OnPropertyChanged(nameof(ProSimPosition));
+                    OnPropertyChanged(nameof(ProSimPositionIsGood));
+                };
                 _proSimTimer.Tick += _proSimTimerTickHandler;
                 _proSimTimer.Start();
             }
@@ -458,6 +462,8 @@ namespace ACL_SIM_2.ViewModels
                 OnPropertyChanged(nameof(ShowSetCenterButton));
                 OnPropertyChanged(nameof(ShowSetFullLeftButton));
                 OnPropertyChanged(nameof(ShowSetFullRightButton));
+                OnPropertyChanged(nameof(ShowDoneLabel));
+                OnPropertyChanged(nameof(ProSimPositionIsGood));
 
                 // Set CalibrationMode flag on the underlying Axis to set torque to 0
                 _axisVm.Underlying.CalibrationMode = value;
@@ -507,6 +513,8 @@ namespace ACL_SIM_2.ViewModels
                 OnPropertyChanged(nameof(ShowSetCenterButton));
                 OnPropertyChanged(nameof(ShowSetFullLeftButton));
                 OnPropertyChanged(nameof(ShowSetFullRightButton));
+                OnPropertyChanged(nameof(ShowDoneLabel));
+                OnPropertyChanged(nameof(ProSimPositionIsGood));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -522,13 +530,28 @@ namespace ACL_SIM_2.ViewModels
                 OnPropertyChanged(nameof(ShowSetCenterButton));
                 OnPropertyChanged(nameof(ShowSetFullLeftButton));
                 OnPropertyChanged(nameof(ShowSetFullRightButton));
+                OnPropertyChanged(nameof(ShowDoneLabel));
+                OnPropertyChanged(nameof(ProSimPositionIsGood));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
 
         public bool ShowSetCenterButton => IsCalibrationMode && !IsCenterSet;
         public bool ShowSetFullLeftButton => IsCalibrationMode && IsCenterSet && !IsFullLeftSet;
-        public bool ShowSetFullRightButton => IsCalibrationMode && IsCenterSet && IsFullLeftSet;
+        public bool ShowSetFullRightButton => IsCalibrationMode && IsCenterSet && IsFullLeftSet && !_isFullRightSet;
+        public bool ShowDoneLabel => IsCalibrationMode && _isFullRightSet;
+
+        public bool ProSimPositionIsGood
+        {
+            get
+            {
+                if (!IsCalibrationMode) return true;
+                var pos = ProSimPosition;
+                if (!IsCenterSet) return Math.Abs(pos) <= 0.8;
+                if (!IsFullLeftSet) return Math.Abs(pos + 100.0) <= 2.0;
+                return Math.Abs(pos - 100.0) <= 2.0;
+            }
+        }
 
         public ICommand SetCenterCommand { get; }
         public ICommand SetFullRightCommand { get; }
@@ -647,6 +670,7 @@ namespace ACL_SIM_2.ViewModels
             IsCenterSet = true;
             IsFullLeftSet = false;
             _isFullRightSet = false;
+            OnPropertyChanged(nameof(ShowDoneLabel));
 
             OnPropertyChanged(nameof(EncoderPosition));
             OnPropertyChanged(nameof(Settings));
@@ -665,6 +689,9 @@ namespace ACL_SIM_2.ViewModels
             Settings.FullRightPosition = relativePosition;
             _isFullRightSet = true;
             OnPropertyChanged(nameof(Settings));
+            OnPropertyChanged(nameof(ShowSetFullRightButton));
+            OnPropertyChanged(nameof(ShowDoneLabel));
+            CommandManager.InvalidateRequerySuggested();
 
             // Notify AxisViewModel to recalculate EncoderPercentage
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
@@ -681,6 +708,7 @@ namespace ACL_SIM_2.ViewModels
             IsFullLeftSet = true;
             _isFullRightSet = false;
             OnPropertyChanged(nameof(Settings));
+            OnPropertyChanged(nameof(ShowDoneLabel));
 
             // Notify AxisViewModel to recalculate EncoderPercentage
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));

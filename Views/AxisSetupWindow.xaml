@@ -87,8 +87,19 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <TextBlock Text="Current Encoder:" Width="120" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding EncoderPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
-                        <TextBlock Text="ProSim Position:" Width="120" Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding ProSimPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center"/>
+                        <TextBlock Text="ProSim Position:" Width="94" Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding ProSimPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="Red"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ProSimPositionIsGood}" Value="True">
+                                            <Setter Property="Foreground" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -99,7 +110,7 @@
                                         <Setter Property="Text" Value="Full Left Position:"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Back Position:"/>
+                                                <Setter Property="Text" Value="Full Forward Position:"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -118,7 +129,7 @@
                                         <Setter Property="Text" Value="Full Right Position:"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Foward Position:"/>
+                                                <Setter Property="Text" Value="Full Back Position:"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -138,6 +149,10 @@
                                     <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
                                         <Setter Property="Background" Value="#007acc"/>
                                         <Setter Property="Content" Value="Done"/>
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ShowDoneLabel}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -181,7 +196,7 @@
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Back"/>
+                                            <Setter Property="Content" Value="Set Full Forward"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -199,12 +214,30 @@
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Forward"/>
+                                            <Setter Property="Content" Value="Set Full Back"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
                         </Button>
+
+                        <!-- Step 4: Release label - visible after full right is set -->
+                        <TextBlock Text="Center the control, release it now and press Done"
+                                   VerticalAlignment="Center"
+                                   Foreground="#FFC107"
+                                   FontWeight="SemiBold"
+                                   Margin="8,0,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowDoneLabel}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White" />
