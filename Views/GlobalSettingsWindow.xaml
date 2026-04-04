@@ -14,17 +14,17 @@
 
         <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,4">
-                <TextBlock Text="ProSim IP:" Width="120" VerticalAlignment="Center" />
-                <TextBox Text="{Binding ProsimIp}" Width="200" />
-            </StackPanel>
+                <TextBlock Text="ProSim IP:" Width="160" VerticalAlignment="Center" />
+				<TextBox Text="{Binding ProsimIp}" Width="113" />
+			</StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,4">
-                <TextBlock Text="Auto connect to ProSim:" Width="120" VerticalAlignment="Center" />
+                <TextBlock Text="Auto connect to ProSim:" Width="160" VerticalAlignment="Center" />
                 <CheckBox IsChecked="{Binding AutoConnectProsim}" VerticalAlignment="Center" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,4">
-                <TextBlock Text="Auto center on startup:" Width="120" VerticalAlignment="Center" />
+                <TextBlock Text="Auto center axis on startup:" Width="160" VerticalAlignment="Center" />
                 <CheckBox IsChecked="{Binding AutoCenterOnStartup}" VerticalAlignment="Center" />
             </StackPanel>
         </StackPanel>

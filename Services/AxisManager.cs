@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +44,10 @@ namespace ACL_SIM_2.Services
         private double _lastAppliedTrimPercent;
 
         private const int TRIM_FILTER_MS = 100;
+        private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
+
+        private long _autopilotEngagedAt;
+        private volatile bool _autopilotOverrideActive;
 
         private double LatestAutopilotTarget
         {
@@ -202,7 +206,13 @@ namespace ACL_SIM_2.Services
         private void ProSimManager_OnFlightControlChanged(object? sender, DataRefValueChangedEventArgs e)
         {
             if (_isDisposed || !_axisVm.Underlying.AutopilotOn) return;
-            LatestAutopilotTarget = Math.Max(-100.0, Math.Min(100.0, e.Value * 100.0));
+            var newTarget = Math.Max(-100.0, Math.Min(100.0, e.Value * 100.0));
+            var prev = LatestAutopilotTarget;
+            LatestAutopilotTarget = newTarget;
+            if (!double.IsNaN(prev) && Math.Abs(newTarget - prev) >= 1.0)
+            {
+                Debug.WriteLine($"[{_name}] AP target changed: {prev:F1}% -> {newTarget:F1}% (raw={e.Value:F4})");
+            }
         }
 
         private void ProSimManager_OnSpeedIasChanged(object? sender, DataRefValueChangedEventArgs e)
@@ -488,6 +498,8 @@ namespace ACL_SIM_2.Services
         private void StartAutopilotTrackingLoop()
         {
             StopAutopilotTrackingLoop();
+            _autopilotEngagedAt = Environment.TickCount64;
+            _autopilotOverrideActive = false;
             _axisMovement.Reset();
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
@@ -503,6 +515,7 @@ namespace ACL_SIM_2.Services
                         if (!double.IsNaN(target))
                         {
                             _axisMovement.TrackTargetPosition(target);
+                            CheckAutopilotManualOverride(target);
                         }
                         await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
                     }
@@ -518,6 +531,75 @@ namespace ACL_SIM_2.Services
             }, token);
         }
 
+        /// <summary>
+        /// Checks whether the pilot has manually overridden the autopilot position beyond
+        /// the configured threshold. Fires immediately on the first reading that exceeds
+        /// the threshold after the grace period.
+        /// </summary>
+        private void CheckAutopilotManualOverride(double target)
+        {
+            if (_autopilotOverrideActive) return;
+
+            var settings = _axisVm.Underlying.Settings;
+            var relativePos = _axisVm.Underlying.EncoderPosition - _axisVm.Underlying.EncoderCenterOffset;
+
+            double signedPercent;
+            if (relativePos >= 0)
+                signedPercent = (relativePos / Math.Max(1e-6, settings.FullRightPosition)) * 100.0;
+            else
+                signedPercent = (relativePos / Math.Max(1e-6, Math.Abs(settings.FullLeftPosition))) * 100.0;
+
+            signedPercent = Math.Clamp(signedPercent, -100.0, 100.0);
+
+            var elapsedMs = Environment.TickCount64 - _autopilotEngagedAt;
+            if (elapsedMs < AUTOPILOT_OVERRIDE_GRACE_MS) return;
+
+            // Overshoot exemption: encoder is past the target in the same direction — this is
+            // motor momentum, not a manual push.
+            var encoderSign = Math.Sign(signedPercent);
+            var targetSign = Math.Sign(target);
+            if (encoderSign != 0 && encoderSign == targetSign && Math.Abs(signedPercent) > Math.Abs(target))
+            {
+                Debug.WriteLine(
+                    $"[{_name}] AP override: overshoot (encoder={signedPercent:F1}% past target={target:F1}%), skipping");
+                return;
+            }
+
+            var deviation = Math.Abs(signedPercent - target);
+            if (deviation <= settings.AutopilotOverridePercent) return;
+
+            _autopilotOverrideActive = true;
+            Debug.WriteLine(
+                $"[{_name}] *** MANUAL OVERRIDE TRIGGERED *** " +
+                $"encoder={signedPercent:F1}% target={target:F1}% deviation={deviation:F1}% threshold={settings.AutopilotOverridePercent:F1}% " +
+                $"raw={_axisVm.Underlying.EncoderPosition:F0} centerOffset={_axisVm.Underlying.EncoderCenterOffset:F0} " +
+                $"engagedMs={elapsedMs}");
+
+            // Cancel the tracking loop from within the running task
+            _autopilotLoopCts?.Cancel();
+
+            // Update local state immediately
+            _axisVm.Underlying.AutopilotOn = false;
+            _axisVm.Underlying.MotorIsMoving = false;
+
+            // Return to center
+            try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+
+            // Signal ProSim to disengage autopilot
+            if (_proSimManager != null)
+            {
+                try { _proSimManager.DisengageAP(); }
+                catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
+            }
+
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+            });
+
+            _ = UpdateTorqueAsync();
+        }
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
         /// </summary>

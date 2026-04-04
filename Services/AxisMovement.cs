@@ -81,6 +81,7 @@ namespace ACL_SIM_2.Services
         private DateTime _lastOutputUpdate = DateTime.MinValue;
         private DateTime _lastInputUpdate = DateTime.MinValue;
         private DateTime _lastMotorCommand = DateTime.MinValue; // Track last time motor command was sent
+        private int _lastCommandedDirection = 0; // Direction of the last issued servo command (+1=right, -1=left, 0=none/stopped)
 
         public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
         {
@@ -208,6 +209,30 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
+            // Direction-reversal guard: when tracking (autopilot), stop the servo and defer the new
+            // command to the next loop iteration when the required encoder direction has reversed
+            // relative to the LAST ISSUED motor command. This correctly handles overshoot: once the
+            // encoder flies past the last target in the old direction, _lastCommandedPosition flips
+            // side and the old Sign()-based check breaks — tracking actual command direction fixes it.
+            if (applyFiltering && _lastCommandedDirection != 0)
+            {
+                var newDirection = Math.Sign(deltaEncoderUnits);
+                if (newDirection != 0 && newDirection != _lastCommandedDirection)
+                {
+                    Debug.WriteLine($"[{_axis.Name}] AP direction reversal: stopping servo (lastDir={_lastCommandedDirection}, lastTarget={_lastCommandedPosition:F0}, cur={currentEncoderPos:F0}, newTarget={targetEncoderPosition:F0})");
+                    try { ServoStop(); }
+                    catch (Exception ex) { Debug.WriteLine($"[{_axis.Name}] Reversal stop failed: {ex.Message}"); }
+                    // Reset filter and direction; the next 250 ms loop iteration will send the command
+                    // from the physically stopped position instead of stacking commands on momentum.
+                    lock (_targetLock)
+                    {
+                        _filteredTarget = currentEncoderPos;
+                        _lastCommandedDirection = 0;
+                    }
+                    return;
+                }
+            }
+
             if (stopActiveMove)
             {
                 if (_controlLoopCts != null)
@@ -254,6 +279,7 @@ namespace ACL_SIM_2.Services
                     _lastCommandedPosition = targetEncoderPosition;
                     _lastMotorCommand = now;
                     _currentOutput = EncoderPositionToPercent(currentEncoderPos);
+                    _lastCommandedDirection = Math.Sign(deltaEncoderUnits);
                 }
             }
             catch (Exception ex)
@@ -367,6 +393,7 @@ namespace ACL_SIM_2.Services
             _lastOutputUpdate = DateTime.MinValue;
             _lastInputUpdate = DateTime.MinValue;
             _lastMotorCommand = DateTime.MinValue;
+            _lastCommandedDirection = 0;
         }
 
         /// <summary>

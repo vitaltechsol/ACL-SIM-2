@@ -7,6 +7,7 @@
 - Prefer low-RPM motor tuning with finer-grained UI control, especially in the 2-5 RPM range. Keep RPM tuning as whole numbers only, while preserving the lower 1-15 RPM UI range.
 - Ensure setup/save logic avoids re-centering while autopilot is active.
 - Pitch encoder-based torque includes an airspeed-based additive percentage from `AxisSettings.AirspeedAdditionalTorquePercent`. Read IAS from ProSim `SPEED_IAS`, scale it from 0..500 IAS to 0..100% of that setting, and apply it only to encoder-position torque. Do not apply it while the motor is moving for autopilot/positioning or while hydraulics-off torque is active. Throttle airspeed-triggered torque refreshes to 50 ms.
+- For the **Pitch axis only**, when `HydraulicsOn` becomes false, temporarily set `SelfCenteringSpeed` to 0 (send 0 to the motor via `SendCenteringSpeed`). When `HydraulicsOn` becomes true, restore the configured `SelfCenteringSpeed` from `AxisSettings` (converted via `AxisSettings.ConvertCenteringSpeedToActual`). This is handled in `AxisManager.ProSimManager_OnHydraulicsAvailableChanged`. All other axes are unaffected.
 
 ## Trim Implementation
 - For roll and rudder trim, keep the initial implementation simple: when trim changes and autopilot is off, pass the trim percentage directly to `GoToPosition(...)`. Avoid adding center-recalculation or recentering logic unless explicitly requested.

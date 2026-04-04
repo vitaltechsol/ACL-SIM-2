@@ -60,27 +60,23 @@
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12">
             <StackPanel>
-
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                <TextBlock Text="RS485 IP:" Width="80" VerticalAlignment="Center" />
-                <TextBox Text="{Binding RS485Ip}" Width="200" />
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                <TextBlock Text="Driver ID:" Width="80" VerticalAlignment="Center" />
-                <ComboBox SelectedItem="{Binding DriverId}" Width="80">
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">1</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">2</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">3</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">4</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">5</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">6</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">7</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">8</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">9</sys:Int32>
-                    <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">10</sys:Int32>
-                </ComboBox>
-            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,16">
+                <TextBlock Text="RS485 IP:" Width="57" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding RS485Ip}" Width="131" Margin="0,0,24,0"/>
+                    <TextBlock Text="Driver ID:" Width="55" VerticalAlignment="Center" />
+                    <ComboBox SelectedItem="{Binding DriverId}" Width="43">
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">1</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">2</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">3</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">4</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">5</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">6</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">7</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">8</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">9</sys:Int32>
+                        <sys:Int32 xmlns:sys="clr-namespace:System;assembly=mscorlib">10</sys:Int32>
+                    </ComboBox>
+                </StackPanel>
 
             <GroupBox Header="Position Calibration" Margin="0,8,0,8">
                 <StackPanel Margin="6">
@@ -100,8 +96,8 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White"  Margin="84,0,0,0"/>
                     </StackPanel>
-
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
@@ -238,9 +234,6 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White" />
                     </StackPanel>
                 </StackPanel>
             </GroupBox>
