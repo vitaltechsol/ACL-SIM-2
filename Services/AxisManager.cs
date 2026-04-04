@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using ACL_SIM_2.Models;
 using ACL_SIM_2.ViewModels;
 using EasyModbus;
 
@@ -138,6 +139,15 @@ namespace ACL_SIM_2.Services
                 {
                     _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.HydraulicsOn));
                 });
+
+                // For Pitch axis: set centering speed to 0 when hydraulics are off, restore when on
+                if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
+                {
+                    var centeringSpeed = hydraulicsAvailable
+                        ? AxisSettings.ConvertCenteringSpeedToActual(_axisVm.Underlying.Settings.SelfCenteringSpeed)
+                        : 0;
+                    SendCenteringSpeed(centeringSpeed);
+                }
 
                 // Trigger immediate torque recalculation with new hydraulics state
                 _ = UpdateTorqueAsync();
