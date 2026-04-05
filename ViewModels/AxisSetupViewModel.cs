@@ -341,17 +341,17 @@ namespace ACL_SIM_2.ViewModels
                 // Set MotorIsMoving flag to use fixed MovingTorqueDisplay during test mode
                 _axisVm.Underlying.MotorIsMoving = value;
 
-                // Enable AutopilotOn so motor can move during test mode (same as calibration centering)
-                _axisVm.Underlying.AutopilotOn = value;
                 _axisVm.Underlying.RecalculateTorqueTarget();
                 _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
 
                 if (value)
                 {
-                    // Test mode ENABLED: restore configured centering speed so the motor can move
-                    // even if hydraulics are off (e.g. Pitch sets centering speed to 0 when hydraulics off).
+                    // Test mode ENABLED: suspend the ProSim AP loop so it cannot fight the test slider,
+                    // restore configured centering speed so the motor can move even if hydraulics are off.
                     if (_axisManager != null)
                     {
+                        _axisManager.SuspendForPositionTest();
+
                         var configuredSpeed = AxisSettings.ConvertCenteringSpeedToActual(Settings.SelfCenteringSpeed);
                         _axisManager.SendCenteringSpeed(configuredSpeed);
 
@@ -378,6 +378,7 @@ namespace ACL_SIM_2.ViewModels
                     if (_axisManager != null)
                     {
                         _axisManager.Movement.Stop();
+                        _axisManager.ResumeAfterPositionTest();
 
                         // Restore the hydraulics-correct centering speed now that test mode is done.
                         var hydraulicsOn = _axisVm.Underlying.HydraulicsOn;

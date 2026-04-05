@@ -134,6 +134,9 @@ namespace ACL_SIM_2.Services
         private void CommandPosition(double targetPercent, int? rpmOverride, bool applyFiltering, bool stopActiveMove)
         {
             targetPercent = Math.Max(-100.0, Math.Min(100.0, targetPercent));
+            // Software RPM ramp: ramp from 0 to maxRpm over MotorAccelParam1Ms using S-curve.
+            // Only applied when tracking (filtering on) and no rpmOverride (rpmOverride = immediate move).
+            int commandRpm = 1;
             var now = DateTime.UtcNow;
 
             if (_modbusClient == null || !_modbusClient.Connected)
@@ -191,6 +194,7 @@ namespace ACL_SIM_2.Services
 
                     if (Math.Abs(targetEncoderPosition - _lastCommandedPosition) < POSITION_TOLERANCE_UNITS)
                     {
+                        commandRpm = 1;
                         return;
                     }
                 }
@@ -203,6 +207,11 @@ namespace ACL_SIM_2.Services
             var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
             if (Math.Abs(deltaEncoderUnits) < POSITION_TOLERANCE_UNITS)
             {
+                // At target — clear direction so the next move resets the ramp from 0.
+                if (applyFiltering)
+                {
+                    _lastCommandedDirection = 0;
+                }
                 return;
             }
 
@@ -271,9 +280,7 @@ namespace ACL_SIM_2.Services
             var maxRpm = rpmOverride.HasValue ? rpmOverride.Value : _axis.Settings.MotorSpeedRpm;
             var commandType = applyFiltering ? "TrackTargetPosition" : "GoToPosition";
 
-            // Software RPM ramp: ramp from 0 to maxRpm over MotorAccelParam1Ms using S-curve.
-            // Only applied when tracking (filtering on) and no rpmOverride (rpmOverride = immediate move).
-            int commandRpm;
+
             if (applyFiltering && !rpmOverride.HasValue)
             {
                 var newDirection = Math.Sign(deltaEncoderUnits);

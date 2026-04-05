@@ -49,6 +49,7 @@ namespace ACL_SIM_2.Services
 
         private long _autopilotEngagedAt;
         private volatile bool _autopilotOverrideActive;
+        private volatile bool _isPositionTestActive;
         private int _lastTargetSign = 0;
         private long _lastTargetSignChangeTick = 0;
 
@@ -179,7 +180,8 @@ namespace ACL_SIM_2.Services
 
                 if (autopilotOn)
                 {
-                    StartAutopilotTrackingLoop();
+                    if (!_isPositionTestActive)
+                        StartAutopilotTrackingLoop();
                 }
                 else
                 {
@@ -848,6 +850,25 @@ namespace ACL_SIM_2.Services
             }
 
             _ = UpdateTorqueAsync();
+        }
+
+        /// <summary>
+        /// Suspends the ProSim autopilot tracking loop for the duration of a position test.
+        /// Call ResumeAfterPositionTest when the test ends.
+        /// </summary>
+        public void SuspendForPositionTest()
+        {
+            _isPositionTestActive = true;
+            StopAutopilotTrackingLoop();
+        }
+
+        /// <summary>
+        /// Lifts the position-test suspension so the autopilot loop can restart
+        /// normally on the next ProSim autopilot-on event.
+        /// </summary>
+        public void ResumeAfterPositionTest()
+        {
+            _isPositionTestActive = false;
         }
 
         /// <summary>
