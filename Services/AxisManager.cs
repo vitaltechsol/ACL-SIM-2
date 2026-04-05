@@ -45,9 +45,12 @@ namespace ACL_SIM_2.Services
 
         private const int TRIM_FILTER_MS = 100;
         private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
+        private const int AUTOPILOT_SIGN_CHANGE_GRACE_MS = 1000;
 
         private long _autopilotEngagedAt;
         private volatile bool _autopilotOverrideActive;
+        private int _lastTargetSign = 0;
+        private long _lastTargetSignChangeTick = 0;
 
         private double LatestAutopilotTarget
         {
@@ -500,6 +503,8 @@ namespace ACL_SIM_2.Services
             StopAutopilotTrackingLoop();
             _autopilotEngagedAt = Environment.TickCount64;
             _autopilotOverrideActive = false;
+            _lastTargetSign = 0;
+            _lastTargetSignChangeTick = Environment.TickCount64;
             _axisMovement.Reset();
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
@@ -553,6 +558,25 @@ namespace ACL_SIM_2.Services
 
             var elapsedMs = Environment.TickCount64 - _autopilotEngagedAt;
             if (elapsedMs < AUTOPILOT_OVERRIDE_GRACE_MS) return;
+
+            // Sign-change exemption: when autopilot target crosses zero (positive to negative or
+            // vice versa), the encoder is still on the old side while target jumped to the opposite
+            // side. This creates a large deviation that looks like manual override but is actually
+            // a normal autopilot command. Apply a grace period after sign changes.
+            var currentTargetSign = Math.Sign(target);
+            if (currentTargetSign != _lastTargetSign && currentTargetSign != 0 && _lastTargetSign != 0)
+            {
+                _lastTargetSignChangeTick = Environment.TickCount64;
+                Debug.WriteLine(
+                    $"[{_name}] AP target sign changed: {_lastTargetSign} -> {currentTargetSign}, applying {AUTOPILOT_SIGN_CHANGE_GRACE_MS}ms grace");
+            }
+            _lastTargetSign = currentTargetSign;
+
+            var signChangeElapsedMs = Environment.TickCount64 - _lastTargetSignChangeTick;
+            if (signChangeElapsedMs < AUTOPILOT_SIGN_CHANGE_GRACE_MS)
+            {
+                return;
+            }
 
             // Overshoot exemption: encoder is past the target in the same direction — this is
             // motor momentum, not a manual push.
