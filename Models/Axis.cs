@@ -48,19 +48,20 @@ namespace ACL_SIM_2.Models
 
         /// <summary>
         /// Target smoothing factor (0–1). Low-pass filter applied to incoming data before the axis moves toward it.
-        /// 0.0 = no smoothing (instant response), 1.0 = maximum smoothing (slow response).
-        /// For slider control: Use high value (0.8-1.0) for immediate response
-        /// For simulator data: Use low value (0.1-0.3) for smooth motion
+        /// 0.0 = maximum smoothing (very slow response), 1.0 = no smoothing (instant response).
+        /// Default 0.2 provides 80% smoothing for smooth autopilot tracking.
+        /// For manual slider control: Use higher values (0.7-1.0) for immediate response
+        /// For autopilot/simulator tracking: Use lower values (0.1-0.3) for smooth motion
         /// </summary>
-        public double TargetFilterAlpha { get; set; } = 0.9;
+        public double TargetFilterAlpha { get; set; } = 0.2;
 
         /// <summary>
         /// Minimum time between motor commands (milliseconds). Prevents overwhelming the servo with commands.
-        /// When slider moves rapidly, commands are throttled to this interval.
-        /// Lower = more responsive, Higher = more stable
-        /// Recommended: 50ms for closed-loop feedback control
+        /// When tracking targets rapidly, commands are throttled to this interval.
+        /// Lower = more responsive, Higher = smoother motion with less command churn
+        /// Default: 100ms for smooth autopilot tracking (matches well with 250ms autopilot loop)
         /// </summary>
-        public int MinMotorCommandIntervalMs { get; set; } = 50;
+        public int MinMotorCommandIntervalMs { get; set; } = 100;
 
         // Servo motor position control settings
 
@@ -71,23 +72,21 @@ namespace ACL_SIM_2.Models
         public int MotorSpeedRpm { get; set; } = 8;
 
         /// <summary>
-        /// Motor acceleration mode: 0=None, 1=Linear, 2=S-Curve
+        /// Motor acceleration mode (not used by servo — always AccelMode.None; software RPM ramp controls acceleration).
         /// </summary>
-        public int MotorAccelMode { get; set; } = 1; // Linear by default
+        public int MotorAccelMode { get; set; } = 0;
 
         /// <summary>
-        /// Motor acceleration parameter 1 (ms).
-        /// Linear mode: time constant (5-500ms)
-        /// S-Curve mode: Ta parameter (5-340ms)
+        /// Software acceleration ramp time (ms): time to ramp from 0 to max RPM.
+        /// Default 1000ms for visible aircraft-like smooth acceleration.
         /// </summary>
-        public int MotorAccelParam1Ms { get; set; } = 50;
+        public int MotorAccelParam1Ms { get; set; } = 1000;
 
         /// <summary>
-        /// Motor acceleration parameter 2 (ms).
-        /// S-Curve mode only: Ts parameter (5-150ms)
-        /// Ignored for None/Linear modes.
+        /// Curve smoothness: cosine transition width within the software ramp (ms).
+        /// 0 = pure linear ramp. Must be ≤ Param1/2. Default 300ms for a balanced S-curve.
         /// </summary>
-        public int MotorAccelParam2Ms { get; set; } = 30;
+        public int MotorAccelParam2Ms { get; set; } = 300;
 
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
         public const double TorqueActualMax = 300.0;

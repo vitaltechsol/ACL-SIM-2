@@ -82,6 +82,12 @@ namespace ACL_SIM_2.Services
         private DateTime _lastInputUpdate = DateTime.MinValue;
         private DateTime _lastMotorCommand = DateTime.MinValue; // Track last time motor command was sent
         private int _lastCommandedDirection = 0; // Direction of the last issued servo command (+1=right, -1=left, 0=none/stopped)
+        private AccelMode _lastConfiguredAccelMode = AccelMode.None;
+        private int _lastConfiguredAccelParam1 = 0;
+        private int _lastConfiguredAccelParam2 = 0;
+
+        // Software RPM ramp (replaces servo built-in acceleration — no firmware limits)
+        private long _softAccelRampStartTick = 0; // TickCount64 when current movement direction started
 
         public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
         {
@@ -262,17 +268,38 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            var requestedRpm = rpmOverride.HasValue ? rpmOverride.Value : _axis.Settings.MotorSpeedRpm;
-            var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
-            var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
-            var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
+            var maxRpm = rpmOverride.HasValue ? rpmOverride.Value : _axis.Settings.MotorSpeedRpm;
             var commandType = applyFiltering ? "TrackTargetPosition" : "GoToPosition";
 
-            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {requestedRpm} RPM");
+            // Software RPM ramp: ramp from 0 to maxRpm over MotorAccelParam1Ms using S-curve.
+            // Only applied when tracking (filtering on) and no rpmOverride (rpmOverride = immediate move).
+            int commandRpm;
+            if (applyFiltering && !rpmOverride.HasValue)
+            {
+                var newDirection = Math.Sign(deltaEncoderUnits);
+                // Reset ramp when starting after a stop/direction reversal (_lastCommandedDirection was reset to 0)
+                if (_lastCommandedDirection == 0 && newDirection != 0)
+                {
+                    _softAccelRampStartTick = Environment.TickCount64;
+                }
+
+                var accelMs = (double)Math.Max(1, _axis.Settings.MotorAccelParam1Ms);
+                var curveMs = Math.Min((double)_axis.Settings.MotorAccelParam2Ms, accelMs / 2.0);
+                var elapsedMs = (double)(Environment.TickCount64 - _softAccelRampStartTick);
+                var rampFactor = CalculateRampFactor(elapsedMs, accelMs, curveMs);
+                commandRpm = Math.Max(1, (int)Math.Round(maxRpm * rampFactor));
+            }
+            else
+            {
+                commandRpm = maxRpm;
+            }
+
+            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {commandRpm}/{maxRpm} RPM (ramp {(int)(Environment.TickCount64 - _softAccelRampStartTick)}ms/{_axis.Settings.MotorAccelParam1Ms}ms)");
 
             try
             {
-                ServoMoveTo(pulses, requestedRpm, accelMode, accelParam1, accelParam2, slot: 0);
+                // Always use AccelMode.None — RPM ramp is handled entirely in software above.
+                ServoMoveTo(pulses, commandRpm, AccelMode.None, 0, 0, slot: 0);
 
                 lock (_targetLock)
                 {
@@ -394,6 +421,10 @@ namespace ACL_SIM_2.Services
             _lastInputUpdate = DateTime.MinValue;
             _lastMotorCommand = DateTime.MinValue;
             _lastCommandedDirection = 0;
+            _softAccelRampStartTick = 0;
+            _lastConfiguredAccelMode = AccelMode.None;
+            _lastConfiguredAccelParam1 = 0;
+            _lastConfiguredAccelParam2 = 0;
         }
 
         /// <summary>
@@ -478,15 +509,12 @@ namespace ACL_SIM_2.Services
                 pulses = -pulses;
 
             var requestedRpm = _axis.Settings.MotorSpeedRpm;
-            var accelMode = (AccelMode)_axis.Settings.MotorAccelMode;
-            var accelParam1 = _axis.Settings.MotorAccelParam1Ms;
-            var accelParam2 = _axis.Settings.MotorAccelParam2Ms;
 
             Debug.WriteLine($"[{_axis.Name}] MoveByUnits: {encoderUnits} enc → {pulses} pulses @ {requestedRpm} RPM");
 
             try
             {
-                ServoMoveTo(pulses, requestedRpm, accelMode, accelParam1, accelParam2, slot: 0);
+                ServoMoveTo(pulses, requestedRpm, AccelMode.None, 0, 0, slot: 0);
             }
             catch (Exception ex)
             {
@@ -608,8 +636,16 @@ namespace ACL_SIM_2.Services
             if (slot < 0 || slot > 3)
                 throw new ArgumentOutOfRangeException(nameof(slot), $"Slot must be 0-3, got {slot}");
 
-            // Configure acceleration shaping
-            ConfigureAcceleration(accelMode, accelParam1Ms, accelParam2Ms);
+            // Only reconfigure acceleration if parameters changed (optimization to avoid unnecessary Modbus writes)
+            if (accelMode != _lastConfiguredAccelMode || 
+                accelParam1Ms != _lastConfiguredAccelParam1 || 
+                accelParam2Ms != _lastConfiguredAccelParam2)
+            {
+                ConfigureAcceleration(accelMode, accelParam1Ms, accelParam2Ms);
+                _lastConfiguredAccelMode = accelMode;
+                _lastConfiguredAccelParam1 = accelParam1Ms;
+                _lastConfiguredAccelParam2 = accelParam2Ms;
+            }
 
             // Set slot speed (clamped to valid range)
             WritePn(SlotSpeedPn[slot], Clamp(rpm, 0, 3000));
@@ -622,23 +658,54 @@ namespace ACL_SIM_2.Services
             PulsePtriger(SERVO_TRIGGER_PULSE_MS);
         }
 
+        private static double CalculateRampFactor(double elapsedMs, double accelMs, double curveMs)
+        {
+            if (accelMs <= 0) return 1.0;
+            if (elapsedMs >= accelMs) return 1.0;
+            if (elapsedMs <= 0) return 0.0;
+
+            if (curveMs <= 0)
+                return elapsedMs / accelMs;
+
+            double t = elapsedMs;
+
+            if (t <= curveMs)
+            {
+                return (curveMs / accelMs) * 0.5 * (1.0 - Math.Cos(Math.PI * t / curveMs));
+            }
+            else if (t <= accelMs - curveMs)
+            {
+                return curveMs / accelMs + (t - curveMs) / accelMs;
+            }
+            else
+            {
+                return 1.0 - (curveMs / accelMs) * 0.5 * (1.0 - Math.Cos(Math.PI * (accelMs - t) / curveMs));
+            }
+        }
+
         private void ConfigureAcceleration(AccelMode accelMode, int accelParam1Ms, int accelParam2Ms)
         {
             switch (accelMode)
             {
                 case AccelMode.None:
                     WritePn(Pn109, 0);
+                    Debug.WriteLine($"[{_axis.Name}] Accel: None (Pn109=0)");
                     break;
 
                 case AccelMode.Linear:
+                    var linearTime = Clamp(accelParam1Ms, 5, 500);
                     WritePn(Pn109, 1);
-                    WritePn(Pn110, Clamp(accelParam1Ms, 5, 500));
+                    WritePn(Pn110, linearTime);
+                    Debug.WriteLine($"[{_axis.Name}] Accel: Linear (Pn109=1, Pn110={linearTime}ms)");
                     break;
 
                 case AccelMode.SCurve:
+                    var ta = Clamp(accelParam1Ms, 5, 340);
+                    var ts = Clamp(accelParam2Ms, 5, 150);
                     WritePn(Pn109, 2);
-                    WritePn(Pn111, Clamp(accelParam1Ms, 5, 340));
-                    WritePn(Pn112, Clamp(accelParam2Ms, 5, 150));
+                    WritePn(Pn111, ta);
+                    WritePn(Pn112, ts);
+                    Debug.WriteLine($"[{_axis.Name}] Accel: S-Curve (Pn109=2, Pn111={ta}ms Ta, Pn112={ts}ms Ts)");
                     break;
 
                 default:

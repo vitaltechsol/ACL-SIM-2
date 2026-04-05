@@ -27,6 +27,7 @@ namespace ACL_SIM_2.ViewModels
         private readonly string _originalRS485Ip;
         private readonly int _originalDriverId;
         private CancellationTokenSource? _verificationCts;
+        private CancellationTokenSource? _trackingTestCts;
         private string _toastMessage = string.Empty;
         private bool _showToast;
         private CancellationTokenSource? _toastCts;
@@ -165,7 +166,7 @@ namespace ACL_SIM_2.ViewModels
             get => Settings.MotorSpeedRpm;
             set
             {
-                var clamped = Math.Max(1, Math.Min(15, value));
+                var clamped = Math.Max(1, Math.Min(50, value));
                 if (Settings.MotorSpeedRpm == clamped) return;
 
                 Settings.MotorSpeedRpm = clamped;
@@ -203,36 +204,13 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
-        public int MotorAccelMode
-        {
-            get => Settings.MotorAccelMode;
-            set
-            {
-                var clamped = Math.Max(0, Math.Min(2, value));
-                if (Settings.MotorAccelMode == clamped) return;
-
-                Settings.MotorAccelMode = clamped;
-                OnPropertyChanged(nameof(AccelerationProfileIndex));
-                OnPropertyChanged(nameof(MotorAccelMode));
-                OnPropertyChanged(nameof(IsLinearAccelerationMode));
-                OnPropertyChanged(nameof(IsSCurveAccelerationMode));
-                ApplyMotionTuningPreview();
-            }
-        }
-
-        public int AccelerationProfileIndex
-        {
-            get => MotorAccelMode == (int)AccelMode.SCurve ? 1 : 0;
-            set => MotorAccelMode = value == 1 ? (int)AccelMode.SCurve : (int)AccelMode.Linear;
-        }
-
         public int MotorAccelParam1Ms
         {
             get => Settings.MotorAccelParam1Ms;
             set
             {
-                var max = MotorAccelMode == (int)AccelMode.SCurve ? 340 : 500;
-                var clamped = Math.Max(5, Math.Min(max, value));
+                var max = 3000;
+                var clamped = Math.Max(50, Math.Min(max, value));
                 if (Settings.MotorAccelParam1Ms == clamped) return;
 
                 Settings.MotorAccelParam1Ms = clamped;
@@ -246,7 +224,7 @@ namespace ACL_SIM_2.ViewModels
             get => Settings.MotorAccelParam2Ms;
             set
             {
-                var clamped = Math.Max(5, Math.Min(150, value));
+                var clamped = Math.Max(0, Math.Min(1500, value));
                 if (Settings.MotorAccelParam2Ms == clamped) return;
 
                 Settings.MotorAccelParam2Ms = clamped;
@@ -254,10 +232,6 @@ namespace ACL_SIM_2.ViewModels
                 ApplyMotionTuningPreview();
             }
         }
-
-        public bool IsLinearAccelerationMode => MotorAccelMode == (int)AccelMode.Linear;
-
-        public bool IsSCurveAccelerationMode => MotorAccelMode == (int)AccelMode.SCurve;
 
         public double SelfCenteringSpeed
         {
@@ -367,13 +341,21 @@ namespace ACL_SIM_2.ViewModels
                 // Set MotorIsMoving flag to use fixed MovingTorqueDisplay during test mode
                 _axisVm.Underlying.MotorIsMoving = value;
 
+                // Enable AutopilotOn so motor can move during test mode (same as calibration centering)
+                _axisVm.Underlying.AutopilotOn = value;
+                _axisVm.Underlying.RecalculateTorqueTarget();
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPosition));
+
                 if (value)
                 {
-                    // Test mode ENABLED: Start movement to current target position
-                    // GoToPosition now handles the continuous control loop internally
+                    // Test mode ENABLED: restore configured centering speed so the motor can move
+                    // even if hydraulics are off (e.g. Pitch sets centering speed to 0 when hydraulics off).
                     if (_axisManager != null)
                     {
-                        _axisManager.GoToPosition(_targetPosition);
+                        var configuredSpeed = AxisSettings.ConvertCenteringSpeedToActual(Settings.SelfCenteringSpeed);
+                        _axisManager.SendCenteringSpeed(configuredSpeed);
+
+                        StartTrackingTestLoop();
 
                         // If target position is not 0, start automatic verification
                         if (Math.Abs(_targetPosition) > 0.01)
@@ -390,11 +372,19 @@ namespace ACL_SIM_2.ViewModels
                 }
                 else
                 {
-                    // Test mode DISABLED: Stop movement by sending 0% target
-                    // This cancels any ongoing movement
+                    // Test mode DISABLED: Stop tracking loop and movement
+                    StopTrackingTestLoop();
+
                     if (_axisManager != null)
                     {
                         _axisManager.Movement.Stop();
+
+                        // Restore the hydraulics-correct centering speed now that test mode is done.
+                        var hydraulicsOn = _axisVm.Underlying.HydraulicsOn;
+                        var restoredSpeed = hydraulicsOn
+                            ? AxisSettings.ConvertCenteringSpeedToActual(Settings.SelfCenteringSpeed)
+                            : 0;
+                        _axisManager.SendCenteringSpeed(restoredSpeed);
                     }
 
                     // Cancel any ongoing verification
@@ -436,17 +426,13 @@ namespace ACL_SIM_2.ViewModels
                 _targetPosition = value;
                 OnPropertyChanged(nameof(TargetPosition));
 
-                // If test mode is enabled, send new target immediately
-                // GoToPosition will cancel previous movement and start new one
-                if (IsPositionTestEnabled && _axisManager != null)
-                {
-                    _axisManager.GoToPosition(_targetPosition);
+                // Target will be picked up by the tracking loop on next iteration
+                // No need to manually call anything here - the loop handles it
 
-                    // If moving to non-zero position, start automatic verification
-                    if (Math.Abs(_targetPosition) > 0.01)
-                    {
-                        StartAutomaticVerification();
-                    }
+                // If moving to non-zero position and test is enabled, start automatic verification
+                if (IsPositionTestEnabled && Math.Abs(_targetPosition) > 0.01)
+                {
+                    StartAutomaticVerification();
                 }
             }
         }
@@ -873,8 +859,6 @@ namespace ACL_SIM_2.ViewModels
             Settings.CopyFrom(_savedSettingsSnapshot);
 
             OnPropertyChanged(string.Empty);
-            OnPropertyChanged(nameof(IsLinearAccelerationMode));
-            OnPropertyChanged(nameof(IsSCurveAccelerationMode));
 
             _axisVm.Underlying.RecalculateTorqueTarget();
             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.EncoderPercentage));
@@ -918,6 +902,59 @@ namespace ACL_SIM_2.ViewModels
             if (delta < 1e-3)
             {
                 ShowToastNotification("⚠ Encoder did not change. The moving torque may be too low.");
+            }
+        }
+
+        /// <summary>
+        /// Starts an autopilot-style tracking loop that continuously sends the target position
+        /// using TrackTargetPosition (filtered, smooth movement). This allows testing acceleration
+        /// settings and smooth tracking behavior like autopilot.
+        /// </summary>
+        private void StartTrackingTestLoop()
+        {
+            StopTrackingTestLoop();
+            _trackingTestCts = new CancellationTokenSource();
+            var token = _trackingTestCts.Token;
+
+            System.Diagnostics.Debug.WriteLine($"[{AxisName}] Starting tracking test loop (autopilot-style)");
+
+            // Run the tracking loop on a background thread to avoid blocking UI
+            Task.Run(async () =>
+            {
+                const int TRACKING_INTERVAL_MS = 250; // Same as autopilot loop
+
+                try
+                {
+                    while (!token.IsCancellationRequested && _axisManager != null)
+                    {
+                        var target = _targetPosition;
+                        _axisManager.Movement.TrackTargetPosition(target);
+
+                        await Task.Delay(TRACKING_INTERVAL_MS, token);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Tracking test loop cancelled");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Tracking test loop error: {ex.Message}");
+                }
+            }, token);
+        }
+
+        /// <summary>
+        /// Stops the tracking test loop.
+        /// </summary>
+        private void StopTrackingTestLoop()
+        {
+            if (_trackingTestCts != null)
+            {
+                _trackingTestCts.Cancel();
+                _trackingTestCts.Dispose();
+                _trackingTestCts = null;
+                System.Diagnostics.Debug.WriteLine($"[{AxisName}] Tracking test loop stopped");
             }
         }
 

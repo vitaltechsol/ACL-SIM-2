@@ -272,8 +272,8 @@
                         </Grid.ColumnDefinitions>
                         <Slider Grid.Column="0"
                                 Minimum="1"
-                                Maximum="15"
-                                TickFrequency="1"
+                                Maximum="50"
+                                TickFrequency="5"
                                 IsSnapToTickEnabled="True"
                                 AutoToolTipPlacement="BottomRight"
                                 Value="{Binding MotorSpeedRpm}"/>
@@ -287,7 +287,7 @@
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="How strong should movement feel?" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                    <TextBlock Text="How strong should motor be when moving?" Margin="0,10,0,0" FontWeight="SemiBold"/>
                     <Grid Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -347,89 +347,49 @@
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Acceleration profile" Margin="0,12,0,0" FontWeight="SemiBold"/>
-                    <ComboBox SelectedIndex="{Binding AccelerationProfileIndex}" Margin="0,4,0,0">
-                        <ComboBoxItem Content="Linear - smooth and direct"/>
-                        <ComboBoxItem Content="S-curve - extra soft start/stop"/>
-                    </ComboBox>
+                    <TextBlock Text="Acceleration ramp time" Margin="0,12,0,0" FontWeight="SemiBold"/>
+                    <TextBlock Text="Time from 0 to max RPM. Default 1000 ms."
+                               Margin="0,2,0,0"
+                               Foreground="LightGray"
+                               TextWrapping="Wrap"/>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0"
+                                Minimum="50"
+                                Maximum="3000"
+                                TickFrequency="50"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding MotorAccelParam1Ms}"/>
+                        <TextBlock Grid.Column="1"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding MotorAccelParam1Ms, StringFormat={}{0} ms}"/>
+                    </Grid>
 
-                    <StackPanel Margin="0,8,0,0">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsLinearAccelerationMode}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-                        <TextBlock Text="Soft start/stop time"/>
-                        <Grid Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Slider Grid.Column="0"
-                                    Minimum="5"
-                                    Maximum="500"
-                                    TickFrequency="5"
-                                    IsSnapToTickEnabled="True"
-                                    Value="{Binding MotorAccelParam1Ms}"/>
-                            <TextBlock Grid.Column="1"
-                                       Margin="12,0,0,0"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding MotorAccelParam1Ms, StringFormat={}{0} ms}"/>
-                        </Grid>
-                    </StackPanel>
-
-                    <StackPanel Margin="0,8,0,0">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSCurveAccelerationMode}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-                        <TextBlock Text="Start/stop softness"/>
-                        <Grid Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Slider Grid.Column="0"
-                                    Minimum="5"
-                                    Maximum="340"
-                                    TickFrequency="5"
-                                    IsSnapToTickEnabled="True"
-                                    Value="{Binding MotorAccelParam1Ms}"/>
-                            <TextBlock Grid.Column="1"
-                                       Margin="12,0,0,0"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding MotorAccelParam1Ms, StringFormat={}{0} ms}"/>
-                        </Grid>
-
-                        <TextBlock Text="Mid-move smoothness" Margin="0,8,0,0"/>
-                        <Grid Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Slider Grid.Column="0"
-                                    Minimum="5"
-                                    Maximum="150"
-                                    TickFrequency="5"
-                                    IsSnapToTickEnabled="True"
-                                    Value="{Binding MotorAccelParam2Ms}"/>
-                            <TextBlock Grid.Column="1"
-                                       Margin="12,0,0,0"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding MotorAccelParam2Ms, StringFormat={}{0} ms}"/>
-                        </Grid>
-                    </StackPanel>
+                    <TextBlock Text="Curve smoothness" Margin="0,12,0,0" FontWeight="SemiBold"/>
+                    <TextBlock Text="0 = linear ramp. Higher = softer S-curve start/stop. Max = half of ramp time."
+                               Margin="0,2,0,0"
+                               Foreground="LightGray"
+                               TextWrapping="Wrap"/>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0"
+                                Minimum="0"
+                                Maximum="1500"
+                                TickFrequency="50"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding MotorAccelParam2Ms}"/>
+                        <TextBlock Grid.Column="1"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding MotorAccelParam2Ms, StringFormat={}{0} ms}"/>
+                    </Grid>
                 </StackPanel>
             </GroupBox>
 
@@ -450,7 +410,11 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <TextBlock Text="Test Hydraulic Off Torque" VerticalAlignment="Center" Foreground="White"/>
+                        <TextBlock Text="Test Hydraulic Off 
+                                   
+                                   
+                                   
+                                   " VerticalAlignment="Center" Foreground="White"/>
                     </StackPanel>
                     <TextBlock Text="Hydraulic off torque"/>
                     <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
