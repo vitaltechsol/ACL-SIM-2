@@ -29,8 +29,6 @@ namespace ACL_SIM_2.Services
         private readonly object? _modbusLock; // Shared lock for thread-safe Modbus access
         private bool _servoInitialized = false;
 
-        // Closed-loop control state
-        private CancellationTokenSource? _controlLoopCts;
         private double _currentTarget = 0.0;
         private readonly object _targetLock = new object();
 
@@ -74,20 +72,22 @@ namespace ACL_SIM_2.Services
         private const int BIT_PTRIGER = 10; // Pn071 bit10: Position trigger
         private const int BIT_PSTOP = 11;   // Pn071 bit11: Position stop
 
-        // Motion control state
-        private double _filteredTarget = 0.0; // Smoothed target position
-        private double _currentOutput = 0.0; // Current output position
-        private double _lastCommandedPosition = 0.0; // Last position we commanded the motor to move to
-        private DateTime _lastOutputUpdate = DateTime.MinValue;
-        private DateTime _lastInputUpdate = DateTime.MinValue;
-        private DateTime _lastMotorCommand = DateTime.MinValue; // Track last time motor command was sent
-        private int _lastCommandedDirection = 0; // Direction of the last issued servo command (+1=right, -1=left, 0=none/stopped)
+        // Acceleration ramp state
+        private long _moveStartTick = 0;
         private AccelMode _lastConfiguredAccelMode = AccelMode.None;
         private int _lastConfiguredAccelParam1 = 0;
         private int _lastConfiguredAccelParam2 = 0;
 
-        // Software RPM ramp (replaces servo built-in acceleration — no firmware limits)
-        private long _softAccelRampStartTick = 0; // TickCount64 when current movement direction started
+        // Stall / timeout detection
+        private double _prevMoveEncoder = double.NaN;
+        private int _stallCount;
+        private const int MAX_STALL_ITERATIONS = 10;
+        private const int MAX_MOVE_TIMEOUT_MS = 30000;
+        private long _timeoutTick = 0;
+
+        // Overshoot / deceleration
+        private int _prevDeltaSign;
+        private const double DECEL_ZONE_UNITS = 2000.0;
 
         public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
         {
@@ -98,46 +98,14 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Move the axis to a target position specified as a percentage.
-        /// Uses the servo's built-in positioning - calculates pulse distance and sends single command.
-        /// Calling this method again with a new target will cancel the previous movement.
-        /// </summary>
-        /// <param name="targetPercent">
-        /// Target position as percentage:
-        /// -100 = Full left position (FullLeftPosition)
-        /// 0 = Center position (CenterPosition)
-        /// +100 = Full right position (FullRightPosition)
-        /// </param>
-        /// <param name="rpmOverride">
-        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
-        /// When null, the configured MotorSpeedRpm is used.
-        /// </param>
-        public void GoToPosition(double targetPercent, int? rpmOverride = null)
-        {
-            CommandPosition(targetPercent, rpmOverride, applyFiltering: false, stopActiveMove: true);
-        }
-
-        /// <summary>
-        /// Tracks a continuously changing target more smoothly by filtering updates and
-        /// avoiding a stop/restart cycle for every new command.
+        /// Move the axis to a target position immediately at the specified or configured RPM.
+        /// Stops any active movement first. No acceleration ramp is applied.
         /// </summary>
         /// <param name="targetPercent">Target position as percentage (-100 to +100).</param>
-        /// <param name="rpmOverride">
-        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
-        /// When null, the configured MotorSpeedRpm is used.
-        /// </param>
-        public void TrackTargetPosition(double targetPercent, int? rpmOverride = null)
+        /// <param name="rpmOverride">Optional RPM override. When null, MotorSpeedRpm is used.</param>
+        public void GoToPosition(double targetPercent, int? rpmOverride = null)
         {
-            CommandPosition(targetPercent, rpmOverride, applyFiltering: true, stopActiveMove: false);
-        }
-
-        private void CommandPosition(double targetPercent, int? rpmOverride, bool applyFiltering, bool stopActiveMove)
-        {
-            targetPercent = Math.Max(-100.0, Math.Min(100.0, targetPercent));
-            // Software RPM ramp: ramp from 0 to maxRpm over MotorAccelParam1Ms using S-curve.
-            // Only applied when tracking (filtering on) and no rpmOverride (rpmOverride = immediate move).
-            int commandRpm = 1;
-            var now = DateTime.UtcNow;
+            targetPercent = Math.Clamp(targetPercent, -100.0, 100.0);
 
             if (_modbusClient == null || !_modbusClient.Connected)
             {
@@ -145,194 +113,214 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            if (!ValidateMotorSettings())
+            if (!ValidateMotorSettings()) return;
+            EnsureServoInitialized();
+
+            var targetEncoder = PercentToEncoderPosition(targetPercent);
+            targetEncoder = ClampToAxisRange(targetEncoder);
+
+            var currentEncoder = _axis.EncoderPosition;
+            var delta = targetEncoder - currentEncoder;
+
+            lock (_targetLock)
             {
-                Debug.WriteLine($"[{_axis.Name}] ERROR: Motor settings validation failed!");
-                return;
+                _currentTarget = targetPercent;
             }
 
+            if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
+                return;
+
+            var pulses = (int)Math.Round(delta);
+            if (pulses == 0) return;
+
+            if (_axis.Settings.ReversedMotor)
+                pulses = -pulses;
+
+            Stop();
+
+            var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
+            Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
+            ServoMoveTo(pulses, rpm, AccelMode.None, 0, 0, slot: 0);
+        }
+
+        /// <summary>
+        /// Reset the acceleration ramp timer. Call when starting a new movement or
+        /// when the target changes to restart acceleration from 1 RPM.
+        /// </summary>
+        public void BeginMove()
+        {
+            _moveStartTick = Environment.TickCount64;
+            _timeoutTick = _moveStartTick;
+            _prevMoveEncoder = double.NaN;
+            _stallCount = 0;
+            _prevDeltaSign = 0;
+        }
+
+        /// <summary>
+        /// Refresh the move timeout and stall counter without resetting the RPM ramp.
+        /// Call when the target changes while the motor is already moving so the
+        /// acceleration ramp continues uninterrupted.
+        /// </summary>
+        public void RefreshMoveTimeout()
+        {
+            _timeoutTick = Environment.TickCount64;
+            _stallCount = 0;
+        }
+
+        /// <summary>
+        /// Move one step toward the target position using the linear RPM ramp.
+        /// Call this repeatedly (e.g. every 100 ms) from a tracking loop.
+        /// RPM ramps linearly from 1 to <see cref="AxisSettings.MotorSpeedRpm"/>
+        /// over <see cref="AxisSettings.MotorAccelParam1Ms"/> milliseconds since
+        /// the last <see cref="BeginMove"/> call.
+        /// Returns <c>true</c> when the target has been reached.
+        /// </summary>
+        public bool MoveToward(double targetPercent)
+        {
+            targetPercent = Math.Clamp(targetPercent, -100.0, 100.0);
+
+            if (_modbusClient == null || !_modbusClient.Connected)
+            {
+                Debug.WriteLine($"[{_axis.Name}] MoveToward: ModbusClient unavailable");
+                return true;
+            }
+
+            if (!ValidateMotorSettings()) return true;
+            EnsureServoInitialized();
+
+            var targetEncoder = PercentToEncoderPosition(targetPercent);
+            targetEncoder = ClampToAxisRange(targetEncoder);
+
+            var currentEncoder = _axis.EncoderPosition;
+            var delta = targetEncoder - currentEncoder;
+
+            lock (_targetLock)
+            {
+                _currentTarget = targetPercent;
+            }
+
+            if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
+            {
+                ServoStop();
+                Debug.WriteLine($"[{_axis.Name}] Target reached {targetPercent:F1}% (Enc: {currentEncoder:F0}→{targetEncoder:F0})");
+                return true;
+            }
+
+            // Stall detection: if encoder hasn't moved significantly, motor is stuck
+            if (!double.IsNaN(_prevMoveEncoder) && Math.Abs(currentEncoder - _prevMoveEncoder) < 5.0)
+            {
+                _stallCount++;
+                if (_stallCount >= MAX_STALL_ITERATIONS)
+                {
+                    ServoStop();
+                    Debug.WriteLine($"[{_axis.Name}] Motor stall detected ({_stallCount} iterations with no movement)");
+                    _stallCount = 0;
+                    return true;
+                }
+            }
+            else
+            {
+                _stallCount = 0;
+            }
+            _prevMoveEncoder = currentEncoder;
+
+            // Timeout safety: stop if move has taken too long
+            if (_timeoutTick > 0)
+            {
+                var totalElapsedMs = Environment.TickCount64 - _timeoutTick;
+                if (totalElapsedMs > MAX_MOVE_TIMEOUT_MS)
+                {
+                    ServoStop();
+                    Debug.WriteLine($"[{_axis.Name}] Move timeout after {totalElapsedMs}ms");
+                    return true;
+                }
+            }
+
+            // Overshoot detection: if delta sign flipped, motor passed the target
+            var currentDeltaSign = Math.Sign(delta);
+            if (_prevDeltaSign != 0 && currentDeltaSign != 0 && currentDeltaSign != _prevDeltaSign)
+            {
+                ServoStop();
+                _prevDeltaSign = currentDeltaSign;
+                _moveStartTick = Environment.TickCount64;
+                _prevMoveEncoder = double.NaN;
+                _stallCount = 0;
+                Debug.WriteLine($"[{_axis.Name}] Overshoot detected at {currentEncoder:F0}, restarting approach");
+                return false;
+            }
+            _prevDeltaSign = currentDeltaSign;
+
+            var pulses = (int)Math.Round(delta);
+            if (pulses == 0) return true;
+
+            // Apply motor direction reversal
+            if (_axis.Settings.ReversedMotor)
+                pulses = -pulses;
+
+            // Linear RPM ramp: 1 → maxRpm over accelMs
+            var maxRpm = _axis.Settings.MotorSpeedRpm;
+            var accelMs = (double)Math.Max(1, _axis.Settings.MotorAccelParam1Ms);
+            var elapsedMs = (double)(Environment.TickCount64 - _moveStartTick);
+            var rampFraction = Math.Min(1.0, elapsedMs / accelMs);
+            var rpm = Math.Max(1, (int)Math.Round(maxRpm * rampFraction));
+
+            // Proximity-based deceleration: scale RPM down as we approach target
+            var absDelta = Math.Abs(delta);
+            if (absDelta < DECEL_ZONE_UNITS)
+            {
+                var decelRpm = Math.Max(1, (int)Math.Round(rpm * (absDelta / DECEL_ZONE_UNITS)));
+                rpm = Math.Min(rpm, decelRpm);
+            }
+
+            Debug.WriteLine($"[{_axis.Name}] MoveToward {targetPercent:F1}% → Enc: {currentEncoder:F0}→{targetEncoder:F0}, Δ{delta:F0} ({pulses} pulses) @ {rpm}/{maxRpm} RPM ({(int)elapsedMs}ms/{(int)accelMs}ms)");
+
+            try
+            {
+                ServoMoveTo(pulses, rpm, AccelMode.None, 0, 0, slot: 0);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_axis.Name}] MoveToward error: {ex.Message}");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Re-issue a move command for the last known target. Resets the ramp.
+        /// Used when motion tuning settings change mid-movement.
+        /// </summary>
+        public void ReapplyCurrentTarget()
+        {
+            double targetPercent;
+            lock (_targetLock)
+            {
+                targetPercent = _currentTarget;
+            }
+
+            BeginMove();
+            MoveToward(targetPercent);
+        }
+
+        private void EnsureServoInitialized()
+        {
             lock (_servoLock)
             {
                 if (!_servoInitialized)
                 {
                     Debug.WriteLine($"[{_axis.Name}] Initializing servo for first use...");
-                    try
-                    {
-                        InitServo();
-                        _servoInitialized = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[{_axis.Name}] Servo initialization failed: {ex.Message}");
-                        return;
-                    }
+                    InitServo();
+                    _servoInitialized = true;
                 }
-            }
-
-            var targetEncoderPosition = PercentToEncoderPosition(targetPercent);
-
-            var minEncoderPosition = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
-            var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
-            targetEncoderPosition = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, targetEncoderPosition));
-
-            var currentEncoderPos = _axis.EncoderPosition;
-
-            lock (_targetLock)
-            {
-                _currentTarget = targetPercent;
-
-                if (applyFiltering)
-                {
-                    if (_lastMotorCommand == DateTime.MinValue)
-                    {
-                        _filteredTarget = currentEncoderPos;
-                        _lastCommandedPosition = currentEncoderPos;
-                    }
-
-                    _filteredTarget = ApplyTargetFilter(_filteredTarget, targetEncoderPosition);
-                    targetEncoderPosition = _filteredTarget;
-
-                    if (Math.Abs(targetEncoderPosition - _lastCommandedPosition) < POSITION_TOLERANCE_UNITS)
-                    {
-                        commandRpm = 1;
-                        return;
-                    }
-                }
-                else
-                {
-                    _filteredTarget = targetEncoderPosition;
-                }
-            }
-
-            var deltaEncoderUnits = targetEncoderPosition - currentEncoderPos;
-            if (Math.Abs(deltaEncoderUnits) < POSITION_TOLERANCE_UNITS)
-            {
-                // At target — clear direction so the next move resets the ramp from 0.
-                if (applyFiltering)
-                {
-                    _lastCommandedDirection = 0;
-                }
-                return;
-            }
-
-            var minMotorCommandIntervalMs = Math.Max(0, _axis.Settings.MinMotorCommandIntervalMs);
-            if (applyFiltering &&
-                minMotorCommandIntervalMs > 0 &&
-                _lastMotorCommand != DateTime.MinValue &&
-                (now - _lastMotorCommand).TotalMilliseconds < minMotorCommandIntervalMs)
-            {
-                return;
-            }
-
-            // Direction-reversal guard: when tracking (autopilot), stop the servo and defer the new
-            // command to the next loop iteration when the required encoder direction has reversed
-            // relative to the LAST ISSUED motor command. This correctly handles overshoot: once the
-            // encoder flies past the last target in the old direction, _lastCommandedPosition flips
-            // side and the old Sign()-based check breaks — tracking actual command direction fixes it.
-            if (applyFiltering && _lastCommandedDirection != 0)
-            {
-                var newDirection = Math.Sign(deltaEncoderUnits);
-                if (newDirection != 0 && newDirection != _lastCommandedDirection)
-                {
-                    Debug.WriteLine($"[{_axis.Name}] AP direction reversal: stopping servo (lastDir={_lastCommandedDirection}, lastTarget={_lastCommandedPosition:F0}, cur={currentEncoderPos:F0}, newTarget={targetEncoderPosition:F0})");
-                    try { ServoStop(); }
-                    catch (Exception ex) { Debug.WriteLine($"[{_axis.Name}] Reversal stop failed: {ex.Message}"); }
-                    // Reset filter and direction; the next 250 ms loop iteration will send the command
-                    // from the physically stopped position instead of stacking commands on momentum.
-                    lock (_targetLock)
-                    {
-                        _filteredTarget = currentEncoderPos;
-                        _lastCommandedDirection = 0;
-                    }
-                    return;
-                }
-            }
-
-            if (stopActiveMove)
-            {
-                if (_controlLoopCts != null)
-                {
-                    _controlLoopCts.Cancel();
-                    try
-                    {
-                        ServoStop();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[{_axis.Name}] Error stopping servo: {ex.Message}");
-                    }
-                    _controlLoopCts.Dispose();
-                }
-                _controlLoopCts = new CancellationTokenSource();
-            }
-
-            var pulses = (int)Math.Round(deltaEncoderUnits);
-            if (_axis.Settings.ReversedMotor)
-            {
-                pulses = -pulses;
-            }
-
-            if (Math.Abs(pulses) < 1)
-            {
-                return;
-            }
-
-            var maxRpm = rpmOverride.HasValue ? rpmOverride.Value : _axis.Settings.MotorSpeedRpm;
-            var commandType = applyFiltering ? "TrackTargetPosition" : "GoToPosition";
-
-
-            if (applyFiltering && !rpmOverride.HasValue)
-            {
-                var newDirection = Math.Sign(deltaEncoderUnits);
-                // Reset ramp when starting after a stop/direction reversal (_lastCommandedDirection was reset to 0)
-                if (_lastCommandedDirection == 0 && newDirection != 0)
-                {
-                    _softAccelRampStartTick = Environment.TickCount64;
-                }
-
-                var accelMs = (double)Math.Max(1, _axis.Settings.MotorAccelParam1Ms);
-                var curveMs = Math.Min((double)_axis.Settings.MotorAccelParam2Ms, accelMs / 2.0);
-                var elapsedMs = (double)(Environment.TickCount64 - _softAccelRampStartTick);
-                var rampFactor = CalculateRampFactor(elapsedMs, accelMs, curveMs);
-                commandRpm = Math.Max(1, (int)Math.Round(maxRpm * rampFactor));
-            }
-            else
-            {
-                commandRpm = maxRpm;
-            }
-
-            Debug.WriteLine($"[{_axis.Name}] {commandType} {targetPercent:F1}% → Enc: {currentEncoderPos:F0}→{targetEncoderPosition:F0}, Δ{deltaEncoderUnits:F0} ({pulses} pulses) @ {commandRpm}/{maxRpm} RPM (ramp {(int)(Environment.TickCount64 - _softAccelRampStartTick)}ms/{_axis.Settings.MotorAccelParam1Ms}ms)");
-
-            try
-            {
-                // Always use AccelMode.None — RPM ramp is handled entirely in software above.
-                ServoMoveTo(pulses, commandRpm, AccelMode.None, 0, 0, slot: 0);
-
-                lock (_targetLock)
-                {
-                    _lastCommandedPosition = targetEncoderPosition;
-                    _lastMotorCommand = now;
-                    _currentOutput = EncoderPositionToPercent(currentEncoderPos);
-                    _lastCommandedDirection = Math.Sign(deltaEncoderUnits);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[{_axis.Name}] Movement error: {ex.Message}");
             }
         }
 
-        public void ReapplyCurrentTarget(bool applyFiltering)
+        private double ClampToAxisRange(double encoderPosition)
         {
-            double targetPercent;
-
-            lock (_targetLock)
-            {
-                targetPercent = _currentTarget;
-                _lastMotorCommand = DateTime.MinValue;
-            }
-
-            CommandPosition(targetPercent, rpmOverride: null, applyFiltering: applyFiltering, stopActiveMove: true);
+            var min = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
+            var max = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
+            return Math.Clamp(encoderPosition, min, max);
         }
 
         /// <summary>
@@ -380,58 +368,22 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Apply exponential moving average filter to smooth target changes.
-        /// TargetFilterAlpha: Target smoothing factor (0–1). Low-pass filter applied to incoming data before the axis moves toward it.
-        /// 0.0 = no smoothing (instant response), 1.0 = maximum smoothing (slow response).
-        /// Recommended: 0.1 - 0.5 for smooth motion.
-        /// </summary>
-        /// <param name="currentFiltered">Current filtered value</param>
-        /// <param name="newTarget">New target value</param>
-        /// <returns>Filtered target value</returns>
-        private double ApplyTargetFilter(double currentFiltered, double newTarget)
-        {
-            // Exponential moving average: filtered = (alpha * new) + ((1 - alpha) * current)
-            // Alpha close to 1 = fast response (less smoothing)
-            // Alpha close to 0 = slow response (more smoothing)
-            var alpha = Math.Max(0.0, Math.Min(1.0, _axis.Settings.TargetFilterAlpha));
-            return (alpha * newTarget) + ((1.0 - alpha) * currentFiltered);
-        }
-
-        /// <summary>
-        /// Gets the current filtered target position (encoder units).
-        /// </summary>
-        public double FilteredTargetPosition => _filteredTarget;
-
-        /// <summary>
-        /// Gets the current output position percentage (-100 to +100).
-        /// </summary>
-        public double CurrentOutputPercent => _currentOutput;
-
-        /// <summary>
-        /// Reset motion control state (clears filters and output).
+        /// Reset motion control state. Clears the current target and ramp timer.
         /// </summary>
         public void Reset()
         {
-            // Set filtered target to current encoder position
-            _filteredTarget = _axis.EncoderPosition;
-
-            // Apply safety limits using relative positions offset to absolute
-            var minEncoderPosition = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
-            var maxEncoderPosition = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
-            _filteredTarget = Math.Max(minEncoderPosition, Math.Min(maxEncoderPosition, _filteredTarget));
-
-            // Initialize last commanded position to current encoder position
-            _lastCommandedPosition = _axis.EncoderPosition;
-
-            _currentOutput = EncoderPositionToPercent(_axis.EncoderPosition);
-            _lastOutputUpdate = DateTime.MinValue;
-            _lastInputUpdate = DateTime.MinValue;
-            _lastMotorCommand = DateTime.MinValue;
-            _lastCommandedDirection = 0;
-            _softAccelRampStartTick = 0;
+            _moveStartTick = 0;
+            _prevMoveEncoder = double.NaN;
+            _stallCount = 0;
+            _prevDeltaSign = 0;
             _lastConfiguredAccelMode = AccelMode.None;
             _lastConfiguredAccelParam1 = 0;
             _lastConfiguredAccelParam2 = 0;
+
+            lock (_targetLock)
+            {
+                _currentTarget = 0.0;
+            }
         }
 
         /// <summary>
@@ -483,33 +435,8 @@ namespace ACL_SIM_2.Services
 
             if (!ValidateMotorSettings()) return;
 
-            // Cancel any existing movement
-            if (_controlLoopCts != null)
-            {
-                _controlLoopCts.Cancel();
-                try { ServoStop(); }
-                catch { }
-                _controlLoopCts.Dispose();
-            }
-            _controlLoopCts = new CancellationTokenSource();
-
-            // Initialize servo on first use
-            lock (_servoLock)
-            {
-                if (!_servoInitialized)
-                {
-                    try
-                    {
-                        InitServo();
-                        _servoInitialized = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[{_axis.Name}] MoveByUnits: servo init failed: {ex.Message}");
-                        return;
-                    }
-                }
-            }
+            Stop();
+            EnsureServoInitialized();
 
             var pulses = encoderUnits;
             if (_axis.Settings.ReversedMotor)
@@ -663,31 +590,6 @@ namespace ACL_SIM_2.Services
             // Select slot and trigger movement
             SelectSlot(slot);
             PulsePtriger(SERVO_TRIGGER_PULSE_MS);
-        }
-
-        private static double CalculateRampFactor(double elapsedMs, double accelMs, double curveMs)
-        {
-            if (accelMs <= 0) return 1.0;
-            if (elapsedMs >= accelMs) return 1.0;
-            if (elapsedMs <= 0) return 0.0;
-
-            if (curveMs <= 0)
-                return elapsedMs / accelMs;
-
-            double t = elapsedMs;
-
-            if (t <= curveMs)
-            {
-                return (curveMs / accelMs) * 0.5 * (1.0 - Math.Cos(Math.PI * t / curveMs));
-            }
-            else if (t <= accelMs - curveMs)
-            {
-                return curveMs / accelMs + (t - curveMs) / accelMs;
-            }
-            else
-            {
-                return 1.0 - (curveMs / accelMs) * 0.5 * (1.0 - Math.Cos(Math.PI * (accelMs - t) / curveMs));
-            }
         }
 
         private void ConfigureAcceleration(AccelMode accelMode, int accelParam1Ms, int accelParam2Ms)

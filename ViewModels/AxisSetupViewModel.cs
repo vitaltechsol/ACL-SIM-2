@@ -907,9 +907,10 @@ namespace ACL_SIM_2.ViewModels
         }
 
         /// <summary>
-        /// Starts an autopilot-style tracking loop that continuously sends the target position
-        /// using TrackTargetPosition (filtered, smooth movement). This allows testing acceleration
-        /// settings and smooth tracking behavior like autopilot.
+        /// Starts a tracking loop that moves the motor toward <see cref="TargetPosition"/>.
+        /// When the target changes, the previous servo command is cancelled and the RPM
+        /// ramp restarts from 1 RPM. The loop calls <see cref="AxisMovement.MoveToward"/>
+        /// every 100 ms to update pulses and RPM.
         /// </summary>
         private void StartTrackingTestLoop()
         {
@@ -917,19 +918,44 @@ namespace ACL_SIM_2.ViewModels
             _trackingTestCts = new CancellationTokenSource();
             var token = _trackingTestCts.Token;
 
-            System.Diagnostics.Debug.WriteLine($"[{AxisName}] Starting tracking test loop (autopilot-style)");
+            System.Diagnostics.Debug.WriteLine($"[{AxisName}] Starting tracking test loop");
 
-            // Run the tracking loop on a background thread to avoid blocking UI
             Task.Run(async () =>
             {
-                const int TRACKING_INTERVAL_MS = 250; // Same as autopilot loop
+                const int TRACKING_INTERVAL_MS = 100;
 
                 try
                 {
+                    var lastTarget = double.NaN;
+                    var arrived = true;
+
                     while (!token.IsCancellationRequested && _axisManager != null)
                     {
                         var target = _targetPosition;
-                        _axisManager.Movement.TrackTargetPosition(target);
+
+                        // When the target changes, cancel the current move and restart the ramp
+                        if (double.IsNaN(lastTarget) || Math.Abs(target - lastTarget) > 0.01)
+                        {
+                            if (arrived)
+                                _axisManager.Movement.BeginMove();
+                            else
+                                _axisManager.Movement.RefreshMoveTimeout();
+                            lastTarget = target;
+                            arrived = false;
+
+                            System.Diagnostics.Debug.WriteLine($"[{AxisName}] New target: {target:F2}%");
+                        }
+
+                        if (!arrived)
+                        {
+                            arrived = _axisManager.Movement.MoveToward(target);
+
+                            if (arrived)
+                            {
+                                _axisManager.Movement.Stop();
+                                System.Diagnostics.Debug.WriteLine($"[{AxisName}] Target {target:F2}% reached");
+                            }
+                        }
 
                         await Task.Delay(TRACKING_INTERVAL_MS, token);
                     }

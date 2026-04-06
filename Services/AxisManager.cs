@@ -29,7 +29,7 @@ namespace ACL_SIM_2.Services
         /// Delay between autopilot tracking loop iterations.
         /// Lower values increase responsiveness; higher values reduce command churn and can smooth motion.
         /// </summary>
-        private const int AUTOPILOT_LOOP_INTERVAL_MS = 250; //100
+        private const int AUTOPILOT_LOOP_INTERVAL_MS = 100; //100
         private const int AIRSPEED_TORQUE_THROTTLE_MS = 50;
         private CancellationTokenSource? _autopilotLoopCts;
         private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
@@ -42,6 +42,7 @@ namespace ACL_SIM_2.Services
         private bool _trimMoveLoopRunning;
         private double _trimBaseCenterOffset;
         private double _lastAppliedTrimPercent;
+        private volatile bool _centeringPerformed;
 
         private const int TRIM_FILTER_MS = 100;
         private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
@@ -188,7 +189,10 @@ namespace ACL_SIM_2.Services
                     // Autopilot disengaged -- stop tracking loop, revert to
                     // encoder-based dynamic torque, and quickly return to center.
                     StopAutopilotTrackingLoop();
-                    try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+                    if (_centeringPerformed)
+                    {
+                        try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+                    }
                 }
 
                 // Notify the ViewModel to update UI bindings
@@ -230,7 +234,7 @@ namespace ACL_SIM_2.Services
 
         private void ProSimManager_OnTrimChanged(object? sender, DataRefValueChangedEventArgs e)
         {
-            if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+            if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || !_centeringPerformed)
             {
                 return;
             }
@@ -511,19 +515,39 @@ namespace ACL_SIM_2.Services
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
 
-            Task.Run(async () =>
+         Task.Run(async () =>
             {
                 Debug.WriteLine($"[{_name}] Autopilot tracking loop started");
+                var lastTarget = double.NaN;
+                var arrived = true;
                 while (!token.IsCancellationRequested)
                 {
-                    try
-                    {
+                    try { 
                         var target = LatestAutopilotTarget;
-                        if (!double.IsNaN(target))
+                        if (double.IsNaN(target))
                         {
-                            _axisMovement.TrackTargetPosition(target);
-                            CheckAutopilotManualOverride(target);
+                            await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
+                            continue;
                         }
+
+                        if (double.IsNaN(lastTarget) || Math.Abs(target - lastTarget) > 0.01)
+                        {
+                            if (arrived)
+                                _axisMovement.BeginMove();
+                            else
+                                _axisMovement.RefreshMoveTimeout();
+                            lastTarget = target;
+                            arrived = false;
+                        }
+
+                        if (!arrived)
+                        {
+                            arrived = _axisMovement.MoveToward(target);
+                            if (arrived)
+                                _axisMovement.Stop();
+                        }
+
+                        CheckAutopilotManualOverride(target);
                         await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
                     }
                     catch (OperationCanceledException) { break; }
@@ -841,7 +865,7 @@ namespace ACL_SIM_2.Services
             {
                 if (_axisVm.Underlying.MotorIsMoving)
                 {
-                    _axisMovement.ReapplyCurrentTarget(applyFiltering: _axisVm.Underlying.AutopilotOn);
+                    _axisMovement.ReapplyCurrentTarget();
                 }
             }
             catch (Exception ex)
@@ -1024,8 +1048,9 @@ namespace ACL_SIM_2.Services
                             if (Math.Abs(avgError) <= FINE_TOLERANCE)
                             {
                                 _trimBaseCenterOffset = avgEncoder;
+                                _centeringPerformed = true;
                                 ApplyRuntimeCenterOffset(avgEncoder);
-                                log($"[{_name}] Centered successfully (ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
+                                log($"[{_name}] Centered successfully (\u00b1{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
                                 return;
                             }
 
@@ -1062,6 +1087,7 @@ namespace ACL_SIM_2.Services
                         await Task.Delay(300, cancellationToken);
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
                         _trimBaseCenterOffset = finalEncoder;
+                        _centeringPerformed = true;
                         ApplyRuntimeCenterOffset(finalEncoder);
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
                         return;
