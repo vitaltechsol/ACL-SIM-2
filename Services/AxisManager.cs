@@ -520,16 +520,25 @@ namespace ACL_SIM_2.Services
             {
                 Debug.WriteLine($"[{_name}] Autopilot tracking loop started");
                 var lastTarget = double.NaN;
+                var smoothedTarget = double.NaN;
                 var arrived = true;
+                var lastMotorCommandTick = 0L;
                 while (!token.IsCancellationRequested)
                 {
                     try { 
-                        var target = LatestAutopilotTarget;
-                        if (double.IsNaN(target))
+                        var raw = LatestAutopilotTarget;
+                        if (double.IsNaN(raw))
                         {
                             await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
                             continue;
                         }
+
+                        // Apply low-pass smoothing (TargetFilterAlpha: 1.0=no smoothing, 0.0=max smoothing)
+                        var alpha = _axisVm.Underlying.Settings.TargetFilterAlpha;
+                        smoothedTarget = double.IsNaN(smoothedTarget)
+                            ? raw
+                            : alpha * raw + (1.0 - alpha) * smoothedTarget;
+                        var target = smoothedTarget;
 
                         if (double.IsNaN(lastTarget) || Math.Abs(target - lastTarget) > 0.01)
                         {
@@ -543,9 +552,15 @@ namespace ACL_SIM_2.Services
 
                         if (!arrived)
                         {
-                            arrived = _axisMovement.MoveToward(target);
-                            if (arrived)
-                                _axisMovement.Stop();
+                            var now = Environment.TickCount64;
+                            var minIntervalMs = _axisVm.Underlying.Settings.MinMotorCommandIntervalMs;
+                            if (now - lastMotorCommandTick >= minIntervalMs)
+                            {
+                                arrived = _axisMovement.MoveToward(target);
+                                if (arrived)
+                                    _axisMovement.Stop();
+                                lastMotorCommandTick = now;
+                            }
                         }
 
                         CheckAutopilotManualOverride(target);

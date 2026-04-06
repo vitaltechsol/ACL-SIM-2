@@ -257,11 +257,24 @@ namespace ACL_SIM_2.Services
             if (_axis.Settings.ReversedMotor)
                 pulses = -pulses;
 
-            // Linear RPM ramp: 1 → maxRpm over accelMs
+            // Software RPM ramp: 1 → maxRpm over accelMs, with optional S-curve blend
             var maxRpm = _axis.Settings.MotorSpeedRpm;
             var accelMs = (double)Math.Max(1, _axis.Settings.MotorAccelParam1Ms);
             var elapsedMs = (double)(Environment.TickCount64 - _moveStartTick);
-            var rampFraction = Math.Min(1.0, elapsedMs / accelMs);
+            var linearFraction = Math.Min(1.0, elapsedMs / accelMs);
+            var ts = (double)_axis.Settings.MotorAccelParam2Ms;
+            double rampFraction;
+            if (ts > 0.0)
+            {
+                // Blend linear ramp with smoothstep S-curve; tsRatio=1 when Ts reaches its max (accelMs/2)
+                var tsRatio = Math.Min(1.0, ts / (accelMs / 2.0));
+                var smoothFraction = linearFraction * linearFraction * (3.0 - 2.0 * linearFraction);
+                rampFraction = (1.0 - tsRatio) * linearFraction + tsRatio * smoothFraction;
+            }
+            else
+            {
+                rampFraction = linearFraction;
+            }
             var rpm = Math.Max(1, (int)Math.Round(maxRpm * rampFraction));
 
             // Proximity-based deceleration: scale RPM down as we approach target

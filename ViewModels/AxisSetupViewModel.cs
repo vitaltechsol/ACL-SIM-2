@@ -928,6 +928,7 @@ namespace ACL_SIM_2.ViewModels
                 {
                     var lastTarget = double.NaN;
                     var arrived = true;
+                    var lastMotorCommandTick = 0L;
 
                     while (!token.IsCancellationRequested && _axisManager != null)
                     {
@@ -948,12 +949,18 @@ namespace ACL_SIM_2.ViewModels
 
                         if (!arrived)
                         {
-                            arrived = _axisManager.Movement.MoveToward(target);
-
-                            if (arrived)
+                            var now = Environment.TickCount64;
+                            var minIntervalMs = Settings.MinMotorCommandIntervalMs;
+                            if (now - lastMotorCommandTick >= minIntervalMs)
                             {
-                                _axisManager.Movement.Stop();
-                                System.Diagnostics.Debug.WriteLine($"[{AxisName}] Target {target:F2}% reached");
+                                arrived = _axisManager.Movement.MoveToward(target);
+
+                                if (arrived)
+                                {
+                                    _axisManager.Movement.Stop();
+                                    System.Diagnostics.Debug.WriteLine($"[{AxisName}] Target {target:F2}% reached");
+                                }
+                                lastMotorCommandTick = now;
                             }
                         }
 
