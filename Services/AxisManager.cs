@@ -43,6 +43,7 @@ namespace ACL_SIM_2.Services
         private double _trimBaseCenterOffset;
         private double _lastAppliedTrimPercent;
         private volatile bool _centeringPerformed;
+        private volatile bool _isCenteringActive;
 
         private const int TRIM_FILTER_MS = 100;
         private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
@@ -150,7 +151,7 @@ namespace ACL_SIM_2.Services
                 });
 
                 // For Pitch axis: set centering speed to 0 when hydraulics are off, restore when on
-                if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase) && !_isCenteringActive)
                 {
                     var centeringSpeed = hydraulicsAvailable
                         ? AxisSettings.ConvertCenteringSpeedToActual(_axisVm.Underlying.Settings.SelfCenteringSpeed)
@@ -1013,6 +1014,14 @@ namespace ACL_SIM_2.Services
 
             log($"[{_name}] Initial gain magnitude: {gain:F2} enc/ProSim (sign TBD)");
 
+            var isPitch = string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase);
+            var configuredCenteringSpeed = AxisSettings.ConvertCenteringSpeedToActual(_axisVm.Underlying.Settings.SelfCenteringSpeed);
+            _isCenteringActive = true;
+            if (isPitch)
+            {
+                SendCenteringSpeed(configuredCenteringSpeed);
+            }
+
             try
             {
                 // Read initial state
@@ -1193,6 +1202,15 @@ namespace ACL_SIM_2.Services
             catch (Exception ex)
             {
                 log($"[{_name}] Error: {ex.Message}");
+            }
+            finally
+            {
+                _isCenteringActive = false;
+                if (isPitch)
+                {
+                    var restoredSpeed = _axisVm.Underlying.HydraulicsOn ? configuredCenteringSpeed : 0;
+                    SendCenteringSpeed(restoredSpeed);
+                }
             }
         }
 
