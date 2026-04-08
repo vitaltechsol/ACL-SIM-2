@@ -607,13 +607,13 @@ namespace ACL_SIM_2.ViewModels
                 {
                     if (!_axes.TryGetValue(axisName, out var axisVm) || !axisVm.Enabled)
                     {
-                        LogError($"[Center] Skipping {axisName} (not enabled)");
+                       // LogError($"[Center] Skipping {axisName} (not enabled)");
                         continue;
                     }
 
                     if (!_axisManagers.TryGetValue(axisName, out var axisManager) || axisManager == null)
                     {
-                        LogError($"[Center] Skipping {axisName} (no axis manager)");
+                       // LogError($"[Center] Skipping {axisName} (no axis manager)");
                         continue;
                     }
 
@@ -628,7 +628,7 @@ namespace ACL_SIM_2.ViewModels
                     axisVm.Underlying.MotorIsMoving = true;
                     axisVm.IsCentering = true;
                     axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
-                    LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
+                    //LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
 
                     if (!simPaused)
                     {

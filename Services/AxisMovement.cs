@@ -89,6 +89,9 @@ namespace ACL_SIM_2.Services
         private int _prevDeltaSign;
         private const double DECEL_ZONE_UNITS = 2000.0;
 
+        /// <summary>Minimum RPM the software ramp will issue during acceleration and deceleration.</summary>
+        private const int MIN_RAMP_RPM = 1;
+
         public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
         {
             _axis = axis ?? throw new ArgumentNullException(nameof(axis));
@@ -168,9 +171,9 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Move one step toward the target position using the linear RPM ramp.
+        /// Move one step toward the target position using the software RPM ramp.
         /// Call this repeatedly (e.g. every 100 ms) from a tracking loop.
-        /// RPM ramps linearly from 1 to <see cref="AxisSettings.MotorSpeedRpm"/>
+        /// RPM ramps from <see cref="MIN_RAMP_RPM"/> to <see cref="AxisSettings.MotorSpeedRpm"/>
         /// over <see cref="AxisSettings.MotorAccelParam1Ms"/> milliseconds since
         /// the last <see cref="BeginMove"/> call.
         /// Returns <c>true</c> when the target has been reached.
@@ -275,13 +278,13 @@ namespace ACL_SIM_2.Services
             {
                 rampFraction = linearFraction;
             }
-            var rpm = Math.Max(1, (int)Math.Round(maxRpm * rampFraction));
+            var rpm = Math.Max(MIN_RAMP_RPM, (int)Math.Round(maxRpm * rampFraction));
 
             // Proximity-based deceleration: scale RPM down as we approach target
             var absDelta = Math.Abs(delta);
             if (absDelta < DECEL_ZONE_UNITS)
             {
-                var decelRpm = Math.Max(1, (int)Math.Round(rpm * (absDelta / DECEL_ZONE_UNITS)));
+                var decelRpm = Math.Max(MIN_RAMP_RPM, (int)Math.Round(rpm * (absDelta / DECEL_ZONE_UNITS)));
                 rpm = Math.Min(rpm, decelRpm);
             }
 
