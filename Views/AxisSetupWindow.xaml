@@ -480,7 +480,7 @@
                     <TextBlock Text="Airspeed additional torque (%)"/>
                     <Slider Minimum="1" Maximum="50" Value="{Binding AirspeedAdditionalTorquePercent}"/>
                     <TextBlock Text="Stall additional torque (%)" Margin="0,8,0,0"/>
-                    <Slider Minimum="1" Maximum="100" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
+                    <Slider Minimum="30" Maximum="120" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

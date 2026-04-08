@@ -49,6 +49,9 @@ namespace ACL_SIM_2.Services
         private const int TRIM_FILTER_MS = 100;
         private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
         private const int AUTOPILOT_SIGN_CHANGE_GRACE_MS = 1000;
+        private const int STALL_TORQUE_DURATION_MS = 2000;
+
+        private long _stallTorqueActiveUntil = 0;
 
         private long _autopilotEngagedAt;
         private volatile bool _autopilotOverrideActive;
@@ -107,6 +110,7 @@ namespace ACL_SIM_2.Services
                     _proSimManager.OnPitchCmdChanged += ProSimManager_OnAutopilotChanged;
                     _proSimManager.OnElevatorChanged += ProSimManager_OnFlightControlChanged;
                     _proSimManager.OnSpeedIasChanged += ProSimManager_OnSpeedIasChanged;
+                    _proSimManager.OnIsStallingChanged += ProSimManager_OnIsStallingChanged;
                     _axisVm.Underlying.AirspeedIas = _proSimManager.SpeedIas;
                 }
                 else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
@@ -241,6 +245,18 @@ namespace ACL_SIM_2.Services
 
             _axisVm.Underlying.AirspeedIas = e.Value;
             RequestAirspeedTorqueUpdate();
+        }
+
+        private void ProSimManager_OnIsStallingChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            if (_isDisposed) return;
+
+            var isStalling = e.Value != 0;
+            if (!isStalling) return;
+
+            Interlocked.Exchange(ref _stallTorqueActiveUntil, Environment.TickCount64 + STALL_TORQUE_DURATION_MS);
+            _ = UpdateTorqueAsync();
+            _ = Task.Delay(STALL_TORQUE_DURATION_MS).ContinueWith(_ => UpdateTorqueAsync());
         }
 
         private void ProSimManager_OnTrimChanged(object? sender, DataRefValueChangedEventArgs e)
@@ -853,7 +869,10 @@ namespace ACL_SIM_2.Services
                     // Calculate display torque: min at center, max at limits (0-100 scale)
                     var baseTorqueDisplay = minTorqueDisplay + (normalizedDistance * (maxTorqueDisplay - minTorqueDisplay));
                     var airspeedAdditionalTorqueDisplay = _axisVm.Underlying.CalculateAirspeedAdditionalTorqueDisplayPercent();
-                    var targetTorqueDisplay = Math.Max(0.0, Math.Min(100.0, baseTorqueDisplay + airspeedAdditionalTorqueDisplay));
+                    var stallAdditionalTorqueDisplay = Interlocked.Read(ref _stallTorqueActiveUntil) > Environment.TickCount64
+                        ? baseTorqueDisplay * (settings.StallAdditionalTorquePercent / 100.0)
+                        : 0.0;
+                    var targetTorqueDisplay = Math.Max(0.0, Math.Min(100.0, baseTorqueDisplay + airspeedAdditionalTorqueDisplay + stallAdditionalTorqueDisplay));
 
                     // Update ViewModel with display value for UI
                     _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = airspeedAdditionalTorqueDisplay;
@@ -1290,6 +1309,7 @@ namespace ACL_SIM_2.Services
                         _proSimManager.OnPitchCmdChanged -= ProSimManager_OnAutopilotChanged;
                         _proSimManager.OnElevatorChanged -= ProSimManager_OnFlightControlChanged;
                         _proSimManager.OnSpeedIasChanged -= ProSimManager_OnSpeedIasChanged;
+                        _proSimManager.OnIsStallingChanged -= ProSimManager_OnIsStallingChanged;
                     }
                     else if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
                     {

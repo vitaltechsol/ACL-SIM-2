@@ -114,7 +114,7 @@ namespace ACL_SIM_2.Models
 
         // Pitch-specific tuning
         public double AirspeedAdditionalTorquePercent { get; set; } = 10.0; // 1..50
-        public double StallAdditionalTorquePercent { get; set; } = 10.0; // 1..100
+        public double StallAdditionalTorquePercent { get; set; } = 30.0; // 30..120
 
         public double ConvertTorqueDisplayToActual(double display)
         {
