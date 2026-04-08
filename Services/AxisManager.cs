@@ -32,6 +32,7 @@ namespace ACL_SIM_2.Services
         private const int AUTOPILOT_LOOP_INTERVAL_MS = 100; //100
         private const int AIRSPEED_TORQUE_THROTTLE_MS = 50;
         private CancellationTokenSource? _autopilotLoopCts;
+        private Task? _autopilotLoopTask;
         private long _latestAutopilotTargetBits = BitConverter.DoubleToInt64Bits(double.NaN);
         private readonly object _airspeedUpdateLock = new object();
         private readonly object _trimCommandLock = new object();
@@ -187,12 +188,21 @@ namespace ACL_SIM_2.Services
                 }
                 else
                 {
-                    // Autopilot disengaged -- stop tracking loop, revert to
-                    // encoder-based dynamic torque, and quickly return to center.
-                    StopAutopilotTrackingLoop();
-                    if (_centeringPerformed)
+                    if (_autopilotOverrideActive)
                     {
-                        try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+                        // Manual override already issued GoToPosition(0) and called DisengageAP().
+                        // The ProSim AP=false event firing here is the echo of that DisengageAP call.
+                        // Issuing a second GoToPosition(0) would Stop() the motor mid-return and
+                        // recalculate from a stale encoder, causing the axis to miss center.
+                        // Just clean up the loop state; the first command already handles centering.
+                        StopAutopilotTrackingLoop();
+                    }
+                    else
+                    {
+                        // Normal AP disengage -- stop loop and return to center.
+                        // Awaiting the loop ensures its final MoveToward call cannot
+                        // race with and override the GoToPosition(0) center command.
+                        _ = StopAndReturnToCenterAsync();
                     }
                 }
 
@@ -516,7 +526,7 @@ namespace ACL_SIM_2.Services
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
 
-         Task.Run(async () =>
+         _autopilotLoopTask = Task.Run(async () =>
             {
                 Debug.WriteLine($"[{_name}] Autopilot tracking loop started");
                 var lastTarget = double.NaN;
@@ -677,7 +687,33 @@ namespace ACL_SIM_2.Services
                 _autopilotLoopCts.Dispose();
                 _autopilotLoopCts = null;
             }
+            _autopilotLoopTask = null;
             LatestAutopilotTarget = double.NaN;
+        }
+
+        /// <summary>
+        /// Cancels and awaits the autopilot tracking loop, then issues a center command.
+        /// Awaiting the loop before calling GoToPosition(0) prevents the loop's final
+        /// MoveToward call from racing with and overriding the center command.
+        /// </summary>
+        private async Task StopAndReturnToCenterAsync()
+        {
+            var loopTask = _autopilotLoopTask;
+            StopAutopilotTrackingLoop();
+
+            if (loopTask != null)
+            {
+                try
+                {
+                    await loopTask.WaitAsync(TimeSpan.FromMilliseconds(AUTOPILOT_LOOP_INTERVAL_MS * 3 + 100));
+                }
+                catch { }
+            }
+
+            if (!_isDisposed && _centeringPerformed)
+            {
+                try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+            }
         }
 
         /// <summary>

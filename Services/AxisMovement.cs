@@ -119,16 +119,20 @@ namespace ACL_SIM_2.Services
             if (!ValidateMotorSettings()) return;
             EnsureServoInitialized();
 
+            lock (_targetLock)
+            {
+                _currentTarget = targetPercent;
+            }
+
+            // Stop any active movement first so the encoder reading reflects the
+            // actual stopped position rather than a mid-move value.
+            Stop();
+
             var targetEncoder = PercentToEncoderPosition(targetPercent);
             targetEncoder = ClampToAxisRange(targetEncoder);
 
             var currentEncoder = _axis.EncoderPosition;
             var delta = targetEncoder - currentEncoder;
-
-            lock (_targetLock)
-            {
-                _currentTarget = targetPercent;
-            }
 
             if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
                 return;
@@ -138,8 +142,6 @@ namespace ACL_SIM_2.Services
 
             if (_axis.Settings.ReversedMotor)
                 pulses = -pulses;
-
-            Stop();
 
             var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
             Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
