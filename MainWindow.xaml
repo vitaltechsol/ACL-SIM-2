@@ -208,7 +208,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Pitch.AutopilotOn}" Value="True">
                                                         <Setter Property="Fill" Value="LimeGreen" />
@@ -223,7 +223,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Pitch.MotorIsMoving}" Value="True">
                                                         <Setter Property="Fill" Value="Orange" />
@@ -351,7 +351,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Roll.AutopilotOn}" Value="True">
                                                         <Setter Property="Fill" Value="LimeGreen" />
@@ -366,7 +366,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Roll.MotorIsMoving}" Value="True">
                                                         <Setter Property="Fill" Value="Orange" />
@@ -490,7 +490,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Rudder.MotorIsMoving}" Value="True">
                                                         <Setter Property="Fill" Value="Orange" />
@@ -610,7 +610,7 @@
                                     <Ellipse Width="12" Height="12">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="Red" />
+                                                <Setter Property="Fill" Value="Gray" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Tiller.MotorIsMoving}" Value="True">
                                                         <Setter Property="Fill" Value="Orange" />

@@ -48,17 +48,12 @@ namespace ACL_SIM_2.Services
         private volatile bool _isCenteringActive;
 
         private const int TRIM_FILTER_MS = 100;
-        private const int AUTOPILOT_OVERRIDE_GRACE_MS = 3000;
-        private const int AUTOPILOT_SIGN_CHANGE_GRACE_MS = 1000;
         private const int STALL_TORQUE_DURATION_MS = 2000;
 
         private long _stallTorqueActiveUntil = 0;
 
-        private long _autopilotEngagedAt;
         private volatile bool _autopilotOverrideActive;
         private volatile bool _isPositionTestActive;
-        private int _lastTargetSign = 0;
-        private long _lastTargetSignChangeTick = 0;
 
         private double LatestAutopilotTarget
         {
@@ -96,7 +91,7 @@ namespace ACL_SIM_2.Services
             }
 
             // Create axis movement controller with ModbusClient, TorqueControl and shared lock for servo control
-            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock);
+            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock, _logger);
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
@@ -194,22 +189,10 @@ namespace ACL_SIM_2.Services
                 }
                 else
                 {
-                    if (_autopilotOverrideActive)
-                    {
-                        // Manual override already issued GoToPosition(0) and called DisengageAP().
-                        // The ProSim AP=false event firing here is the echo of that DisengageAP call.
-                        // Issuing a second GoToPosition(0) would Stop() the motor mid-return and
-                        // recalculate from a stale encoder, causing the axis to miss center.
-                        // Just clean up the loop state; the first command already handles centering.
-                        StopAutopilotTrackingLoop();
-                    }
-                    else
-                    {
-                        // Normal AP disengage -- stop loop and return to center.
-                        // Awaiting the loop ensures its final MoveToward call cannot
-                        // race with and override the GoToPosition(0) center command.
-                        _ = StopAndReturnToCenterAsync();
-                    }
+                    // Normal AP disengage -- stop loop and return to center.
+                    // Awaiting the loop ensures its final MoveToward call cannot
+                    // race with and override the GoToPosition(0) center command.
+                    _ = StopAndReturnToCenterAsync();
                 }
 
                 // Notify the ViewModel to update UI bindings
@@ -536,10 +519,7 @@ namespace ACL_SIM_2.Services
         private void StartAutopilotTrackingLoop()
         {
             StopAutopilotTrackingLoop();
-            _autopilotEngagedAt = Environment.TickCount64;
             _autopilotOverrideActive = false;
-            _lastTargetSign = 0;
-            _lastTargetSignChangeTick = Environment.TickCount64;
             _axisMovement.Reset();
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
@@ -591,7 +571,7 @@ namespace ACL_SIM_2.Services
                             }
                         }
 
-                        CheckAutopilotManualOverride(target);
+                        CheckAutopilotManualOverride();
                         await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
                     }
                     catch (OperationCanceledException) { break; }
@@ -607,96 +587,66 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Checks whether the pilot has manually overridden the autopilot position beyond
-        /// the configured threshold. Fires immediately on the first reading that exceeds
-        /// the threshold after the grace period.
+        /// Checks whether the pilot has manually overridden the autopilot by measuring the
+        /// external (physical) torque reported by the motor driver (register 370, Dn002).
+        /// When the absolute external torque percentage exceeds MovingTorquePercentage by
+        /// more than AutopilotOverridePercent, autopilot is disengaged and the axis returns
+        /// to center.
         /// </summary>
-        private void CheckAutopilotManualOverride(double target)
+        private void CheckAutopilotManualOverride()
         {
-            if (_autopilotOverrideActive) return;
+            if (_autopilotOverrideActive || _torqueControl == null) return;
+
+            int rawTorque;
+            try
+            {
+                // Register 370 (Dn002) reports average torque already in percentage units (0-100),
+                rawTorque = _torqueControl.GetExternalTorque();
+              //  Debug.WriteLine($"[{_name}] rawTorque: {rawTorque}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_name}] GetExternalTorque failed: {ex.Message}");
+                return;
+            }
 
             var settings = _axisVm.Underlying.Settings;
-            var relativePos = _axisVm.Underlying.EncoderPosition - _axisVm.Underlying.EncoderCenterOffset;
+            var threshold = settings.MovingTorquePercentage + settings.AutopilotOverridePercent;
+            if (rawTorque <= threshold) return;
 
-            double signedPercent;
-            if (relativePos >= 0)
-                signedPercent = (relativePos / Math.Max(1e-6, settings.FullRightPosition)) * 100.0;
-            else
-                signedPercent = (relativePos / Math.Max(1e-6, Math.Abs(settings.FullLeftPosition))) * 100.0;
+            // _autopilotOverrideActive = true;
 
-            signedPercent = Math.Clamp(signedPercent, -100.0, 100.0);
-
-            var elapsedMs = Environment.TickCount64 - _autopilotEngagedAt;
-            if (elapsedMs < AUTOPILOT_OVERRIDE_GRACE_MS) return;
-
-            // Sign-change exemption: when autopilot target crosses zero (positive to negative or
-            // vice versa), the encoder is still on the old side while target jumped to the opposite
-            // side. This creates a large deviation that looks like manual override but is actually
-            // a normal autopilot command. Apply a grace period after sign changes.
-            var currentTargetSign = Math.Sign(target);
-            if (currentTargetSign != _lastTargetSign && currentTargetSign != 0 && _lastTargetSign != 0)
-            {
-                _lastTargetSignChangeTick = Environment.TickCount64;
-                Debug.WriteLine(
-                    $"[{_name}] AP target sign changed: {_lastTargetSign} -> {currentTargetSign}, applying {AUTOPILOT_SIGN_CHANGE_GRACE_MS}ms grace");
-            }
-            _lastTargetSign = currentTargetSign;
-
-            var signChangeElapsedMs = Environment.TickCount64 - _lastTargetSignChangeTick;
-            if (signChangeElapsedMs < AUTOPILOT_SIGN_CHANGE_GRACE_MS)
-            {
-                return;
-            }
-
-            // Overshoot exemption: encoder is past the target in the same direction — this is
-            // motor momentum, not a manual push.
-            var encoderSign = Math.Sign(signedPercent);
-            var targetSign = Math.Sign(target);
-            if (encoderSign != 0 && encoderSign == targetSign && Math.Abs(signedPercent) > Math.Abs(target))
-            {
-                Debug.WriteLine(
-                    $"[{_name}] AP override: overshoot (encoder={signedPercent:F1}% past target={target:F1}%), skipping");
-                return;
-            }
-
-            var deviation = Math.Abs(signedPercent - target);
-            if (deviation <= settings.AutopilotOverridePercent) return;
-
-            _autopilotOverrideActive = true;
-
-            _logger.Log(
+            _logger?.Log(
                 $"[{_name}] MANUAL OVERRIDE TRIGGERED " +
-                $"encoder={signedPercent:F1}% target={target:F1}% deviation={deviation:F1}% threshold={settings.AutopilotOverridePercent:F1}% " +
-                $"raw={_axisVm.Underlying.EncoderPosition:F0} centerOffset={_axisVm.Underlying.EncoderCenterOffset:F0} " +
-                $"engagedMs={elapsedMs}");
+                $"externalTorque={rawTorque:F1}% threshold={threshold:F1}% " +
+                $"(movingTorque={settings.MovingTorquePercentage:F1}% + override={settings.AutopilotOverridePercent:F1}%)"                );
 
             // Cancel the tracking loop from within the running task
-            _autopilotLoopCts?.Cancel();
+            //_autopilotLoopCts?.Cancel();
 
-            // Update local state immediately
-            _axisVm.Underlying.AutopilotOn = false;
-            _axisVm.Underlying.MotorIsMoving = false;
+            //// Update local state immediately
+            //_axisVm.Underlying.AutopilotOn = false;
+            //_axisVm.Underlying.MotorIsMoving = false;
 
             // Signal ProSim to disengage autopilot
             if (_proSimManager != null)
             {
-                try { 
+                try
+                {
                     _proSimManager.DisengageAP();
-                    // Return to center AFTER 750ms (time to disconnect AP)
-                    _ = Task.Delay(1000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
-                    _ = Task.Delay(4000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
+                    _ = Task.Delay(2000).ContinueWith(_ => _ = StopAndReturnToCenterAsync());
+                    //_ = Task.Delay(4000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
                 }
-
                 catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
             }
 
-            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-            {
-                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
-                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
-            });
+            //System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            //{
+            //    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
+            //    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+            //});
 
-            _ = UpdateTorqueAsync();
+            //_ = UpdateTorqueAsync();
         }
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
@@ -737,14 +687,12 @@ namespace ACL_SIM_2.Services
             // Re-check override flag: if manual override fired while we were awaiting the loop,
             // it already issued GoToPosition(0). Issuing a second one would Stop() the motor
             // mid-return and recalculate from a stale encoder, causing the axis to miss center.
-            if (!_isDisposed && _centeringPerformed && !_autopilotOverrideActive)
+            if (!_isDisposed && _centeringPerformed)
             {
+                _logger.Log($"[{_name}] Forced returning to center");
                 try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
             }
-            else if (_autopilotOverrideActive)
-            {
-                Debug.WriteLine($"[{_name}] StopAndReturnToCenterAsync: skipping GoToPosition(0) — override already issued it");
-            }
+           
         }
 
         /// <summary>

@@ -27,6 +27,7 @@ namespace ACL_SIM_2.Services
         private readonly AxisTorqueControl? _torqueControl;
         private readonly object _servoLock = new object();
         private readonly object? _modbusLock; // Shared lock for thread-safe Modbus access
+        private readonly IAppLogger? _logger;
         private bool _servoInitialized = false;
 
         private double _currentTarget = 0.0;
@@ -92,12 +93,13 @@ namespace ACL_SIM_2.Services
         /// <summary>Minimum RPM the software ramp will issue during acceleration and deceleration.</summary>
         private const int MIN_RAMP_RPM = 1;
 
-        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null)
+        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null, IAppLogger? logger = null)
         {
             _axis = axis ?? throw new ArgumentNullException(nameof(axis));
             _modbusClient = modbusClient;
             _torqueControl = torqueControl;
             _modbusLock = modbusLock;
+            _logger = logger;
         }
 
         /// <summary>
@@ -112,7 +114,7 @@ namespace ACL_SIM_2.Services
 
             if (_modbusClient == null || !_modbusClient.Connected)
             {
-                Debug.WriteLine($"[{_axis.Name}] GoToPosition: ModbusClient unavailable");
+                _logger?.Log($"[{_axis.Name}] GoToPosition: ModbusClient unavailable");
                 return;
             }
 
@@ -124,7 +126,7 @@ namespace ACL_SIM_2.Services
                 _currentTarget = targetPercent;
             }
 
-            // Stop any active movement first so the encoder reading reflects the
+            // Stop any active movement first
             // actual stopped position rather than a mid-move value.
             Stop();
 
@@ -186,7 +188,7 @@ namespace ACL_SIM_2.Services
 
             if (_modbusClient == null || !_modbusClient.Connected)
             {
-                Debug.WriteLine($"[{_axis.Name}] MoveToward: ModbusClient unavailable");
+                _logger?.Log($"[{_axis.Name}] MoveToward: ModbusClient unavailable");
                 return true;
             }
 
@@ -218,7 +220,7 @@ namespace ACL_SIM_2.Services
                 if (_stallCount >= MAX_STALL_ITERATIONS)
                 {
                     ServoStop();
-                    Debug.WriteLine($"[{_axis.Name}] Motor stall detected ({_stallCount} iterations with no movement)");
+                    _logger?.Log($"[{_axis.Name}] Motor stall detected ({_stallCount} iterations with no movement)");
                     _stallCount = 0;
                     return true;
                 }
@@ -236,7 +238,7 @@ namespace ACL_SIM_2.Services
                 if (totalElapsedMs > MAX_MOVE_TIMEOUT_MS)
                 {
                     ServoStop();
-                    Debug.WriteLine($"[{_axis.Name}] Move timeout after {totalElapsedMs}ms");
+                    _logger?.Log($"[{_axis.Name}] Move timeout after {totalElapsedMs}ms");
                     return true;
                 }
             }
@@ -298,7 +300,7 @@ namespace ACL_SIM_2.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[{_axis.Name}] MoveToward error: {ex.Message}");
+                _logger?.Log($"[{_axis.Name}] MoveToward error: {ex.Message}");
                 return true;
             }
 
@@ -327,7 +329,7 @@ namespace ACL_SIM_2.Services
             {
                 if (!_servoInitialized)
                 {
-                    Debug.WriteLine($"[{_axis.Name}] Initializing servo for first use...");
+                    _logger?.Log($"[{_axis.Name}] Initializing servo for first use...");
                     InitServo();
                     _servoInitialized = true;
                 }
@@ -417,7 +419,7 @@ namespace ACL_SIM_2.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Stop command failed: {ex.Message}");
+                    _logger?.Log($"[{_axis.Name}] Stop command failed: {ex.Message}");
                 }
             }
             else if (_modbusClient != null && !_modbusClient.Connected)
@@ -441,13 +443,13 @@ namespace ACL_SIM_2.Services
 
             if (_modbusClient == null)
             {
-                Debug.WriteLine($"[{_axis.Name}] MoveByUnits: ModbusClient is null");
+                _logger?.Log($"[{_axis.Name}] MoveByUnits: ModbusClient is null");
                 return;
             }
 
             if (!_modbusClient.Connected)
             {
-                Debug.WriteLine($"[{_axis.Name}] MoveByUnits: ModbusClient not connected");
+                _logger?.Log($"[{_axis.Name}] MoveByUnits: ModbusClient not connected");
                 return;
             }
 
@@ -470,7 +472,7 @@ namespace ACL_SIM_2.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[{_axis.Name}] MoveByUnits error: {ex.Message}");
+                _logger?.Log($"[{_axis.Name}] MoveByUnits error: {ex.Message}");
             }
         }
 
@@ -481,7 +483,7 @@ namespace ACL_SIM_2.Services
         {
             if (_axis.Settings.MotorSpeedRpm < 0 || _axis.Settings.MotorSpeedRpm > 3000)
             {
-                System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Invalid MotorSpeedRpm: {_axis.Settings.MotorSpeedRpm}");
+                _logger?.Log($"[{_axis.Name}] Invalid MotorSpeedRpm: {_axis.Settings.MotorSpeedRpm}");
                 return false;
             }
 
@@ -554,7 +556,7 @@ namespace ACL_SIM_2.Services
             // Set torque limit for position movements using MovingTorqueDisplay
             SetMovingTorqueLimit();
 
-            System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Servo initialized successfully");
+            _logger?.Log($"[{_axis.Name}] Servo initialized successfully");
         }
 
         /// <summary>

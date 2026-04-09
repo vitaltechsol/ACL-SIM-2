@@ -116,6 +116,23 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
+        /// Reads the average torque from the motor driver (Dn002, register 370).
+        /// Returns the signed value in the range -100..+100, or 0 if disabled or disconnected.
+        /// </summary>
+        public int GetExternalTorque()
+        {
+            if (!_enabled) return 0;
+
+            lock (_modbusLock)
+            {
+                if (!_mbc.Connected) return 0;
+                _mbc.UnitIdentifier = (byte)_driverId;
+                int rawTorqueRaw = _mbc.ReadHoldingRegisters(370, 1)[0];
+                return unchecked((short)rawTorqueRaw);
+            }
+        }
+
+        /// <summary>
         /// Disconnect is not called - shared ModbusClient is managed by EncoderManager.
         /// </summary>
         public void Disconnect()
