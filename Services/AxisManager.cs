@@ -593,7 +593,7 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private void CheckAutopilotManualOverride()
         {
-            if (_torqueControl == null) return;
+            if ( _torqueControl == null) return;
 
             int rawTorque;
             try
@@ -612,13 +612,11 @@ namespace ACL_SIM_2.Services
             var threshold = settings.MovingTorquePercentage + settings.AutopilotOverridePercent;
             if (Math.Abs(rawTorque) <= threshold) return;
 
-
             _logger?.Log(
                 $"[{_name}] MANUAL OVERRIDE TRIGGERED " +
                 $"externalTorque={rawTorque:F1}% threshold={threshold:F1}% " +
                 $"(movingTorque={settings.MovingTorquePercentage:F1}% + override={settings.AutopilotOverridePercent:F1}%)"                );
-
-            // Cancel the tracking loop from within the running task
+            
 
             // Signal ProSim to disengage autopilot
             if (_proSimManager != null)
@@ -626,15 +624,9 @@ namespace ACL_SIM_2.Services
                 try
                 {
                     _proSimManager.DisengageAP();
-                    // Delay the StopAndReturnToCenterAsync slightly to allow ProSim to process the disengagement
-                    _ = Task.Delay(1200).ContinueWith(_ => _ = StopAndReturnToCenterAsync());
                 }
                 catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
             }
-
-     
-
-     
         }
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
@@ -671,15 +663,42 @@ namespace ACL_SIM_2.Services
                 catch { }
             }
 
+            // Stop the servo hardware. The autopilot loop exits via OperationCanceledException
+            // without issuing a stop command, so the servo may still be physically executing
+            // its last incremental pulse command. If we read the encoder and call ServoMoveTo
+            // without stopping first, the new relative pulses are added on top of the in-flight
+            // move, causing a large overshoot.
+            _axisMovement.Stop();
+
+            // Wait for the servo to physically decelerate and come to rest before reading
+            // the encoder position. Without this delay the encoder value is still mid-motion
+            // and the calculated delta will be wrong.
+            await Task.Delay(500);
+
             // Re-check override flag: if manual override fired while we were awaiting the loop,
             // it already issued GoToPosition(0). Issuing a second one would Stop() the motor
             // mid-return and recalculate from a stale encoder, causing the axis to miss center.
             if (!_isDisposed && _centeringPerformed)
             {
-                _logger.Log($"[{_name}] Forced returning to center");
-                try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+                //var targetEncoder = _axisMovement.PercentToEncoderPosition(0);
+                //var currentEncoder = _axisVm.EncoderPosition;
+                //var delta = targetEncoder - currentEncoder;
+                //var pulses = (int)Math.Round(delta);
+
+                //if (_axisVm.Underlying.Settings.ReversedMotor)
+                //    pulses = -pulses;
+
+                _logger.Log($"[{_name}] Forced returning to center - target {targetEncoder} - current {currentEncoder} - pulses to move {pulses}");
+
+                try
+                {
+                    _axisMovement.GoToPosition(0, 90);
+                }
+                catch
+                {
+                    _logger.Log($"[{_name}] Forced return to center failed");
+                }
             }
-           
         }
 
         /// <summary>
@@ -962,7 +981,7 @@ namespace ACL_SIM_2.Services
             const double TARGET_CENTER = 512.0;      // Center target in {roSim units (0-1024 scale). Coarse tolerance gets us into the right neighborhood for gain calculation, fine tolerance is the final target for stopping and averaging.
             const double COARSE_TOLERANCE = 15.0;    // Enter fine-centering phase
             const double FINE_TOLERANCE = 2.0;       // Final accuracy target (ProSim units, averaged)
-            const int MAX_ITERATIONS = 60;
+            const int MAX_ITERATIONS = 200;
             const int SETTLE_MS = 100;
             const int MAX_FINE_ADJUSTMENTS = 10;     // Max correction cycles in fine phase
 
@@ -978,6 +997,7 @@ namespace ACL_SIM_2.Services
             const int MAX_MOVE_UNITS = 600;
             const int MIN_MOVE_UNITS = 15;
             const int PROBE_UNITS = 80;
+            const double PROSIM_PEGGED_THRESHOLD = 20.0; // ProSim is clamped at rail if within this distance from 0 or 1024
 
             if (_isDisposed)
             {
@@ -1026,6 +1046,7 @@ namespace ACL_SIM_2.Services
             bool gainSignKnown = false;
             int probeDirection = 1;
             int noMotionCount = 0;
+            int pegEscapeCount = 0;
             /// <summary>
             /// Minimum observed encoder movement required to treat a commanded centering move as real motion.
             /// Smaller changes are considered noise or insufficient movement.
@@ -1130,7 +1151,7 @@ namespace ACL_SIM_2.Services
 
                     if (!gainSignKnown)
                     {
-                        int probeMagnitude = Math.Min(MAX_MOVE_UNITS, PROBE_UNITS * Math.Max(1, noMotionCount + 1));
+                        int probeMagnitude = Math.Min(MAX_MOVE_UNITS, PROBE_UNITS * Math.Max(1, Math.Max(noMotionCount + 1, pegEscapeCount + 1)));
                         moveUnits = probeDirection * probeMagnitude;
                         log($"[{_name}] Probe move: {moveUnits} encoder units (gain sign unknown)");
                     }
@@ -1181,6 +1202,7 @@ namespace ACL_SIM_2.Services
                         {
                             probeDirection = -probeDirection;
                             gain = probeDirection < 0 ? -Math.Abs(gain) : Math.Abs(gain);
+                            pegEscapeCount = 0;
                             log($"[{_name}] Probe inconclusive (no encoder movement), retrying with opposite sign: {gain:F2}");
                         }
 
@@ -1193,6 +1215,7 @@ namespace ACL_SIM_2.Services
                     {
                         gain = actualEncoderDelta / actualProSimDelta;
                         gainSignKnown = true;
+                        pegEscapeCount = 0;
                         probeDirection = gain < 0 ? -1 : 1;
                         log($"[{_name}] Gain updated: {gain:F2} enc/ProSim");
                     }
@@ -1201,14 +1224,29 @@ namespace ACL_SIM_2.Services
                         if (actualProSimDelta < 0)
                             gain = -Math.Abs(gain);
                         gainSignKnown = true;
+                        pegEscapeCount = 0;
                         probeDirection = gain < 0 ? -1 : 1;
                         log($"[{_name}] Gain sign determined: {gain:F2} enc/ProSim");
                     }
                     else if (!gainSignKnown)
                     {
-                        gain = -Math.Abs(gain);
-                        probeDirection = gain < 0 ? -1 : 1;
-                        log($"[{_name}] Probe inconclusive, flipping sign: {gain:F2}");
+                        bool proSimPegged = currentProSim < PROSIM_PEGGED_THRESHOLD || currentProSim > (1024.0 - PROSIM_PEGGED_THRESHOLD);
+                        if (proSimPegged)
+                        {
+                            // Encoder moved but ProSim is clamped at an extreme - axis is in the dead zone.
+                            // Keep going in the same direction; the noMotionCount path (physical-limit
+                            // detection) is the only correct trigger for a direction flip. A count-based
+                            // flip causes symmetric oscillation that never converges.
+                            pegEscapeCount++;
+                            log($"[{_name}] ProSim pegged at extreme ({currentProSim:F0}), continuing same direction (attempt {pegEscapeCount})");
+                        }
+                        else
+                        {
+                            pegEscapeCount = 0;
+                            gain = -Math.Abs(gain);
+                            probeDirection = gain < 0 ? -1 : 1;
+                            log($"[{_name}] Probe inconclusive, flipping sign: {gain:F2}");
+                        }
                     }
                 }
 

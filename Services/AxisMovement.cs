@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -121,11 +121,6 @@ namespace ACL_SIM_2.Services
             if (!ValidateMotorSettings()) return;
             EnsureServoInitialized();
 
-            lock (_targetLock)
-            {
-                _currentTarget = targetPercent;
-            }
-
             // Stop any active movement first
             // actual stopped position rather than a mid-move value.
             Stop();
@@ -135,18 +130,15 @@ namespace ACL_SIM_2.Services
 
             var currentEncoder = _axis.EncoderPosition;
             var delta = targetEncoder - currentEncoder;
-
             if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
                 return;
 
             var pulses = (int)Math.Round(delta);
-            if (pulses == 0) return;
-
             if (_axis.Settings.ReversedMotor)
                 pulses = -pulses;
 
             var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
-            Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
+            _logger.Log($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses from {currentEncoder} @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
             ServoMoveTo(pulses, rpm);
         }
 
@@ -260,9 +252,7 @@ namespace ACL_SIM_2.Services
             var pulses = (int)Math.Round(delta);
             if (pulses == 0) return true;
 
-            // Apply motor direction reversal
-            if (_axis.Settings.ReversedMotor)
-                pulses = -pulses;
+
 
             // Software RPM ramp: 1 → maxRpm over accelMs, with optional S-curve blend
             var maxRpm = _axis.Settings.MotorSpeedRpm;
@@ -291,6 +281,9 @@ namespace ACL_SIM_2.Services
                 var decelRpm = Math.Max(MIN_RAMP_RPM, (int)Math.Round(rpm * (absDelta / DECEL_ZONE_UNITS)));
                 rpm = Math.Min(rpm, decelRpm);
             }
+
+            if (_axis.Settings.ReversedMotor)
+                pulses = -pulses;
 
             Debug.WriteLine($"[{_axis.Name}] MoveToward {targetPercent:F1}% → Enc: {currentEncoder:F0}→{targetEncoder:F0}, Δ{delta:F0} ({pulses} pulses) @ {rpm}/{maxRpm} RPM ({(int)elapsedMs}ms/{(int)accelMs}ms)");
 
@@ -347,7 +340,7 @@ namespace ACL_SIM_2.Services
         /// Convert a percentage (-100 to +100) to absolute encoder position.
         /// Uses relative FullLeft/FullRight distances from center plus EncoderCenterOffset.
         /// </summary>
-        private double PercentToEncoderPosition(double percent)
+        public double PercentToEncoderPosition(double percent)
         {
             double relativeTarget;
             if (percent >= 0)
@@ -504,9 +497,11 @@ namespace ACL_SIM_2.Services
             {
                 lock (_modbusLock)
                 {
+                    _modbusClient.UnitIdentifier = (byte)_axis.Settings.DriverId;
                     return unchecked((ushort)_modbusClient.ReadHoldingRegisters(pn, 1)[0]);
                 }
             }
+            _modbusClient.UnitIdentifier = (byte)_axis.Settings.DriverId;
             return unchecked((ushort)_modbusClient.ReadHoldingRegisters(pn, 1)[0]);
         }
 
@@ -522,11 +517,13 @@ namespace ACL_SIM_2.Services
             {
                 lock (_modbusLock)
                 {
+                    _modbusClient.UnitIdentifier = (byte)_axis.Settings.DriverId;
                     _modbusClient.WriteSingleRegister(pn, val);
                 }
             }
             else
             {
+                _modbusClient.UnitIdentifier = (byte)_axis.Settings.DriverId;
                 _modbusClient.WriteSingleRegister(pn, val);
             }
         }
@@ -585,8 +582,9 @@ namespace ACL_SIM_2.Services
             System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving torque limit set to {torqueInt} (from display value {_axis.Settings.MovingTorquePercentage})");
         }
 
-        private void ServoMoveTo(int pulses, int rpm)
+        public void ServoMoveTo(int pulses, int rpm)
         {
+            _logger?.Log($"[{_axis.Name}] ServoMoveTo pulsed: {pulses}: From: {_axis.EncoderPosition})");
             int slot = 0;
             // Set slot speed (clamped to valid range)
             WritePn(SlotSpeedPn[slot], Clamp(rpm, 0, 3000));
@@ -597,6 +595,7 @@ namespace ACL_SIM_2.Services
             // Select slot and trigger movement
             SelectSlot(slot);
             PulsePtriger(SERVO_TRIGGER_PULSE_MS);
+            _logger?.Log($"[{_axis.Name}] ServoMoveTo: {pulses} pulses @ {rpm} - new encoder position: {_axis.EncoderPosition})");
         }
 
         private void WriteSlotPulses(int slot, int pulses)
