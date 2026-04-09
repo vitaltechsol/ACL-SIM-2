@@ -52,7 +52,6 @@ namespace ACL_SIM_2.Services
 
         private long _stallTorqueActiveUntil = 0;
 
-        private volatile bool _autopilotOverrideActive;
         private volatile bool _isPositionTestActive;
 
         private double LatestAutopilotTarget
@@ -519,7 +518,6 @@ namespace ACL_SIM_2.Services
         private void StartAutopilotTrackingLoop()
         {
             StopAutopilotTrackingLoop();
-            _autopilotOverrideActive = false;
             _axisMovement.Reset();
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
@@ -595,7 +593,7 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private void CheckAutopilotManualOverride()
         {
-            if (_autopilotOverrideActive || _torqueControl == null) return;
+            if (_torqueControl == null) return;
 
             int rawTorque;
             try
@@ -612,9 +610,8 @@ namespace ACL_SIM_2.Services
 
             var settings = _axisVm.Underlying.Settings;
             var threshold = settings.MovingTorquePercentage + settings.AutopilotOverridePercent;
-            if (rawTorque <= threshold) return;
+            if (Math.Abs(rawTorque) <= threshold) return;
 
-            // _autopilotOverrideActive = true;
 
             _logger?.Log(
                 $"[{_name}] MANUAL OVERRIDE TRIGGERED " +
@@ -622,11 +619,6 @@ namespace ACL_SIM_2.Services
                 $"(movingTorque={settings.MovingTorquePercentage:F1}% + override={settings.AutopilotOverridePercent:F1}%)"                );
 
             // Cancel the tracking loop from within the running task
-            //_autopilotLoopCts?.Cancel();
-
-            //// Update local state immediately
-            //_axisVm.Underlying.AutopilotOn = false;
-            //_axisVm.Underlying.MotorIsMoving = false;
 
             // Signal ProSim to disengage autopilot
             if (_proSimManager != null)
@@ -634,19 +626,15 @@ namespace ACL_SIM_2.Services
                 try
                 {
                     _proSimManager.DisengageAP();
-                    _ = Task.Delay(2000).ContinueWith(_ => _ = StopAndReturnToCenterAsync());
-                    //_ = Task.Delay(4000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
+                    // Delay the StopAndReturnToCenterAsync slightly to allow ProSim to process the disengagement
+                    _ = Task.Delay(1200).ContinueWith(_ => _ = StopAndReturnToCenterAsync());
                 }
                 catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
             }
 
-            //System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-            //{
-            //    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
-            //    _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
-            //});
+     
 
-            //_ = UpdateTorqueAsync();
+     
         }
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
@@ -667,7 +655,6 @@ namespace ACL_SIM_2.Services
         /// Cancels and awaits the autopilot tracking loop, then issues a center command.
         /// Awaiting the loop before calling GoToPosition(0) prevents the loop's final
         /// MoveToward call from racing with and overriding the center command.
-        /// The GoToPosition(0) is skipped if <see cref="_autopilotOverrideActive"/> is true,
         /// meaning a manual override already issued the center command while we were awaiting.
         /// </summary>
         private async Task StopAndReturnToCenterAsync()
