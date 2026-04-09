@@ -19,6 +19,7 @@ namespace ACL_SIM_2.Services
         private readonly AxisTorqueControl? _torqueControl;
         private readonly AxisMovement _axisMovement;
         private readonly ProSimManager? _proSimManager;
+        private readonly IAppLogger? _logger;
         private readonly string _name;
         private bool _isDisposed;
 
@@ -65,11 +66,12 @@ namespace ACL_SIM_2.Services
             set => Interlocked.Exchange(ref _latestAutopilotTargetBits, BitConverter.DoubleToInt64Bits(value));
         }
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient? modbusClient = null, object? modbusLock = null, ProSimManager? proSimManager = null)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _proSimManager = proSimManager;
+            _logger = logger;
             _trimBaseCenterOffset = _axisVm.Underlying.EncoderCenterOffset;
 
             // Create torque control if ModbusClient is provided
@@ -661,8 +663,9 @@ namespace ACL_SIM_2.Services
             if (deviation <= settings.AutopilotOverridePercent) return;
 
             _autopilotOverrideActive = true;
-            Debug.WriteLine(
-                $"[{_name}] *** MANUAL OVERRIDE TRIGGERED *** " +
+
+            _logger.Log(
+                $"[{_name}] MANUAL OVERRIDE TRIGGERED " +
                 $"encoder={signedPercent:F1}% target={target:F1}% deviation={deviation:F1}% threshold={settings.AutopilotOverridePercent:F1}% " +
                 $"raw={_axisVm.Underlying.EncoderPosition:F0} centerOffset={_axisVm.Underlying.EncoderCenterOffset:F0} " +
                 $"engagedMs={elapsedMs}");
@@ -674,13 +677,16 @@ namespace ACL_SIM_2.Services
             _axisVm.Underlying.AutopilotOn = false;
             _axisVm.Underlying.MotorIsMoving = false;
 
-            // Return to center
-            try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
-
             // Signal ProSim to disengage autopilot
             if (_proSimManager != null)
             {
-                try { _proSimManager.DisengageAP(); }
+                try { 
+                    _proSimManager.DisengageAP();
+                    // Return to center AFTER 750ms (time to disconnect AP)
+                    _ = Task.Delay(1000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
+                    _ = Task.Delay(4000).ContinueWith(_ => _axisMovement.GoToPosition(0, rpmOverride: 100));
+                }
+
                 catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
             }
 
@@ -711,6 +717,8 @@ namespace ACL_SIM_2.Services
         /// Cancels and awaits the autopilot tracking loop, then issues a center command.
         /// Awaiting the loop before calling GoToPosition(0) prevents the loop's final
         /// MoveToward call from racing with and overriding the center command.
+        /// The GoToPosition(0) is skipped if <see cref="_autopilotOverrideActive"/> is true,
+        /// meaning a manual override already issued the center command while we were awaiting.
         /// </summary>
         private async Task StopAndReturnToCenterAsync()
         {
@@ -726,9 +734,16 @@ namespace ACL_SIM_2.Services
                 catch { }
             }
 
-            if (!_isDisposed && _centeringPerformed)
+            // Re-check override flag: if manual override fired while we were awaiting the loop,
+            // it already issued GoToPosition(0). Issuing a second one would Stop() the motor
+            // mid-return and recalculate from a stale encoder, causing the axis to miss center.
+            if (!_isDisposed && _centeringPerformed && !_autopilotOverrideActive)
             {
                 try { _axisMovement.GoToPosition(0, rpmOverride: 90); } catch { }
+            }
+            else if (_autopilotOverrideActive)
+            {
+                Debug.WriteLine($"[{_name}] StopAndReturnToCenterAsync: skipping GoToPosition(0) — override already issued it");
             }
         }
 
@@ -1017,11 +1032,11 @@ namespace ACL_SIM_2.Services
             const int MAX_FINE_ADJUSTMENTS = 10;     // Max correction cycles in fine phase
 
             // Per-read averaging to smooth 
-            const int SAMPLES_PER_READ = 5;
-            const int SAMPLE_INTERVAL_MS = 40;
+            const int SAMPLES_PER_READ = 3;
+            const int SAMPLE_INTERVAL_MS = 25;
 
             // Final averaging constants
-            const int AVERAGING_DURATION_MS = 2000; // How long to check final position stability before settling on center offset
+            const int AVERAGING_DURATION_MS = 1000; // How long to check final position stability before settling on center offset
             const int AVERAGING_SAMPLE_INTERVAL_MS = 50; // how often to sample ProSim and encoder during the final averaging window
 
             // Movement limits (encoder units)

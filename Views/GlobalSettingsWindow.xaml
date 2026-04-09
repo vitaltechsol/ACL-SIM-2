@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Global Settings" Height="220" Width="420"
+        Title="Global Settings" Height="220" Width="302"
         Background="#1e1e1e" Foreground="White">
     <Grid Margin="12">
         <Grid.RowDefinitions>
@@ -30,8 +30,9 @@
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Save" Width="100" Margin="0,0,8,0" Command="{Binding SaveCommand}" />
             <Button Content="Close" Width="100" Command="{Binding CloseCommand}" />
+            <Button Content="Save" Width="100" Margin="0,0,8,0" Command="{Binding SaveCommand}" />
+            
         </StackPanel>
     </Grid>
 </Window>

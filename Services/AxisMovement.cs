@@ -41,7 +41,7 @@ namespace ACL_SIM_2.Services
         /// Minimum encoder-position error required before issuing or updating a position command.
         /// Prevents tiny corrections from retriggering the servo during tracking.
         /// </summary>
-        private const double POSITION_TOLERANCE_UNITS = 10.0;
+        private const double POSITION_TOLERANCE_UNITS = 5.0;
 
         // AASD Servo Pn parameters
         private const int Pn002 = 2;   // Control mode
@@ -145,7 +145,7 @@ namespace ACL_SIM_2.Services
 
             var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
             Debug.WriteLine($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
-            ServoMoveTo(pulses, rpm, AccelMode.None, 0, 0, slot: 0);
+            ServoMoveTo(pulses, rpm);
         }
 
         /// <summary>
@@ -294,7 +294,7 @@ namespace ACL_SIM_2.Services
 
             try
             {
-                ServoMoveTo(pulses, rpm, AccelMode.None, 0, 0, slot: 0);
+                ServoMoveTo(pulses, rpm);
             }
             catch (Exception ex)
             {
@@ -466,7 +466,7 @@ namespace ACL_SIM_2.Services
 
             try
             {
-                ServoMoveTo(pulses, requestedRpm, AccelMode.None, 0, 0, slot: 0);
+                ServoMoveTo(pulses, requestedRpm);
             }
             catch (Exception ex)
             {
@@ -583,22 +583,9 @@ namespace ACL_SIM_2.Services
             System.Diagnostics.Debug.WriteLine($"[{_axis.Name}] Moving torque limit set to {torqueInt} (from display value {_axis.Settings.MovingTorquePercentage})");
         }
 
-        private void ServoMoveTo(int pulses, int rpm, AccelMode accelMode, int accelParam1Ms, int accelParam2Ms, int slot)
+        private void ServoMoveTo(int pulses, int rpm)
         {
-            if (slot < 0 || slot > 3)
-                throw new ArgumentOutOfRangeException(nameof(slot), $"Slot must be 0-3, got {slot}");
-
-            // Only reconfigure acceleration if parameters changed (optimization to avoid unnecessary Modbus writes)
-            if (accelMode != _lastConfiguredAccelMode || 
-                accelParam1Ms != _lastConfiguredAccelParam1 || 
-                accelParam2Ms != _lastConfiguredAccelParam2)
-            {
-                ConfigureAcceleration(accelMode, accelParam1Ms, accelParam2Ms);
-                _lastConfiguredAccelMode = accelMode;
-                _lastConfiguredAccelParam1 = accelParam1Ms;
-                _lastConfiguredAccelParam2 = accelParam2Ms;
-            }
-
+            int slot = 0;
             // Set slot speed (clamped to valid range)
             WritePn(SlotSpeedPn[slot], Clamp(rpm, 0, 3000));
 
@@ -608,36 +595,6 @@ namespace ACL_SIM_2.Services
             // Select slot and trigger movement
             SelectSlot(slot);
             PulsePtriger(SERVO_TRIGGER_PULSE_MS);
-        }
-
-        private void ConfigureAcceleration(AccelMode accelMode, int accelParam1Ms, int accelParam2Ms)
-        {
-            switch (accelMode)
-            {
-                case AccelMode.None:
-                    WritePn(Pn109, 0);
-                    Debug.WriteLine($"[{_axis.Name}] Accel: None (Pn109=0)");
-                    break;
-
-                case AccelMode.Linear:
-                    var linearTime = Clamp(accelParam1Ms, 5, 500);
-                    WritePn(Pn109, 1);
-                    WritePn(Pn110, linearTime);
-                    Debug.WriteLine($"[{_axis.Name}] Accel: Linear (Pn109=1, Pn110={linearTime}ms)");
-                    break;
-
-                case AccelMode.SCurve:
-                    var ta = Clamp(accelParam1Ms, 5, 340);
-                    var ts = Clamp(accelParam2Ms, 5, 150);
-                    WritePn(Pn109, 2);
-                    WritePn(Pn111, ta);
-                    WritePn(Pn112, ts);
-                    Debug.WriteLine($"[{_axis.Name}] Accel: S-Curve (Pn109=2, Pn111={ta}ms Ta, Pn112={ts}ms Ts)");
-                    break;
-
-                default:
-                    throw new ArgumentException($"Unknown acceleration mode: {accelMode}");
-            }
         }
 
         private void WriteSlotPulses(int slot, int pulses)

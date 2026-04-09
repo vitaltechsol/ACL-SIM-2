@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -13,6 +14,7 @@ namespace ACL_SIM_2.ViewModels
     {
         private readonly Services.EncoderManager? _encoderManager;
         private readonly Services.ProSimManager? _proSimManager;
+        private readonly Services.IAppLogger _appLogger;
         private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
         private readonly Dictionary<string, AxisViewModel> _axes = new Dictionary<string, AxisViewModel>();
         private readonly Dictionary<string, AxisSettings> _axisSettings = new Dictionary<string, AxisSettings>();
@@ -246,6 +248,8 @@ namespace ACL_SIM_2.ViewModels
 
         public MainViewModel()
         {
+            _appLogger = new Services.AppLogger(LogError);
+
             // Load global settings for ProSim IP
             var globalSettings = Services.SettingsService.LoadGlobalSettings();
             if (globalSettings != null)
@@ -329,7 +333,7 @@ namespace ACL_SIM_2.ViewModels
                             var modbusLock = _encoderManager.GetModbusLock(axisName);
                             if (modbusClient != null && modbusLock != null)
                             {
-                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager);
+                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger);
                             }
                         }
                     }
@@ -484,7 +488,7 @@ namespace ACL_SIM_2.ViewModels
                                 var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
                                 if (modbusClient != null && modbusLock != null)
                                 {
-                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager);
+                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger);
                                 }
 
                                 LogError($"[{savedAxisName}] Connection settings changed - encoder and torque control reconnected");
@@ -531,6 +535,7 @@ namespace ACL_SIM_2.ViewModels
         {
             var timestamped = $"{System.DateTime.Now:HH:mm:ss} - {message}";
             ErrorLog.Insert(0, timestamped);
+            Debug.WriteLine(timestamped);
             // Keep only last 100 entries
             while (ErrorLog.Count > 100)
             {
@@ -731,7 +736,7 @@ namespace ACL_SIM_2.ViewModels
                         var modbusLock = _encoderManager.GetModbusLock(axisName);
                         if (modbusClient != null && modbusLock != null)
                         {
-                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager);
+                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager, _appLogger);
                         }
 
                         LogError($"[{axisName}] Encoder and torque control enabled");

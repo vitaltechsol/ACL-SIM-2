@@ -19,7 +19,7 @@
 |             | Load increases as the control moves away          | Complete |
 |             | Load increases when hydraulics are not available  | Complete |
 |             | Load increases with airspeed                      | Complete |
-|             | Fwd Load increases when approaching a stall       | TBD      |
+|             | Fwd Load increases when approaching a stall       | Complete |
 |             | Autopilot moves control column                    | Complete |
 |             | Autopilot disengage override by moving the control| TBD      |
 |             | Column pitch stays fixed with hydraulics off      | Complete |

@@ -239,7 +239,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Pitch centering overlay -->
-                <Border Margin="8,46,8,98" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Pitch.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -382,7 +382,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Roll centering overlay -->
-                <Border Margin="8,46,8,98" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Roll.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -506,7 +506,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Rudder centering overlay -->
-                <Border Margin="8,46,8,98" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Rudder.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -626,7 +626,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Tiller centering overlay -->
-                <Border Margin="8,46,8,98" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Tiller.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
