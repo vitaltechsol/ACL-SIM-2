@@ -60,8 +60,8 @@
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12">
             <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,16">
-                <TextBlock Text="RS485 IP:" Width="57" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,16">
+                    <TextBlock Text="RS485 IP:" Width="57" VerticalAlignment="Center" />
                     <TextBox Text="{Binding RS485Ip}" Width="131" Margin="0,0,24,0"/>
                     <TextBlock Text="Driver ID:" Width="55" VerticalAlignment="Center" />
                     <ComboBox SelectedItem="{Binding DriverId}" Width="43">
@@ -78,464 +78,521 @@
                     </ComboBox>
                 </StackPanel>
 
-            <GroupBox Header="Position Calibration" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Current Encoder:" Width="120" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding EncoderPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
-                        <TextBlock Text="ProSim Position:" Width="94" Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding ProSimPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="Red"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ProSimPositionIsGood}" Value="True">
-                                            <Setter Property="Foreground" Value="LimeGreen"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                        <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White"  Margin="84,0,0,0"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <StackPanel Margin="0,0,16,0">
-                            <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
+                <GroupBox Header="Position Calibration" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Current Encoder:" Width="120" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding EncoderPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center"/>
+                            <TextBlock Text="ProSim Position:" Width="94" Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ProSimPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Full Left Position:"/>
+                                        <Setter Property="Foreground" Value="Red"/>
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Forward Position:"/>
+                                            <DataTrigger Binding="{Binding ProSimPositionIsGood}" Value="True">
+                                                <Setter Property="Foreground" Value="LimeGreen"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
-                            <TextBlock Text="{Binding Settings.FullLeftPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <CheckBox Content="Motor Reversed" IsChecked="{Binding Reversed, Mode=TwoWay}" Foreground="White"  Margin="84,0,0,0"/>
                         </StackPanel>
-                        <StackPanel Margin="0,0,16,0">
-                            <TextBlock Text="Center Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
-                            <TextBlock Text="{Binding Settings.CenterPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Full Left Position:"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                    <Setter Property="Text" Value="Full Forward Position:"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding Settings.FullLeftPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Center Position:" VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                                <TextBlock Text="{Binding Settings.CenterPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Full Right Position:"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                    <Setter Property="Text" Value="Full Back Position:"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding Settings.FullRightPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            </StackPanel>
                         </StackPanel>
-                        <StackPanel>
-                            <TextBlock VerticalAlignment="Center" Foreground="Gray" FontSize="10">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Full Right Position:"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                                <Setter Property="Text" Value="Full Back Position:"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            <TextBlock Text="{Binding Settings.FullRightPosition, StringFormat={}{0:F2}}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </StackPanel>
 
-                    <Button Width="100" Margin="0,4,0,8" HorizontalAlignment="Left" Command="{Binding ToggleCalibrateCommand}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Background" Value="#2d2d30"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="Content" Value="Calibrate"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
-                                        <Setter Property="Background" Value="#007acc"/>
-                                        <Setter Property="Content" Value="Done"/>
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding ShowDoneLabel}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,4,0,0">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-
-                        <!-- Step 1: Set Center - visible until center is set -->
-                        <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}">
+                        <Button Width="100" Margin="0,4,0,8" HorizontalAlignment="Left" Command="{Binding ToggleCalibrateCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Background" Value="#2d2d30"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Content" Value="Calibrate"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowSetCenterButton}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
+                                        <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
+                                            <Setter Property="Background" Value="#007acc"/>
+                                            <Setter Property="Content" Value="Done"/>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-
-                        <!-- Step 2: Set Full Left - visible after center is set, until full left is set -->
-                        <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullLeftCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Setter Property="Content" Value="Set Full Left"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowSetFullLeftButton}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Forward"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-
-                        <!-- Step 3: Set Full Right - visible after full left is set -->
-                        <Button Width="120" Command="{Binding SetFullRightCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Setter Property="Content" Value="Set Full Right"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowSetFullRightButton}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                            <Setter Property="Content" Value="Set Full Back"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-
-                        <!-- Step 4: Release label - visible after full right is set -->
-                        <TextBlock Text="Center the control, release it now and press Done"
-                                   VerticalAlignment="Center"
-                                   Foreground="#FFC107"
-                                   FontWeight="SemiBold"
-                                   Margin="8,0,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
                                         <DataTrigger Binding="{Binding ShowDoneLabel}" Value="True">
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                            </Button.Style>
+                        </Button>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,4,0,0">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCalibrationMode}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <!-- Step 1: Set Center - visible until center is set -->
+                            <Button Content="Set Center" Width="100" Margin="0,0,8,0" Command="{Binding SetCenterCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowSetCenterButton}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <!-- Step 2: Set Full Left - visible after center is set, until full left is set -->
+                            <Button Width="120" Margin="0,0,8,0" Command="{Binding SetFullLeftCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Setter Property="Content" Value="Set Full Left"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowSetFullLeftButton}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                <Setter Property="Content" Value="Set Full Forward"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <!-- Step 3: Set Full Right - visible after full left is set -->
+                            <Button Width="120" Command="{Binding SetFullRightCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Setter Property="Content" Value="Set Full Right"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowSetFullRightButton}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                                <Setter Property="Content" Value="Set Full Back"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <!-- Step 4: Release label - visible after full right is set -->
+                            <TextBlock Text="Center the control, release it now and press Done"
+                                   VerticalAlignment="Center"
+                                   Foreground="#FFC107"
+                                   FontWeight="SemiBold"
+                                   Margin="8,0,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowDoneLabel}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </GroupBox>
+                </GroupBox>
 
-            <GroupBox Header="Torque Settings (display 0..100)" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <TextBlock Text="Min Torque"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
-                    <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Self Centering / Movement" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <TextBlock Text="Self centering speed"/>
-                    <Slider Minimum="1" Maximum="70" Value="{Binding SelfCenteringSpeed}"/>
-                    <TextBlock Text="Dampening" Margin="0,8,0,0"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Auto Pilot / Trim" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <Border Background="#252526" CornerRadius="4" Padding="10" Margin="0,0,0,10">
-                        <TextBlock Text="Live preview: changes update the motor right away while autopilot or position test is active. Use Save to keep them."
-                                Foreground="#d7eaff"
-                                TextWrapping="Wrap"/>
-                    </Border>
-
-                        <!-- Autopilot override - Pitch and Roll only -->
-                    <StackPanel Margin="0,0,0,10">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding AxisName}" Value="Roll">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-                        <TextBlock Text="Autopilot override (%)" FontWeight="SemiBold"/>
+                <GroupBox Header="Torque Settings (display 0..100)" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <TextBlock Text="Min Torque"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Slider Grid.Column="0"
+                            <TextBlock Grid.Column="0" Text="{Binding MinTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
+                        </Grid>
+                        <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding MaxTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Self Centering / Movement" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <TextBlock Text="Self centering speed"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding SelfCenteringSpeed, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="70" Value="{Binding SelfCenteringSpeed}"/>
+                        </Grid>
+                        <TextBlock Text="Dampening" Margin="0,8,0,0"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Dampening, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Auto Pilot / Trim" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <Border Background="#252526" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                            <TextBlock Text="Live preview: changes update the motor right away while autopilot or position test is active. Use Save to keep them."
+                                Foreground="#d7eaff"
+                                TextWrapping="Wrap"/>
+                        </Border>
+
+                        <!-- Autopilot override - Pitch and Roll only -->
+                        <StackPanel Margin="0,0,0,10">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding AxisName}" Value="Roll">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="Autopilot override (%)" FontWeight="SemiBold"/>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="55"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                       Margin="0,0,8,0"
+                                       VerticalAlignment="Center"
+                                       TextAlignment="Right"
+                                       Text="{Binding AutopilotOverridePercent, StringFormat={}{0:F0}%}"/>
+                                <Slider Grid.Column="1"
                                     Minimum="1"
                                     Maximum="100"
                                     Value="{Binding AutopilotOverridePercent}"/>
-                            <TextBlock Grid.Column="1"
-                                       Margin="12,0,0,0"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding AutopilotOverridePercent, StringFormat={}{0:F0}%}"/>
-                        </Grid>
-                    </StackPanel>
+                            </Grid>
+                        </StackPanel>
 
 
-                    <TextBlock Text="Motor max speed" FontWeight="SemiBold"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <TextBlock Text="Motor max speed" FontWeight="SemiBold"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MotorSpeedRpm, StringFormat={}{0} RPM}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="1"
                                 Maximum="50"
                                 TickFrequency="5"
                                 IsSnapToTickEnabled="True"
                                 AutoToolTipPlacement="BottomRight"
                                 Value="{Binding MotorSpeedRpm}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MotorSpeedRpm, StringFormat={}{0} RPM}"/>
-                    </Grid>
-                    <TextBlock Text="Best smooth range is usually between 2 and 5 RPM."
+                        </Grid>
+                        <TextBlock Text="Best smooth range is usually between 2 and 5 RPM."
                                Margin="0,2,0,0"
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Moving torque" Margin="0,10,0,0" FontWeight="SemiBold"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <TextBlock Text="Moving torque" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MovingTorquePercentage, StringFormat={}{0:F0}%}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="0"
                                 Maximum="100"
                                 TickFrequency="5"
                                 Value="{Binding MovingTorquePercentage}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MovingTorquePercentage, StringFormat={}{0:F0}%}"/>
-                    </Grid>
+                        </Grid>
 
-                    <TextBlock Text="How much smoothing do you want?" Margin="0,10,0,0" FontWeight="SemiBold"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <TextBlock Text="How much smoothing do you want?" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MotionSmoothingPercent, StringFormat={}{0:F0}%}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="0"
                                 Maximum="100"
                                 TickFrequency="5"
                                 Value="{Binding MotionSmoothingPercent}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MotionSmoothingPercent, StringFormat={}{0:F0}%}"/>
-                    </Grid>
-                    <TextBlock Text="Higher smoothing softens quick corrections. Lower smoothing makes the motor follow targets more directly."
+                        </Grid>
+                        <TextBlock Text="Higher smoothing softens quick corrections. Lower smoothing makes the motor follow targets more directly."
                                Margin="0,2,0,0"
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="How often can new corrections be sent?" Margin="0,10,0,0" FontWeight="SemiBold"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <TextBlock Text="How often can new corrections be sent?" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MinMotorCommandIntervalMs, StringFormat={}{0} ms}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="0"
                                 Maximum="500"
                                 TickFrequency="10"
                                 IsSnapToTickEnabled="True"
                                 Value="{Binding MinMotorCommandIntervalMs}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MinMotorCommandIntervalMs, StringFormat={}{0} ms}"/>
-                    </Grid>
-                    <TextBlock Text="Higher values reduce command chatter. Lower values react faster."
+                        </Grid>
+                        <TextBlock Text="Higher values reduce command chatter. Lower values react faster."
                                Margin="0,2,0,0"
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Acceleration ramp time" Margin="0,12,0,0" FontWeight="SemiBold"/>
-                    <TextBlock Text="Time from 0 to max RPM. Default 1000 ms."
+                        <TextBlock Text="Acceleration ramp time" Margin="0,12,0,0" FontWeight="SemiBold"/>
+                        <TextBlock Text="Time from 0 to max RPM. Default 1000 ms."
                                Margin="0,2,0,0"
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MotorAccelParam1Ms, StringFormat={}{0} ms}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="50"
                                 Maximum="3000"
                                 TickFrequency="50"
                                 IsSnapToTickEnabled="True"
                                 Value="{Binding MotorAccelParam1Ms}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MotorAccelParam1Ms, StringFormat={}{0} ms}"/>
-                    </Grid>
+                        </Grid>
 
-                    <TextBlock Text="Curve smoothness" Margin="0,12,0,0" FontWeight="SemiBold"/>
-                    <TextBlock Text="0 = linear ramp. Higher = softer S-curve start/stop. Max = half of ramp time."
+                        <TextBlock Text="Curve smoothness" Margin="0,12,0,0" FontWeight="SemiBold"/>
+                        <TextBlock Text="0 = linear ramp. Higher = softer S-curve start/stop. Max = half of ramp time."
                                Margin="0,2,0,0"
                                Foreground="LightGray"
                                TextWrapping="Wrap"/>
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Grid.Column="0"
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Right"
+                                   Text="{Binding MotorAccelParam2Ms, StringFormat={}{0} ms}"/>
+                            <Slider Grid.Column="1"
                                 Minimum="0"
                                 Maximum="1500"
                                 TickFrequency="50"
                                 IsSnapToTickEnabled="True"
                                 Value="{Binding MotorAccelParam2Ms}"/>
-                        <TextBlock Grid.Column="1"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Text="{Binding MotorAccelParam2Ms, StringFormat={}{0} ms}"/>
-                    </Grid>
-                </StackPanel>
-            </GroupBox>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
 
-            <GroupBox Header="Hydraulics" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <GroupBox Header="Hydraulics" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Test Hydraulics Off" Width="140" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="#2d2d30"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsHydraulicTestEnabled}" Value="True">
-                                            <Setter Property="Background" Value="#007acc"/>
-                                            <Setter Property="Content" Value="Done"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#2d2d30"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsHydraulicTestEnabled}" Value="True">
+                                                <Setter Property="Background" Value="#007acc"/>
+                                                <Setter Property="Content" Value="Done"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="Hydraulic off torque"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding HydraulicOffTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
+                        </Grid>
                     </StackPanel>
-                             <TextBlock Text="Hydraulic off torque"/>
-                        <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
-                         </StackPanel>
-            </GroupBox>
+                </GroupBox>
 
-            <GroupBox Header="Position Movement Test" Margin="0,8,0,8">
-                <StackPanel Margin="6">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <GroupBox Header="Pitch extras" Margin="0,8,0,8">
+                    <GroupBox.Style>
+                        <Style TargetType="GroupBox">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </GroupBox.Style>
+                    <StackPanel Margin="6">
+                        <TextBlock Text="Airspeed additional torque (%)"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding AirspeedAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="50" Value="{Binding AirspeedAdditionalTorquePercent}"/>
+                        </Grid>
+                        <TextBlock Text="Stall additional torque (%)" Margin="0,8,0,0"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Settings.StallAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1" Minimum="30" Maximum="120" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Position Movement Test" Margin="0,8,0,8">
+                    <StackPanel Margin="6">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Test Move to Target" Width="140" Margin="0,0,8,0" Command="{Binding TogglePositionTestCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="#2d2d30"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsPositionTestEnabled}" Value="True">
-                                            <Setter Property="Background" Value="#007acc"/>
-                                            <Setter Property="Content" Value="Done"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#2d2d30"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPositionTestEnabled}" Value="True">
+                                                <Setter Property="Background" Value="#007acc"/>
+                                                <Setter Property="Content" Value="Done"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                        <TextBlock Text="Left" Width="35" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Right"/>
-                        <Slider 
-                            Minimum="-100" 
-                            Maximum="100" 
+                        <Grid Margin="0,4,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="55"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding TargetPosition, StringFormat={}{0:F1}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="Left" Width="35" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Right"/>
+                            <Slider Grid.Column="2"
+                            Minimum="-100"
+                            Maximum="100"
                             Value="{Binding TargetPosition, Mode=TwoWay}"
-                            Width="420"
                             TickFrequency="10"
                             TickPlacement="BottomRight"
                             Margin="8,0,8,0"/>
-                        <TextBlock Text="Right" Width="35" VerticalAlignment="Center" Foreground="Gray"/>
+                            <TextBlock Grid.Column="3" Text="Right" Width="35" VerticalAlignment="Center" Foreground="Gray"/>
+                        </Grid>
                     </StackPanel>
+                </GroupBox>
 
-                    <TextBlock 
-                        Text="{Binding TargetPosition, StringFormat='Target: {0:F1}%'}" 
-                        HorizontalAlignment="Center" 
-                        Margin="0,4,0,0"
-                        Foreground="LightGray"
-                        FontWeight="SemiBold"/>
-                </StackPanel>
-            </GroupBox>
 
-            <GroupBox Header="Pitch extras" Margin="0,8,0,8">
-                <GroupBox.Style>
-                    <Style TargetType="GroupBox">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </GroupBox.Style>
-                <StackPanel Margin="6">
-                    <TextBlock Text="Airspeed additional torque (%)"/>
-                    <Slider Minimum="1" Maximum="50" Value="{Binding AirspeedAdditionalTorquePercent}"/>
-                    <TextBlock Text="Stall additional torque (%)" Margin="0,8,0,0"/>
-                    <Slider Minimum="30" Maximum="120" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
-                            </StackPanel>
-                        </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
 
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="Save" Width="100" Margin="0,0,8,0" Command="{Binding SaveCommand}" />
-                            <Button Content="Close" Width="100" Command="{Binding CloseCommand}" />
-                        </StackPanel>
+        <Grid Grid.Row="2">
+            <Button Content="Cancel" Width="100" HorizontalAlignment="Left" Command="{Binding CloseCommand}" />
+            <Button Content="Save" Width="100" HorizontalAlignment="Right" Command="{Binding SaveCommand}" />
+        </Grid>
 
-                        <!-- Centering overlay – blocks input and shows status while the axis finds center -->
-                        <Border Grid.Row="0" Grid.RowSpan="3"
+        <!-- Centering overlay – blocks input and shows status while the axis finds center -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
                                 Background="#CC000000"
                                 CornerRadius="6"
                                 IsHitTestVisible="True">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsCentering}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                <TextBlock Text="Do not touch controls – Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </Window>
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsCentering}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Finding center" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Text="Do not touch controls – Simulator Paused" FontSize="13" Foreground="#FFC107" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
 
