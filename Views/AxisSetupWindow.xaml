@@ -260,9 +260,42 @@
                 <StackPanel Margin="6">
                     <Border Background="#252526" CornerRadius="4" Padding="10" Margin="0,0,0,10">
                         <TextBlock Text="Live preview: changes update the motor right away while autopilot or position test is active. Use Save to keep them."
-                                   Foreground="#d7eaff"
-                                   TextWrapping="Wrap"/>
+                                Foreground="#d7eaff"
+                                TextWrapping="Wrap"/>
                     </Border>
+
+                        <!-- Autopilot override - Pitch and Roll only -->
+                    <StackPanel Margin="0,0,0,10">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AxisName}" Value="Pitch">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding AxisName}" Value="Roll">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="Autopilot override (%)" FontWeight="SemiBold"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider Grid.Column="0"
+                                    Minimum="1"
+                                    Maximum="100"
+                                    Value="{Binding AutopilotOverridePercent}"/>
+                            <TextBlock Grid.Column="1"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding AutopilotOverridePercent, StringFormat={}{0:F0}%}"/>
+                        </Grid>
+                    </StackPanel>
+
 
                     <TextBlock Text="Motor max speed" FontWeight="SemiBold"/>
                     <Grid Margin="0,4,0,0">
@@ -393,10 +426,10 @@
                 </StackPanel>
             </GroupBox>
 
-            <GroupBox Header="Hydraulics / Autopilot" Margin="0,8,0,8">
+            <GroupBox Header="Hydraulics" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Test" Width="80" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
+                            <Button Content="Test Hydraulics Off" Width="180" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Background" Value="#2d2d30"/>
@@ -410,17 +443,10 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <TextBlock Text="Test Hydraulic Off 
-                                   
-                                   
-                                   
-                                   " VerticalAlignment="Center" Foreground="White"/>
                     </StackPanel>
-                    <TextBlock Text="Hydraulic off torque"/>
-                    <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
-                    <TextBlock Text="Autopilot override (%)" Margin="0,8,0,0"/>
-                    <Slider Minimum="1" Maximum="100" Value="{Binding AutopilotOverridePercent}"/>
-                </StackPanel>
+                             <TextBlock Text="Hydraulic off torque"/>
+                             <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
+                         </StackPanel>
             </GroupBox>
 
             <GroupBox Header="Position Movement Test" Margin="0,8,0,8">
