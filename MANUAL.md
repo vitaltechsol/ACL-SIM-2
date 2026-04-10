@@ -8,7 +8,7 @@
 ## Table of Contents
 
 1. [Main Window](#1-main-window)
-2. [Global Settings](#2-global-settings)
+2. [Settings](#2-global-settings)
 3. [Axis Setup – How to Open](#3-axis-setup--how-to-open)
 4. [Axis Setup – Connection](#4-axis-setup--connection)
 5. [Axis Setup – Position Calibration](#5-axis-setup--position-calibration)
@@ -46,7 +46,7 @@ The main window shows a live dashboard for all four axes: **Pitch**, **Roll**, *
 
 ## 2. Global Settings
 
-Open by clicking **Global Settings** in the top-left of the main window.
+Open by clicking **Settings** in the top-left of the main window.
 
 | Setting | Default | Description |
 |---|---|---|
@@ -521,7 +521,7 @@ C:\Users\<YourUsername>\AppData\Roaming\ACL-SIM-2\
 | `axis-Roll-settings.json` | All Roll axis settings |
 | `axis-Rudder-settings.json` | All Rudder axis settings |
 | `axis-Tiller-settings.json` | All Tiller axis settings |
-| `global-settings.json` | Global settings (ProSim IP, auto-connect, auto-center) |
+| `global-settings.json` | settings (ProSim IP, auto-connect, auto-center) |
 
 > **Quick access:** Press `Win + R`, type `%APPDATA%\ACL-SIM-2` and press Enter to open the folder directly in Windows Explorer.
 

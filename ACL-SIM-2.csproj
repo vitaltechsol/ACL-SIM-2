@@ -6,7 +6,13 @@
     <RootNamespace>ACL_SIM_2</RootNamespace>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>images\acl_logo_transparent.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="images\acl_logo_transparent-small.png"/>
+    <Resource Include="images\acl_logo_transparent.ico"/>
+  </ItemGroup>
 
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />
