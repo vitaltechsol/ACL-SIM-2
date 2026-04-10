@@ -7,23 +7,53 @@
 
 ## Table of Contents
 
-1. [Main Window](#1-main-window)
-2. [Settings](#2-global-settings)
-3. [Axis Setup – How to Open](#3-axis-setup--how-to-open)
-4. [Axis Setup – Connection](#4-axis-setup--connection)
-5. [Axis Setup – Position Calibration](#5-axis-setup--position-calibration)
-6. [Axis Setup – Torque Settings](#6-axis-setup--torque-settings)
-7. [Axis Setup – Self Centering / Movement](#7-axis-setup--self-centering--movement)
-8. [Axis Setup – Auto Pilot / Trim](#8-axis-setup--auto-pilot--trim)
-9. [Axis Setup – Hydraulics](#9-axis-setup--hydraulics)
-10. [Axis Setup – Position Movement Test](#10-axis-setup--position-movement-test)
-11. [Axis Setup – Pitch Extras *(Pitch only)*](#11-axis-setup--pitch-extras-pitch-only)
-12. [Per-Axis Feature Summary](#12-per-axis-feature-summary)
-13. [Saving Settings](#13-saving-settings)
+1. [Installation](#1-installation)
+2. [Quick Start](#2-quick-start)
+3. [Main Window](#3-main-window)
+4. [Settings](#4-global-settings)
+5. [Axis Setup – How to Open](#5-axis-setup--how-to-open)
+6. [Axis Setup – Connection](#6-axis-setup--connection)
+7. [Axis Setup – Position Calibration](#7-axis-setup--position-calibration)
+8. [Axis Setup – Torque Settings](#8-axis-setup--torque-settings)
+9. [Axis Setup – Self Centering / Movement](#9-axis-setup--self-centering--movement)
+10. [Axis Setup – Auto Pilot / Trim](#10-axis-setup--auto-pilot--trim)
+11. [Axis Setup – Hydraulics](#11-axis-setup--hydraulics)
+12. [Axis Setup – Position Movement Test](#12-axis-setup--position-movement-test)
+13. [Axis Setup – Pitch Extras *(Pitch only)*](#13-axis-setup--pitch-extras-pitch-only)
+14. [Per-Axis Feature Summary](#14-per-axis-feature-summary)
+15. [Saving Settings](#15-saving-settings)
 
 ---
 
-## 1. Main Window
+## 1. Installation
+
+1. Download the latest release zip from [https://github.com/vitaltechsol/ACL-SIM-2/releases/](https://github.com/vitaltechsol/ACL-SIM-2/releases/).
+2. Extract the zip archive and copy the extracted folder to your preferred location (e.g. `C:\ACL-SIM-2`).
+3. Double-click `ACL-SIM-2.exe` to launch the application.
+
+> **Note:** No installer is required. All settings are stored in your Windows roaming profile (`%APPDATA%\ACL-SIM-2`) and are preserved across updates.
+
+---
+
+## 2. Quick Start
+
+Follow these steps to get up and running for the first time:
+
+1. Click **Settings** in the top-left of the main window, enter the ProSim IP address, then click **Save**.
+2. Click **Connect** to establish a connection to ProSim.
+3. On the main window, check the **Enable** checkbox next to the axis you want to configure (Pitch, Roll, Rudder, or Tiller).
+4. Click **Setup** for that axis, enter the **RS485 IP** address of the gateway adapter and select the correct **Driver ID** for the motor driver.
+5. Click **Calibrate** and follow the on-screen steps to define the center, full-left, and full-right positions.
+6. Review the remaining settings (Torque, Self Centering, Autopilot, etc.) and click **Save** when finished.
+7. Repeat steps 3–6 for each additional axis.
+8. Click **Center All** on the main window to home all enabled axes.
+9. The system is ready to use.
+
+> **Tip:** Enable **Auto Connect** and **Auto Center on Startup** in Settings for a fully automated startup routine on subsequent sessions.
+
+---
+
+## 3. Main Window
 
 The main window shows a live dashboard for all four axes: **Pitch**, **Roll**, **Rudder**, and **Tiller**.
 
@@ -44,7 +74,7 @@ The main window shows a live dashboard for all four axes: **Pitch**, **Roll**, *
 
 ---
 
-## 2. Global Settings
+## 4. Global Settings
 
 Open by clicking **Settings** in the top-left of the main window.
 
@@ -62,7 +92,7 @@ Click **Save** to persist changes. Changes take effect on the next application s
 
 ---
 
-## 3. Axis Setup – How to Open
+## 5. Axis Setup – How to Open
 
 1. Locate the axis panel on the main window (Pitch, Roll, Rudder, or Tiller).
 2. Make sure the axis **Enable** checkbox is checked.
@@ -75,7 +105,7 @@ Each axis has its own independent setup window. You can open multiple at the sam
 
 ---
 
-## 4. Axis Setup – Connection
+## 6. Axis Setup – Connection
 
 These settings tell ACL-SIM how to communicate with the motor driver for this specific axis.
 
@@ -89,7 +119,7 @@ These settings tell ACL-SIM how to communicate with the motor driver for this sp
 
 ---
 
-## 5. Axis Setup – Position Calibration
+## 7. Axis Setup – Position Calibration
 
 This section defines the physical travel range of the control. Calibration must be performed once for each axis before normal operation.
 
@@ -120,7 +150,7 @@ Follow the sequential steps that appear:
 
 ---
 
-## 6. Axis Setup – Torque Settings
+## 8. Axis Setup – Torque Settings
 
 Controls how much resistance the motor applies at rest, as a function of how far the control is deflected from center.
 
@@ -137,7 +167,7 @@ Between center and the limits, torque increases linearly from Min to Max proport
 
 ---
 
-## 7. Axis Setup – Self Centering / Movement
+## 9. Axis Setup – Self Centering / Movement
 
 Controls the motor's built-in self-centering behavior (the return-to-center spring force).
 
@@ -163,7 +193,7 @@ Adjust to remove oscillations when releasiing the controls.
 
 ---
 
-## 8. Axis Setup – Auto Pilot / Trim
+## 10. Axis Setup – Auto Pilot / Trim
 
 Configures how the motor moves when following autopilot commands or trim changes. Changes here update the motor **live** while autopilot or a position test is active.
 
@@ -332,7 +362,7 @@ The blend ratio is `Param2 / (Param1 / 2)`, clamped to [0, 1].
 
 ---
 
-## 9. Axis Setup – Hydraulics
+## 11. Axis Setup – Hydraulics
 
 Simulates the effect of losing hydraulic pressure on the control loading.
 
@@ -362,7 +392,7 @@ The fixed torque applied equally in both directions when hydraulics are unavaila
 
 ---
 
-## 10. Axis Setup – Position Movement Test
+## 12. Axis Setup – Position Movement Test
 
 Allows you to manually drive the axis to any position to verify calibration and movement quality.
 
@@ -387,7 +417,7 @@ Use this to:
 
 ---
 
-## 11. Axis Setup – Pitch Extras *(Pitch only)*
+## 13. Axis Setup – Pitch Extras *(Pitch only)*
 
 These settings are only available on the **Pitch** axis setup window.
 
@@ -442,7 +472,7 @@ After 2 seconds the stall torque fades and normal torque resumes.
 
 ---
 
-## 12. Per-Axis Feature Summary
+## 14. Per-Axis Feature Summary
 
 This table shows which settings and automatic behaviors are active for each axis.
 
@@ -497,7 +527,7 @@ This table shows which settings and automatic behaviors are active for each axis
 
 ---
 
-## 13. Saving Settings
+## 15. Saving Settings
 
 Click **Save** at the bottom of the Axis Setup window to persist all settings for that axis to disk. The window also shows a brief blue toast notification confirming the save.
 
