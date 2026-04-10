@@ -250,7 +250,7 @@
             <GroupBox Header="Self Centering / Movement" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <TextBlock Text="Self centering speed"/>
-                    <Slider Minimum="1" Maximum="100" Value="{Binding SelfCenteringSpeed}"/>
+                    <Slider Minimum="1" Maximum="70" Value="{Binding SelfCenteringSpeed}"/>
                     <TextBlock Text="Dampening" Margin="0,8,0,0"/>
                     <Slider Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
                 </StackPanel>
@@ -429,7 +429,7 @@
             <GroupBox Header="Hydraulics" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Content="Test Hydraulics Off" Width="180" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
+                            <Button Content="Test Hydraulics Off" Width="140" Margin="0,0,8,0" Command="{Binding ToggleHydraulicTestCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Background" Value="#2d2d30"/>
@@ -445,14 +445,14 @@
                         </Button>
                     </StackPanel>
                              <TextBlock Text="Hydraulic off torque"/>
-                             <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
+                        <Slider Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
                          </StackPanel>
             </GroupBox>
 
             <GroupBox Header="Position Movement Test" Margin="0,8,0,8">
                 <StackPanel Margin="6">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Test" Width="80" Margin="0,0,8,0" Command="{Binding TogglePositionTestCommand}">
+                            <Button Content="Test Move to Target" Width="140" Margin="0,0,8,0" Command="{Binding TogglePositionTestCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Background" Value="#2d2d30"/>
@@ -466,20 +466,19 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <TextBlock Text="Move to Target" VerticalAlignment="Center" Foreground="White"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                        <TextBlock Text="Full Left" Width="35" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Right"/>
+                        <TextBlock Text="Left" Width="35" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Right"/>
                         <Slider 
                             Minimum="-100" 
                             Maximum="100" 
                             Value="{Binding TargetPosition, Mode=TwoWay}"
-                            Width="400"
+                            Width="420"
                             TickFrequency="10"
                             TickPlacement="BottomRight"
                             Margin="8,0,8,0"/>
-                        <TextBlock Text="Full Right" Width="35" VerticalAlignment="Center" Foreground="Gray"/>
+                        <TextBlock Text="Right" Width="35" VerticalAlignment="Center" Foreground="Gray"/>
                     </StackPanel>
 
                     <TextBlock 

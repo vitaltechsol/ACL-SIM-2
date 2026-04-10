@@ -124,16 +124,16 @@ namespace ACL_SIM_2.Services
                                         // Large positive jump: we wrapped backward (0 → 9900)
                                         // Example: prev=100, curr=9900, delta=9800 (>5000) → going backward, decrement
                                         _loopCount--;
-                                        Debug.WriteLine($"[{_name}] Backward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
-                                        try { ErrorOccurred?.Invoke($"[{_name}] Backward wrap. Loop count: {_loopCount}"); } catch { }
+                                        //Debug.WriteLine($"[{_name}] Backward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
+                                        //try { ErrorOccurred?.Invoke($"[{_name}] Backward wrap. Loop count: {_loopCount}"); } catch { }
                                     }
                                     else if (delta < -HALF_RANGE)
                                     {
                                         // Large negative jump: we wrapped forward (9900 → 0)
                                         // Example: prev=9900, curr=100, delta=-9800 (<-5000) → going forward, increment
                                         _loopCount++;
-                                        Debug.WriteLine($"[{_name}] Forward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
-                                        try { ErrorOccurred?.Invoke($"[{_name}] Forward wrap. Loop count: {_loopCount}"); } catch { }
+                                        //Debug.WriteLine($"[{_name}] Forward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
+                                        //try { ErrorOccurred?.Invoke($"[{_name}] Forward wrap. Loop count: {_loopCount}"); } catch { }
                                     }
 
                                     _previousRawValue = rawValue;

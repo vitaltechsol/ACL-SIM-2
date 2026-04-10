@@ -100,8 +100,6 @@ namespace ACL_SIM_2.Services
             _torqueControl = torqueControl;
             _modbusLock = modbusLock;
             _logger = logger;
-
-            EnsureServoInitialized();
         }
 
         /// <summary>
@@ -121,7 +119,7 @@ namespace ACL_SIM_2.Services
             }
 
             if (!ValidateMotorSettings()) return;
-           // EnsureServoInitialized();
+            EnsureServoInitialized();
 
             // Stop any active movement first
             // actual stopped position rather than a mid-move value.
@@ -187,7 +185,7 @@ namespace ACL_SIM_2.Services
             }
 
             if (!ValidateMotorSettings()) return true;
-            //EnsureServoInitialized();
+            EnsureServoInitialized();
 
             var targetEncoder = PercentToEncoderPosition(targetPercent);
             targetEncoder = ClampToAxisRange(targetEncoder);
@@ -597,7 +595,7 @@ namespace ACL_SIM_2.Services
             // Select slot and trigger movement
             SelectSlot(slot);
             PulsePtriger(SERVO_TRIGGER_PULSE_MS);
-           //  _logger?.Log($"[{_axis.Name}] ServoMoveTo: {pulses} pulses @ {rpm} - new encoder position: {_axis.EncoderPosition})");
+            //  _logger?.Log($"[{_axis.Name}] ServoMoveTo: {pulses} pulses @ {rpm} - new encoder position: {_axis.EncoderPosition})");
         }
 
         private void WriteSlotPulses(int slot, int pulses)

@@ -24,8 +24,8 @@ namespace ACL_SIM_2.ViewModels
         private bool _isFullRightSet;
         private bool _isCalibrationMode;
         private double _targetPosition = 0.0;
-        private readonly string _originalRS485Ip;
-        private readonly int _originalDriverId;
+        private string _originalRS485Ip;
+        private int _originalDriverId;
         private CancellationTokenSource? _verificationCts;
         private CancellationTokenSource? _trackingTestCts;
         private string _toastMessage = string.Empty;
@@ -303,6 +303,7 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.RS485Ip == value) return;
                 Settings.RS485Ip = value;
                 OnPropertyChanged(nameof(RS485Ip));
+                Save();
             }
         }
 
@@ -314,6 +315,7 @@ namespace ACL_SIM_2.ViewModels
                 if (Settings.DriverId == value) return;
                 Settings.DriverId = value;
                 OnPropertyChanged(nameof(DriverId));
+                Save();
             }
         }
 
@@ -356,6 +358,8 @@ namespace ACL_SIM_2.ViewModels
                         _axisManager.SendCenteringSpeed(configuredSpeed);
 
                         StartTrackingTestLoop();
+
+                        ShowToastNotification("↯ Position test active – motor connected");
 
                         // If target position is not 0, start automatic verification
                         if (Math.Abs(_targetPosition) > 0.01)
@@ -629,6 +633,13 @@ namespace ACL_SIM_2.ViewModels
 
             // Check if connection-related settings changed
             var connectionSettingsChanged = Settings.RS485Ip != _originalRS485Ip || Settings.DriverId != _originalDriverId;
+
+            // Update originals so a subsequent Save() does not re-trigger a reconnect
+            if (connectionSettingsChanged)
+            {
+                _originalRS485Ip = Settings.RS485Ip;
+                _originalDriverId = Settings.DriverId;
+            }
 
             // Notify that settings have changed
             OnSettingsSaved?.Invoke(AxisName, Settings.RS485Ip, connectionSettingsChanged);

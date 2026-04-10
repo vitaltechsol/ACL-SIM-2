@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -724,8 +725,15 @@ namespace ACL_SIM_2.ViewModels
         {
             if (e.PropertyName == nameof(AxisViewModel.Enabled) && _encoderManager != null)
             {
-                if (vm.Enabled && !string.IsNullOrWhiteSpace(rs485Ip))
+
+                if (vm.Enabled)
                 {
+                    if (string.IsNullOrWhiteSpace(rs485Ip))
+                    {
+                        LogError($"[{axisName}] enabled");
+                        LogError($"[{axisName}] RS485 IP is missing");
+                        return;
+                    }
                     // Re-register encoder when enabled
                     try
                     {

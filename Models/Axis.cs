@@ -20,8 +20,8 @@ namespace ACL_SIM_2.Models
         public double MovingTorquePercentage { get; set; } = 20; // 0..100 (display value for UI slider)
         public double SelfCenteringSpeed { get; set; } = 50; // 1..100
         public double Dampening { get; set; } = 10; // 0..100
-        public double HydraulicOffTorquePercent { get; set; } = 80; // 0..100
-        public double AutopilotOverridePercent { get; set; } = 5; // 1..100 (only meaningful for pitch/roll)
+        public double HydraulicOffTorquePercent { get; set; } = 50; // 0..100
+        public double AutopilotOverridePercent { get; set; } = 50; // 1..100 (only meaningful for pitch/roll)
 
         // Advanced motion tweak settings - used by Axis
         //
@@ -106,10 +106,10 @@ namespace ACL_SIM_2.Models
             return (int)Math.Round(DampeningActualMin + (clamped / 100.0 * (DampeningActualMax - DampeningActualMin)));
         }
         // Persisted flag whether this axis is enabled for user interaction
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
         // Communication / driver settings for this axis
-        public string RS485Ip { get; set; } = "127.0.0.1";
+        public string RS485Ip { get; set; } = "";
         public int DriverId { get; set; } = 1;
 
         // Pitch-specific tuning
