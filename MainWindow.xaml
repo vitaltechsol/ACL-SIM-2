@@ -29,7 +29,7 @@
                 <Image Source="/images/acl_logo_transparent-small.png" Height="40" Margin="10,0,10,0" VerticalAlignment="Center"/>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,0,0">
                     <TextBlock Text="ACL-SIM 2.0" FontSize="20" FontWeight="SemiBold"/>
-                    <TextBlock Text="2.0.0 beta 1.0" FontSize="10" Foreground="LightGray"/>
+                    <TextBlock Text="2.0.0 beta 2.0" FontSize="10" Foreground="LightGray"/>
                 </StackPanel>
                 <Button Content="Settings" Width="68" Height="32" Margin="36,0,0,0" Command="{Binding GlobalSettingsCommand}" />
             </StackPanel>
@@ -244,7 +244,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Pitch centering overlay -->
-                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,95" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Pitch.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -387,7 +387,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Roll centering overlay -->
-                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,95" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Roll.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -511,7 +511,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Rudder centering overlay -->
-                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,95" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Rudder.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -631,7 +631,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Tiller centering overlay -->
-                <Border Margin="8,43,8,88" Background="#CC000000" CornerRadius="6"
+                <Border Margin="8,43,8,95" Background="#CC000000" CornerRadius="6"
                     Visibility="{Binding Tiller.IsCentering, Converter={StaticResource BooleanToVisibilityConverter}}"
                     IsHitTestVisible="True">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">

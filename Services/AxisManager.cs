@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,11 +43,12 @@ namespace ACL_SIM_2.Services
         private long _lastTrimUpdateTick;
         private bool _trimMoveLoopRunning;
         private double _trimBaseCenterOffset;
-        private double _lastAppliedTrimPercent;
+        private double _lastRawTrimValue;
         private volatile bool _centeringPerformed;
         private volatile bool _isCenteringActive;
 
         private const int TRIM_FILTER_MS = 100;
+        private const int TRIM_MOVE_RPM = 8;
         private const int STALL_TORQUE_DURATION_MS = 2000;
 
         private long _stallTorqueActiveUntil = 0;
@@ -245,6 +246,8 @@ namespace ACL_SIM_2.Services
 
         private void ProSimManager_OnTrimChanged(object? sender, DataRefValueChangedEventArgs e)
         {
+            _lastRawTrimValue = e.Value;
+
             if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || !_centeringPerformed)
             {
                 return;
@@ -259,14 +262,16 @@ namespace ACL_SIM_2.Services
             var sign = Math.Sign(trimValue);
             var magnitude = Math.Abs(trimValue);
 
+            // Roll: ProSim range -9..9 maps to -50%..50% of axis range
             if (string.Equals(_name, "Roll", StringComparison.OrdinalIgnoreCase))
             {
-                return sign * Math.Min(52.0, (magnitude / 10.0) * 52.0);
+                return sign * Math.Min(50.0, (magnitude / 9.0) * 50.0);
             }
 
+            // Rudder: ProSim range -15..15 maps to -50%..50% of axis range
             if (string.Equals(_name, "Rudder", StringComparison.OrdinalIgnoreCase))
             {
-                return sign * Math.Min(100.0, (magnitude / 15.0) * 100.0);
+                return sign * Math.Min(50.0, (magnitude / 15.0) * 50.0);
             }
 
             return trimValue;
@@ -296,88 +301,57 @@ namespace ACL_SIM_2.Services
 
         private async Task RunTrimMoveLoopAsync()
         {
-            const double MAX_TRIM_STEP = 300.0;
-            const double TRIM_POSITION_TOLERANCE = 10.0;
-
-            // Enter trim state BEFORE resetting ECO so any torque recalculation
-            // triggered by the offset change sees IsTrimming==true and uses fixed
-            // MovingTorquePercentage instead of dynamic encoder-based torque
-            // (which would spike because the relative position jumps by the
-            // entire previous trim offset).
-            _axisVm.Underlying.IsTrimming = true;
-            NotifyTrimStateChanged();
-            ApplyRuntimeCenterOffset(_trimBaseCenterOffset);
-            _ = UpdateTorqueAsync();
+            double lastIssuedTrimPercent = double.NaN;
 
             try
             {
                 while (!_isDisposed)
                 {
-                    double trimPercent;
+                    if (_axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                        return;
 
+                    double latestTrimPercent;
                     lock (_trimCommandLock)
                     {
-                        trimPercent = _pendingTrimPercent;
+                        latestTrimPercent = _pendingTrimPercent;
                     }
 
-                    if (_axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                    // Issue a motor command on the first iteration or whenever trim has changed.
+                    // This ensures the motor moves immediately on every trim value update,
+                    // even while ProSim is still sending new values.
+                    if (double.IsNaN(lastIssuedTrimPercent) || Math.Abs(latestTrimPercent - lastIssuedTrimPercent) > 0.01)
                     {
-                        return;
+                        // Calculate new home from the ORIGINAL base center — never from current encoder,
+                        // so manual displacement of the axis does not corrupt the trim target.
+                        var encoderOffset = ConvertTrimPercentToEncoderOffset(latestTrimPercent);
+                        var targetEncoderCenter = _trimBaseCenterOffset + encoderOffset;
+
+                        // Update EncoderCenterOffset immediately so dynamic torque uses new home position
+                        ApplyRuntimeCenterOffset(targetEncoderCenter);
+                        _ = UpdateTorqueAsync();
+
+                        // Move to new center at fixed trim RPM
+                        _axisMovement.GoToPosition(0, TRIM_MOVE_RPM);
+                        lastIssuedTrimPercent = latestTrimPercent;
                     }
 
-                    // Calculate target in encoder units and cap per-command delta
-                    // to prevent servo overshoot from oversized pulse commands
-                    var trimTarget = _trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(trimPercent);
-                    var currentRaw = (double)_axisVm.EncoderPosition;
-                    var delta = trimTarget - currentRaw;
-
-                    if (Math.Abs(delta) > TRIM_POSITION_TOLERANCE)
-                    {
-                        if (Math.Abs(delta) <= MAX_TRIM_STEP)
-                        {
-                            _axisMovement.GoToPosition(trimPercent);
-                        }
-                        else
-                        {
-                            // Cap the move to MAX_TRIM_STEP encoder units
-                            var cappedTarget = currentRaw + Math.Sign(delta) * MAX_TRIM_STEP;
-                            var relTarget = cappedTarget - _trimBaseCenterOffset;
-                            var settings = _axisVm.Underlying.Settings;
-                            double fullRange = relTarget >= 0
-                                ? Math.Max(1.0, settings.FullRightPosition)
-                                : Math.Max(1.0, Math.Abs(settings.FullLeftPosition));
-                            var cappedPercent = Math.Clamp((relTarget / fullRange) * 100.0, -100.0, 100.0);
-                            _axisMovement.GoToPosition(cappedPercent);
-                        }
-                    }
-
-                    _lastAppliedTrimPercent = trimPercent;
-
+                    // Poll interval: wait, then check whether a newer trim value has arrived
                     await Task.Delay(TRIM_FILTER_MS);
 
-                    // Re-read the latest tick AFTER the delay to check for new events
-                    long latestTick;
+                    if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                        return;
+
+                    double currentPending;
                     lock (_trimCommandLock)
                     {
-                        latestTick = _lastTrimUpdateTick;
+                        currentPending = _pendingTrimPercent;
                     }
 
-                    if (Environment.TickCount64 - latestTick >= TRIM_FILTER_MS)
-                    {
-                        // No new trim events -- check if motor still needs to catch up
-                        var remaining = (_trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(_lastAppliedTrimPercent))
-                            - (double)_axisVm.EncoderPosition;
-                        if (Math.Abs(remaining) <= MAX_TRIM_STEP)
-                        {
-                            // Close enough -- send final command if needed and exit
-                            if (Math.Abs(remaining) > TRIM_POSITION_TOLERANCE)
-                            {
-                                _axisMovement.GoToPosition(_lastAppliedTrimPercent);
-                            }
-                            return;
-                        }
-                        // Still far from target -- continue loop for catch-up
-                    }
+                    // Trim unchanged for a full poll interval — motor will reach target on its own
+                    if (Math.Abs(currentPending - lastIssuedTrimPercent) <= 0.01)
+                        return;
+
+                    // Trim has changed — loop to apply the latest value
                 }
             }
             catch (Exception ex)
@@ -386,49 +360,28 @@ namespace ACL_SIM_2.Services
             }
             finally
             {
-                var shouldRestartLoop = false;
-
+                var shouldRestart = false;
                 lock (_trimCommandLock)
                 {
-                    _trimMoveLoopRunning = false;
-
+                    // If a new trim command arrived while this loop was exiting, restart so it is not lost
                     if (!_isDisposed &&
                         !_axisVm.Underlying.CalibrationMode &&
                         !_axisVm.Underlying.AutopilotOn &&
                         Environment.TickCount64 - _lastTrimUpdateTick < TRIM_FILTER_MS)
                     {
-                        _trimMoveLoopRunning = true;
-                        shouldRestartLoop = true;
+                        shouldRestart = true;
+                    }
+                    else
+                    {
+                        _trimMoveLoopRunning = false;
                     }
                 }
 
-                if (shouldRestartLoop)
-                {
+                if (shouldRestart)
                     _ = Task.Run(RunTrimMoveLoopAsync);
-                }
-                else
-                {
-                    // Only apply trim offset and exit trim state when truly finished
-                    ApplyTrimOffsetToCenter();
-                    _axisVm.Underlying.IsTrimming = false;
-                    NotifyTrimStateChanged();
-                    _ = UpdateTorqueAsync();
-                }
             }
         }
 
-        private void NotifyTrimStateChanged()
-        {
-            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-            {
-                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.IsTrimming));
-            });
-        }
-
-        private void ApplyTrimOffsetToCenter()
-        {
-            ApplyRuntimeCenterOffset(_trimBaseCenterOffset + ConvertTrimPercentToEncoderOffset(_lastAppliedTrimPercent));
-        }
 
         private void ApplyRuntimeCenterOffset(double encoderCenterOffset)
         {
@@ -1097,6 +1050,8 @@ namespace ACL_SIM_2.Services
                                 _centeringPerformed = true;
                                 ApplyRuntimeCenterOffset(avgEncoder);
                                 log($"[{_name}] Centered successfully (\u00b1{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
+                                if (_lastRawTrimValue != 0.0)
+                                    ScheduleTrimMove(ScaleTrimToPercent(_lastRawTrimValue));
                                 return;
                             }
 
@@ -1136,6 +1091,8 @@ namespace ACL_SIM_2.Services
                         _centeringPerformed = true;
                         ApplyRuntimeCenterOffset(finalEncoder);
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
+                        if (_lastRawTrimValue != 0.0)
+                            ScheduleTrimMove(ScaleTrimToPercent(_lastRawTrimValue));
                         return;
                     }
 

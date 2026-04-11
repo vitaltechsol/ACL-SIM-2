@@ -39,15 +39,16 @@
 
 Follow these steps to get up and running for the first time:
 
-1. Click **Settings** in the top-left of the main window, enter the ProSim IP address, then click **Save**.
-2. Click **Connect** to establish a connection to ProSim.
-3. On the main window, check the **Enable** checkbox next to the axis you want to configure (Pitch, Roll, Rudder, or Tiller).
-4. Click **Setup** for that axis, enter the **RS485 IP** address of the gateway adapter and select the correct **Driver ID** for the motor driver.
-5. Click **Calibrate** and follow the on-screen steps to define the center, full-left, and full-right positions.
-6. Review the remaining settings (Torque, Self Centering, Autopilot, etc.) and click **Save** when finished.
-7. Repeat steps 3–6 for each additional axis.
-8. Click **Center All** on the main window to home all enabled axes.
-9. The system is ready to use.
+1. Make sure all your axis are fully calibrated in Windows USB Joysticks and Prosim Flight controls.
+2. Click **Settings** in the top-left of the main window, enter the ProSim IP address, then click **Save**.
+3. Click **Connect** to establish a connection to ProSim.
+4. On the main window, check the **Enable** checkbox next to the axis you want to configure (Pitch, Roll, Rudder, or Tiller).
+5. Click **Setup** for that axis, enter the **RS485 IP** address of the gateway adapter and select the correct **Driver ID** for the motor driver.
+6. Click **Calibrate** and follow the on-screen steps to define the center, full-left, and full-right positions.
+7. Review the remaining settings (Torque, Self Centering, Autopilot, etc.) and click **Save** when finished.
+8. Repeat steps 3–6 for each additional axis.
+9. Click **Center All** on the main window to home all enabled axes.
+10. The system is ready to use.
 
 > **Tip:** Enable **Auto Connect** and **Auto Center on Startup** in Settings for a fully automated startup routine on subsequent sessions.
 
@@ -59,6 +60,11 @@ The main window shows a live dashboard for all four axes: **Pitch**, **Roll**, *
 
 | Element | Description |
 |---|---|
+| **Settings** | Opens the global settings window. |
+| **Center All** | Commands all enabled axes to find their physical center point simultaneously. The simulator is paused during centering. |
+| **Connect / Disconnect** | Connects or disconnects from ProSim. |
+| **Enable checkbox** | Enables or disables an axis. Disabled axes send no motor commands. |
+| **Setup button** | Opens the Axis Setup window for that axis. |
 | **Encoder** value | Raw encoder position relative to the calibrated center (0 = center). |
 | **Encoder bar** | Visual bar showing how far off center the axis is. |
 | **Torque** display | Current torque level being sent to the motor (0–100 display scale). |
@@ -67,10 +73,6 @@ The main window shows a live dashboard for all four axes: **Pitch**, **Roll**, *
 | **Hydraulics dot** | Green = hydraulics available in ProSim. Red = hydraulics off. |
 | **Auto Pilot dot** | Green = ProSim autopilot is engaged on this axis. |
 | **Moving dot** | Orange = motor is actively commanding movement. |
-| **Enable checkbox** | Enables or disables an axis. Disabled axes send no motor commands. |
-| **Setup button** | Opens the Axis Setup window for that axis. |
-| **Center Controls** | Commands all enabled axes to find their physical center point simultaneously. The simulator is paused during centering. |
-| **Connect / Disconnect** | Connects or disconnects from ProSim. |
 
 ---
 
