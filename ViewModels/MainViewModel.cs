@@ -290,7 +290,7 @@ namespace ACL_SIM_2.ViewModels
             // Load settings and create ViewModels for all axes
             foreach (var axisName in AxisNames)
             {
-                var settings = Services.SettingsService.LoadAxisSettings(axisName) 
+                var settings = Services.SettingsService.LoadAxisSettings(axisName)
                     ?? new AxisSettings { DriverId = DefaultDriverIds[axisName] };
 
                 _axisSettings[axisName] = settings;
@@ -380,12 +380,12 @@ namespace ACL_SIM_2.ViewModels
                 ProSimConnectionState = e.State;
                 ProSimStatusMessage = e.Message;
                 LogError($"[ProSim] {e.Message}");
-                if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected 
+                if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected
                     && _autoCenterOnStartup
-                    && !_hasCenteredControls 
+                    && !_hasCenteredControls
                     && CanCenterControls())
                 {
-                   CenterAllControls();
+                    CenterAllControls();
                 }
             });
         }
@@ -536,10 +536,10 @@ namespace ACL_SIM_2.ViewModels
         {
             var timestamped = $"{System.DateTime.Now:HH:mm:ss} - {message}";
             Debug.WriteLine(timestamped);
-
             // ObservableCollection must only be modified on the UI thread.
             // LogError can be called from background threads (e.g. Task.Run in UpdateTorqueAsync),
             // so marshal the collection mutation to the dispatcher.
+
             if (Application.Current?.Dispatcher is System.Windows.Threading.Dispatcher dispatcher
                 && !dispatcher.CheckAccess())
             {
@@ -560,7 +560,7 @@ namespace ACL_SIM_2.ViewModels
 
         private bool CanCenterControls()
         {
-            return _proSimManager != null && 
+            return _proSimManager != null &&
                    ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected &&
                    !IsCentering;
         }
@@ -627,13 +627,13 @@ namespace ACL_SIM_2.ViewModels
                 {
                     if (!_axes.TryGetValue(axisName, out var axisVm) || !axisVm.Enabled)
                     {
-                       // LogError($"[Center] Skipping {axisName} (not enabled)");
+                        // LogError($"[Center] Skipping {axisName} (not enabled)");
                         continue;
                     }
 
                     if (!_axisManagers.TryGetValue(axisName, out var axisManager) || axisManager == null)
                     {
-                       // LogError($"[Center] Skipping {axisName} (no axis manager)");
+                        // LogError($"[Center] Skipping {axisName} (no axis manager)");
                         continue;
                     }
 
