@@ -54,6 +54,8 @@ namespace ACL_SIM_2.Services
         private long _stallTorqueActiveUntil = 0;
 
         private volatile bool _isPositionTestActive;
+        private long _autopilotEngagedAtTick;
+        private const int AUTOPILOT_GRACE_PERIOD_MS = 1000;
 
         private double LatestAutopilotTarget
         {
@@ -472,6 +474,7 @@ namespace ACL_SIM_2.Services
         {
             StopAutopilotTrackingLoop();
             _axisMovement.Reset();
+            Interlocked.Exchange(ref _autopilotEngagedAtTick, Environment.TickCount64);
             _autopilotLoopCts = new CancellationTokenSource();
             var token = _autopilotLoopCts.Token;
 
@@ -546,7 +549,11 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private void CheckAutopilotManualOverride()
         {
-            if ( _torqueControl == null) return;
+            if (_torqueControl == null) return;
+
+            // Ignore override inputs for the first 2 seconds after autopilot engages
+            if (Environment.TickCount64 - Interlocked.Read(ref _autopilotEngagedAtTick) < AUTOPILOT_GRACE_PERIOD_MS)
+                return;
 
             int rawTorque;
             try
