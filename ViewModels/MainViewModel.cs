@@ -535,12 +535,26 @@ namespace ACL_SIM_2.ViewModels
         public void LogError(string message)
         {
             var timestamped = $"{System.DateTime.Now:HH:mm:ss} - {message}";
-            ErrorLog.Insert(0, timestamped);
             Debug.WriteLine(timestamped);
-            // Keep only last 100 entries
-            while (ErrorLog.Count > 100)
+
+            // ObservableCollection must only be modified on the UI thread.
+            // LogError can be called from background threads (e.g. Task.Run in UpdateTorqueAsync),
+            // so marshal the collection mutation to the dispatcher.
+            if (Application.Current?.Dispatcher is System.Windows.Threading.Dispatcher dispatcher
+                && !dispatcher.CheckAccess())
             {
-                ErrorLog.RemoveAt(ErrorLog.Count - 1);
+                dispatcher.BeginInvoke(() =>
+                {
+                    ErrorLog.Insert(0, timestamped);
+                    while (ErrorLog.Count > 100)
+                        ErrorLog.RemoveAt(ErrorLog.Count - 1);
+                });
+            }
+            else
+            {
+                ErrorLog.Insert(0, timestamped);
+                while (ErrorLog.Count > 100)
+                    ErrorLog.RemoveAt(ErrorLog.Count - 1);
             }
         }
 

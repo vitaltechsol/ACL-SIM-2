@@ -48,6 +48,7 @@ namespace ACL_SIM_2.Services
         private volatile bool _isCenteringActive;
         private volatile bool _isSimPaused;
         private volatile bool _manualOverrideTriggered;
+        private volatile bool _isReturningToCenter;
 
         private const int TRIM_FILTER_MS = 100;
         private const int TRIM_MOVE_RPM = 8;
@@ -282,7 +283,7 @@ namespace ACL_SIM_2.Services
         {
             _lastRawTrimValue = e.Value;
 
-            if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || !_centeringPerformed)
+            if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || _isReturningToCenter || !_centeringPerformed)
             {
                 return;
             }
@@ -341,7 +342,7 @@ namespace ACL_SIM_2.Services
             {
                 while (!_isDisposed)
                 {
-                    if (_axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                    if (_axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || _isReturningToCenter)
                         return;
 
                     double latestTrimPercent;
@@ -372,7 +373,7 @@ namespace ACL_SIM_2.Services
                     // Poll interval: wait, then check whether a newer trim value has arrived
                     await Task.Delay(TRIM_FILTER_MS);
 
-                    if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn)
+                    if (_isDisposed || _axisVm.Underlying.CalibrationMode || _axisVm.Underlying.AutopilotOn || _isReturningToCenter)
                         return;
 
                     double currentPending;
@@ -401,6 +402,7 @@ namespace ACL_SIM_2.Services
                     if (!_isDisposed &&
                         !_axisVm.Underlying.CalibrationMode &&
                         !_axisVm.Underlying.AutopilotOn &&
+                        !_isReturningToCenter &&
                         Environment.TickCount64 - _lastTrimUpdateTick < TRIM_FILTER_MS)
                     {
                         shouldRestart = true;
@@ -726,6 +728,7 @@ namespace ACL_SIM_2.Services
         private async Task StopAndReturnToCenterAsync()
         {
             _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: starting (centeringPerformed={_centeringPerformed}, encoder={_axisVm.EncoderPosition})");
+            _isReturningToCenter = true;
 
             try
             {
@@ -762,25 +765,19 @@ namespace ACL_SIM_2.Services
                         _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: loop await failed: {ex.GetType().Name}: {ex.Message}");
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: pre-center exception: {ex.GetType().Name}: {ex.Message}");
-            }
 
-            // Wait for the servo to physically decelerate and come to rest before reading
-            // the encoder position. Without this delay the encoder value is still mid-motion
-            // and the calculated delta will be wrong.
-            await Task.Delay(500);
+                // Wait for the servo to physically decelerate and come to rest before reading
+                // the encoder position. Without this delay the encoder value is still mid-motion
+                // and the calculated delta will be wrong.
+                await Task.Delay(500);
+                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: decel wait complete, encoder={_axisVm.EncoderPosition}");
 
-            if (!_isDisposed && _centeringPerformed)
-            {
-                var encoderBefore = _axisVm.EncoderPosition;
-                var centerOffset = _axisVm.Underlying.EncoderCenterOffset;
-                _logger?.Log($"[{_name}] Returning to center: encoder={encoderBefore:F0}, centerOffset={centerOffset:F2}, relativePos={encoderBefore - centerOffset:F1}");
-
-                try
+                if (!_isDisposed && _centeringPerformed)
                 {
+                    var encoderBefore = _axisVm.EncoderPosition;
+                    var centerOffset = _axisVm.Underlying.EncoderCenterOffset;
+                    _logger?.Log($"[{_name}] Returning to center: encoder={encoderBefore:F0}, centerOffset={centerOffset:F2}, relativePos={encoderBefore - centerOffset:F1}");
+
                     // Temporarily set MotorIsMoving so UpdateTorqueAsync applies
                     // MovingTorquePercentage — position-based torque may be too low
                     // for the servo to physically drive the axis back to center.
@@ -800,6 +797,7 @@ namespace ACL_SIM_2.Services
                             if (!_isDisposed && !_axisVm.Underlying.AutopilotOn)
                             {
                                 _axisVm.Underlying.MotorIsMoving = false;
+                                _isReturningToCenter = false;
                                 await UpdateTorqueAsync();
                                 _logger?.Log($"[{_name}] Return-to-center complete, restored position-based torque");
                             }
@@ -810,15 +808,17 @@ namespace ACL_SIM_2.Services
                         }
                     });
                 }
-                catch (Exception ex)
+                else
                 {
-                    _axisVm.Underlying.MotorIsMoving = false;
-                    _logger?.Log($"[{_name}] Return to center failed: {ex.Message}");
+                    _isReturningToCenter = false;
+                    _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: skipped GoToPosition (disposed={_isDisposed}, centeringPerformed={_centeringPerformed})");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: skipped GoToPosition (disposed={_isDisposed}, centeringPerformed={_centeringPerformed})");
+                _isReturningToCenter = false;
+                _axisVm.Underlying.MotorIsMoving = false;
+                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync FAILED: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -843,7 +843,7 @@ namespace ACL_SIM_2.Services
                         _torqueControl.SetTorqueBoth(0, 0);
                         _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = 0.0;
-                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                         {
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
@@ -893,7 +893,7 @@ namespace ACL_SIM_2.Services
                         // Update ViewModel display value
                         _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = targetTorqueDisplay;
-                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                         {
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
@@ -929,7 +929,7 @@ namespace ACL_SIM_2.Services
                         // Update ViewModel display value
                         _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
                         _axisVm.CurrentTorque = settings.HydraulicOffTorquePercent;
-                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                         {
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
@@ -982,7 +982,7 @@ namespace ACL_SIM_2.Services
                     _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = airspeedAdditionalTorqueDisplay;
                     _axisVm.Underlying.TorqueTarget = settings.ConvertTorqueDisplayToActual(targetTorqueDisplay);
                     _axisVm.CurrentTorque = targetTorqueDisplay;
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                     {
                         _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.Torque));
