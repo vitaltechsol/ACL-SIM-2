@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="images\acl_logo_transparent-small.png"/>
-    <Resource Include="images\acl_logo_transparent.ico"/>
+    <Resource Include="images\acl_logo_transparent-small.png" />
+    <Resource Include="images\acl_logo_transparent.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +30,12 @@
     <Reference Include="ProSimSDK">
       <HintPath>ProSimSDK.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="MANUAL.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
