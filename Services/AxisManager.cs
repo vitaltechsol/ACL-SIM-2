@@ -46,6 +46,7 @@ namespace ACL_SIM_2.Services
         private double _lastRawTrimValue;
         private volatile bool _centeringPerformed;
         private volatile bool _isCenteringActive;
+        private volatile bool _isSimPaused;
 
         private const int TRIM_FILTER_MS = 100;
         private const int TRIM_MOVE_RPM = 8;
@@ -56,6 +57,17 @@ namespace ACL_SIM_2.Services
         private volatile bool _isPositionTestActive;
         private long _autopilotEngagedAtTick;
         private const int AUTOPILOT_GRACE_PERIOD_MS = 1000;
+
+        /// <summary>
+        /// Notifies this axis manager that the simulator has been paused or unpaused.
+        /// While paused, autopilot and trim motor commands are suppressed and the motor is stopped.
+        /// </summary>
+        public void SetSimPaused(bool paused)
+        {
+            _isSimPaused = paused;
+            if (paused)
+                _axisMovement.Stop();
+        }
 
         private double LatestAutopilotTarget
         {
@@ -102,6 +114,7 @@ namespace ACL_SIM_2.Services
             if (_proSimManager != null)
             {
                 _proSimManager.OnHydraulicsAvailableChanged += ProSimManager_OnHydraulicsAvailableChanged;
+                _proSimManager.OnPauseChanged += ProSimManager_OnPauseChanged;
 
                 // Subscribe to ProSim autopilot command changes (Pitch and Roll only)
                 if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
@@ -166,6 +179,11 @@ namespace ACL_SIM_2.Services
                 // Trigger immediate torque recalculation with new hydraulics state
                 _ = UpdateTorqueAsync();
             }
+        }
+
+        private void ProSimManager_OnPauseChanged(object? sender, DataRefValueChangedEventArgs e)
+        {
+            SetSimPaused(e.Value != 0);
         }
 
         /// <summary>
@@ -321,7 +339,7 @@ namespace ACL_SIM_2.Services
                     // Issue a motor command on the first iteration or whenever trim has changed.
                     // This ensures the motor moves immediately on every trim value update,
                     // even while ProSim is still sending new values.
-                    if (double.IsNaN(lastIssuedTrimPercent) || Math.Abs(latestTrimPercent - lastIssuedTrimPercent) > 0.01)
+                    if (!_isSimPaused && (double.IsNaN(lastIssuedTrimPercent) || Math.Abs(latestTrimPercent - lastIssuedTrimPercent) > 0.01))
                     {
                         // Calculate new home from the ORIGINAL base center — never from current encoder,
                         // so manual displacement of the axis does not corrupt the trim target.
@@ -488,6 +506,12 @@ namespace ACL_SIM_2.Services
                 while (!token.IsCancellationRequested)
                 {
                     try { 
+                        if (_isSimPaused)
+                        {
+                            await Task.Delay(AUTOPILOT_LOOP_INTERVAL_MS, token);
+                            continue;
+                        }
+
                         var raw = LatestAutopilotTarget;
                         if (double.IsNaN(raw))
                         {
@@ -1251,6 +1275,7 @@ namespace ACL_SIM_2.Services
                 if (_proSimManager != null)
                 {
                     _proSimManager.OnHydraulicsAvailableChanged -= ProSimManager_OnHydraulicsAvailableChanged;
+                    _proSimManager.OnPauseChanged -= ProSimManager_OnPauseChanged;
 
                     if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
                     {
