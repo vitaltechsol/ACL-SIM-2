@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +53,10 @@ namespace ACL_SIM_2.Services
         private const int STALL_TORQUE_DURATION_MS = 2000;
 
         private long _stallTorqueActiveUntil = 0;
+
+        private const int AUTOPILOT_TORQUE_RAMP_MS = 2000; // Duration of the torque ramp when autopilot engages, in milliseconds
+        private long _autopilotTorqueRampStartTick = 0;
+        private double _autopilotTorqueRampFromTorque = 0.0;
 
         private volatile bool _isPositionTestActive;
         private long _autopilotEngagedAtTick;
@@ -204,6 +208,10 @@ namespace ACL_SIM_2.Services
 
                 if (autopilotOn)
                 {
+                    _autopilotTorqueRampStartTick = Environment.TickCount64;
+                    _autopilotTorqueRampFromTorque = _axisVm.CurrentTorque;
+                    _ = Task.Run(RunAutopilotTorqueRampAsync);
+
                     if (!_isPositionTestActive)
                         StartAutopilotTrackingLoop();
                 }
@@ -341,7 +349,7 @@ namespace ACL_SIM_2.Services
                     // even while ProSim is still sending new values.
                     if (!_isSimPaused && (double.IsNaN(lastIssuedTrimPercent) || Math.Abs(latestTrimPercent - lastIssuedTrimPercent) > 0.01))
                     {
-                        // Calculate new home from the ORIGINAL base center — never from current encoder,
+                        // Calculate new home from the ORIGINAL base center � never from current encoder,
                         // so manual displacement of the axis does not corrupt the trim target.
                         var encoderOffset = ConvertTrimPercentToEncoderOffset(latestTrimPercent);
                         var targetEncoderCenter = _trimBaseCenterOffset + encoderOffset;
@@ -367,11 +375,11 @@ namespace ACL_SIM_2.Services
                         currentPending = _pendingTrimPercent;
                     }
 
-                    // Trim unchanged for a full poll interval — motor will reach target on its own
+                    // Trim unchanged for a full poll interval � motor will reach target on its own
                     if (Math.Abs(currentPending - lastIssuedTrimPercent) <= 0.01)
                         return;
 
-                    // Trim has changed — loop to apply the latest value
+                    // Trim has changed � loop to apply the latest value
                 }
             }
             catch (Exception ex)
@@ -482,6 +490,30 @@ namespace ACL_SIM_2.Services
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// Drives the 500 ms autopilot torque ramp by calling UpdateTorqueAsync every 50 ms
+        /// until the ramp window has elapsed or autopilot is no longer active.
+        /// </summary>
+        private async Task RunAutopilotTorqueRampAsync()
+        {
+            const int RAMP_STEP_MS = 50; // Update torque every 50 ms during ramp for smooth transition
+            var startTick = _autopilotTorqueRampStartTick;
+
+            while (!_isDisposed && _axisVm.Underlying.AutopilotOn)
+            {
+                var elapsed = Environment.TickCount64 - startTick;
+                if (elapsed >= AUTOPILOT_TORQUE_RAMP_MS)
+                    break;
+
+                await UpdateTorqueAsync();
+                await Task.Delay(RAMP_STEP_MS);
+            }
+
+            // Final update to land exactly on MovingTorquePercentage
+            if (!_isDisposed && _axisVm.Underlying.AutopilotOn)
+                await UpdateTorqueAsync();
         }
 
         /// <summary>
@@ -724,7 +756,21 @@ namespace ACL_SIM_2.Services
                     var settings = _axisVm.Underlying.Settings;
 
                     // Convert MovingTorquePercentage (0-100) to actual motor torque (0-300)
-                    var torqueActual = settings.ConvertTorqueDisplayToActual(settings.MovingTorquePercentage);
+                    var targetTorqueDisplay = settings.MovingTorquePercentage;
+
+                    // If autopilot just engaged, ramp torque gradually from the pre-engagement
+                    // value to MovingTorquePercentage over AUTOPILOT_TORQUE_RAMP_MS.
+                    if (_axisVm.Underlying.AutopilotOn && _autopilotTorqueRampStartTick != 0)
+                    {
+                        var elapsed = Environment.TickCount64 - _autopilotTorqueRampStartTick;
+                        if (elapsed < AUTOPILOT_TORQUE_RAMP_MS)
+                        {
+                            var t = Math.Max(0.0, Math.Min(1.0, (double)elapsed / AUTOPILOT_TORQUE_RAMP_MS));
+                            targetTorqueDisplay = _autopilotTorqueRampFromTorque + t * (settings.MovingTorquePercentage - _autopilotTorqueRampFromTorque);
+                        }
+                    }
+
+                    var torqueActual = settings.ConvertTorqueDisplayToActual(targetTorqueDisplay);
                     var torqueInt = (int)Math.Round(torqueActual);
 
                     // Clamp to valid range (0-300)
@@ -737,7 +783,7 @@ namespace ACL_SIM_2.Services
 
                         // Update ViewModel display value
                         _axisVm.Underlying.AirspeedAdditionalTorqueAppliedPercent = 0.0;
-                        _axisVm.CurrentTorque = settings.MovingTorquePercentage;
+                        _axisVm.CurrentTorque = targetTorqueDisplay;
                         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                         {
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
@@ -1086,7 +1132,7 @@ namespace ACL_SIM_2.Services
                                 return;
                             }
 
-                            // Averaged error still too large ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â make a small correction
+                            // Averaged error still too large ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â make a small correction
                             // Use calibrated gain; if gain isn't calibrated yet, use magnitude with sign guess
                             double correction = gain * (-avgError);
                             int correctionUnits = (int)Math.Round(correction * 0.5); // Conservative 50% of estimated
@@ -1113,7 +1159,7 @@ namespace ACL_SIM_2.Services
                             }
                         }
 
-                        // Max fine adjustments exhausted, accept last average
+                        // Max fine adjustments exhausted,� accept last average
                         log($"[{_name}] Fine-centering: max adjustments reached, accepting current position");
                         _axisMovement.Stop();
                         await Task.Delay(300, cancellationToken);
@@ -1169,7 +1215,7 @@ namespace ACL_SIM_2.Services
                     double actualEncoderDelta = postMoveEncoder - preMoveEncoder;
                     double actualProSimDelta = currentProSim - preMoveProSim;
 
-                    log($"[{_name}] Result Enc={actualEncoderDelta:F0}, ProSim={actualProSimDelta:F1}");
+                    log($"[{_name}] Result �Enc={actualEncoderDelta:F0}, �ProSim={actualProSimDelta:F1}");
 
                     if (Math.Abs(actualEncoderDelta) <= MIN_VALID_ENCODER_DELTA)
                     {
