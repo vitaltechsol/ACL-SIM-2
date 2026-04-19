@@ -47,6 +47,7 @@ namespace ACL_SIM_2.Services
         private volatile bool _centeringPerformed;
         private volatile bool _isCenteringActive;
         private volatile bool _isSimPaused;
+        private volatile bool _manualOverrideTriggered;
 
         private const int TRIM_FILTER_MS = 100;
         private const int TRIM_MOVE_RPM = 8;
@@ -102,9 +103,9 @@ namespace ACL_SIM_2.Services
                         );
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Torque control creation failed, will operate without it
+                    _logger?.Log($"[{_name}] Torque control creation failed: {ex.Message}");
                 }
             }
 
@@ -208,19 +209,26 @@ namespace ACL_SIM_2.Services
 
                 if (autopilotOn)
                 {
+                    _manualOverrideTriggered = false;
                     _autopilotTorqueRampStartTick = Environment.TickCount64;
                     _autopilotTorqueRampFromTorque = _axisVm.CurrentTorque;
                     _ = Task.Run(RunAutopilotTorqueRampAsync);
+                    _logger?.Log($"[{_name}] Autopilot engaged, starting tracking loop");
 
                     if (!_isPositionTestActive)
                         StartAutopilotTrackingLoop();
                 }
                 else
                 {
-                    // Normal AP disengage -- stop loop and return to center.
-                    // Awaiting the loop ensures its final MoveToward call cannot
-                    // race with and override the GoToPosition(0) center command.
-                    _ = StopAndReturnToCenterAsync();
+                    _logger?.Log($"[{_name}] Autopilot disengaged (manualOverride={_manualOverrideTriggered})");
+
+                    // If manual override already handled the stop + return-to-center,
+                    // avoid issuing a second competing StopAndReturnToCenterAsync.
+                    if (!_manualOverrideTriggered)
+                    {
+                        _ = StopAndReturnToCenterAsync();
+                    }
+                    _manualOverrideTriggered = false;
                 }
 
                 // Notify the ViewModel to update UI bindings
@@ -229,8 +237,6 @@ namespace ACL_SIM_2.Services
                     _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
                     _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                 });
-
-                _ = UpdateTorqueAsync();
             }
         }
 
@@ -568,7 +574,7 @@ namespace ACL_SIM_2.Services
                             arrived = false;
                         }
 
-                        if (!arrived)
+                        if (!arrived && !_manualOverrideTriggered)
                         {
                             var now = Environment.TickCount64;
                             var minIntervalMs = _axisVm.Underlying.Settings.MinMotorCommandIntervalMs;
@@ -579,6 +585,12 @@ namespace ACL_SIM_2.Services
                                     _axisMovement.Stop();
                                 lastMotorCommandTick = now;
                             }
+                        }
+
+                        if (_manualOverrideTriggered)
+                        {
+                            _logger?.Log($"[{_name}] Tracking loop exiting due to manual override");
+                            break;
                         }
 
                         CheckAutopilotManualOverride();
@@ -631,8 +643,27 @@ namespace ACL_SIM_2.Services
             _logger?.Log(
                 $"[{_name}] MANUAL OVERRIDE TRIGGERED " +
                 $"externalTorque={rawTorque:F1}% threshold={threshold:F1}% " +
-                $"(movingTorque={settings.MovingTorquePercentage:F1}% + override={settings.AutopilotOverridePercent:F1}%)"                );
-            
+                $"(movingTorque={settings.MovingTorquePercentage:F1}% + override={settings.AutopilotOverridePercent:F1}%)");
+
+            // Set local flag immediately so the tracking loop stops issuing MoveToward
+            // commands before the ProSim AP-off callback arrives.
+            _manualOverrideTriggered = true;
+
+            // Immediately clear AutopilotOn and MotorIsMoving so UpdateTorqueAsync
+            // switches to dynamic position-based torque right away, without waiting
+            // for the ProSim callback (which may be delayed or lost).
+            _axisVm.Underlying.AutopilotOn = false;
+            _axisVm.Underlying.MotorIsMoving = false;
+            _logger?.Log($"[{_name}] AutopilotOn and MotorIsMoving set to false locally");
+
+            // Update UI bindings asynchronously — using BeginInvoke avoids blocking
+            // the tracking loop thread and prevents InvalidOperationException if the
+            // dispatcher is busy processing another axis's concurrent callback.
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AutopilotOn));
+                _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
+            });
 
             // Signal ProSim to disengage autopilot
             if (_proSimManager != null)
@@ -640,9 +671,17 @@ namespace ACL_SIM_2.Services
                 try
                 {
                     _proSimManager.DisengageAP();
+                    _logger?.Log($"[{_name}] DisengageAP sent to ProSim");
                 }
-                catch (Exception ex) { Debug.WriteLine($"[{_name}] DisengageAP failed: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"[{_name}] DisengageAP failed: {ex.Message}");
+                }
             }
+
+            // Immediately stop the tracking loop and return to center without
+            // waiting for the ProSim callback, which may be delayed or lost.
+            _ = StopAndReturnToCenterAsync();
         }
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
@@ -651,8 +690,21 @@ namespace ACL_SIM_2.Services
         {
             if (_autopilotLoopCts != null)
             {
-                _autopilotLoopCts.Cancel();
-                _autopilotLoopCts.Dispose();
+                try
+                {
+                    _autopilotLoopCts.Cancel();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"[{_name}] StopAutopilotTrackingLoop: Cancel threw: {ex.GetType().Name}: {ex.Message}");
+                }
+
+                try
+                {
+                    _autopilotLoopCts.Dispose();
+                }
+                catch { }
+
                 _autopilotLoopCts = null;
             }
             _autopilotLoopTask = null;
@@ -673,43 +725,100 @@ namespace ACL_SIM_2.Services
         /// </summary>
         private async Task StopAndReturnToCenterAsync()
         {
-            var loopTask = _autopilotLoopTask;
-            StopAutopilotTrackingLoop();
+            _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: starting (centeringPerformed={_centeringPerformed}, encoder={_axisVm.EncoderPosition})");
 
-            if (loopTask != null)
+            try
             {
+                var loopTask = _autopilotLoopTask;
+                StopAutopilotTrackingLoop();
+
+                // Switch to dynamic position-based torque immediately after stopping the loop,
+                // before any other Modbus operations contend for the lock.
+                // This ensures the pilot feels position-based resistance as soon as AP is off.
                 try
                 {
-                    await loopTask.WaitAsync(TimeSpan.FromMilliseconds(AUTOPILOT_LOOP_INTERVAL_MS * 3 + 100));
+                    await UpdateTorqueAsync();
+                    _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: dynamic torque applied (torque={_axisVm.CurrentTorque:F1}%)");
                 }
-                catch { }
-            }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: UpdateTorqueAsync failed: {ex.GetType().Name}: {ex.Message}");
+                }
 
-       
+                if (loopTask != null)
+                {
+                    _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: awaiting tracking loop exit");
+                    try
+                    {
+                        await loopTask.WaitAsync(TimeSpan.FromMilliseconds(AUTOPILOT_LOOP_INTERVAL_MS * 3 + 100));
+                        _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: tracking loop exited cleanly");
+                    }
+                    catch (TimeoutException)
+                    {
+                        _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: WARNING - tracking loop did not exit within timeout");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: loop await failed: {ex.GetType().Name}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: pre-center exception: {ex.GetType().Name}: {ex.Message}");
+            }
 
             // Wait for the servo to physically decelerate and come to rest before reading
             // the encoder position. Without this delay the encoder value is still mid-motion
             // and the calculated delta will be wrong.
             await Task.Delay(500);
 
-            // Re-check override flag: if manual override fired while we were awaiting the loop,
-            // it already issued GoToPosition(0). Issuing a second one would Stop() the motor
-            // mid-return and recalculate from a stale encoder, causing the axis to miss center.
             if (!_isDisposed && _centeringPerformed)
             {
-                //var targetEncoder = _axisMovement.PercentToEncoderPosition(0);
-              
-
-                _logger.Log($"[{_name}] Forced returning to center");
+                var encoderBefore = _axisVm.EncoderPosition;
+                var centerOffset = _axisVm.Underlying.EncoderCenterOffset;
+                _logger?.Log($"[{_name}] Returning to center: encoder={encoderBefore:F0}, centerOffset={centerOffset:F2}, relativePos={encoderBefore - centerOffset:F1}");
 
                 try
                 {
+                    // Temporarily set MotorIsMoving so UpdateTorqueAsync applies
+                    // MovingTorquePercentage — position-based torque may be too low
+                    // for the servo to physically drive the axis back to center.
+                    _axisVm.Underlying.MotorIsMoving = true;
+                    await UpdateTorqueAsync();
+                    _logger?.Log($"[{_name}] Moving torque applied for return-to-center (torque={_axisVm.CurrentTorque:F1}%)");
+
                     _axisMovement.GoToPosition(0, 90);
+                    _logger?.Log($"[{_name}] GoToPosition(0) issued successfully");
+
+                    // Allow time for the servo to reach center, then restore position-based torque.
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(3000);
+                            if (!_isDisposed && !_axisVm.Underlying.AutopilotOn)
+                            {
+                                _axisVm.Underlying.MotorIsMoving = false;
+                                await UpdateTorqueAsync();
+                                _logger?.Log($"[{_name}] Return-to-center complete, restored position-based torque");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.Log($"[{_name}] Return-to-center torque restore failed: {ex.Message}");
+                        }
+                    });
                 }
-                catch
+                catch (Exception ex)
                 {
-                    _logger.Log($"[{_name}] Forced return to center failed");
+                    _axisVm.Underlying.MotorIsMoving = false;
+                    _logger?.Log($"[{_name}] Return to center failed: {ex.Message}");
                 }
+            }
+            else
+            {
+                _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: skipped GoToPosition (disposed={_isDisposed}, centeringPerformed={_centeringPerformed})");
             }
         }
 
@@ -739,9 +848,9 @@ namespace ACL_SIM_2.Services
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Motor write failed, continue
+                        _logger?.Log($"[{_name}] UpdateTorqueAsync (CalibrationMode) failed: {ex.Message}");
                     }
                 });
 
@@ -789,9 +898,9 @@ namespace ACL_SIM_2.Services
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Motor write failed, continue
+                        _logger?.Log($"[{_name}] UpdateTorqueAsync (MotorIsMoving/IsTrimming) failed: {ex.Message}");
                     }
                 });
 
@@ -825,9 +934,9 @@ namespace ACL_SIM_2.Services
                             _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.AirspeedAdditionalTorqueAppliedPercent));
                         });
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Motor write failed, continue
+                        _logger?.Log($"[{_name}] UpdateTorqueAsync (HydraulicsOff) failed: {ex.Message}");
                     }
                 });
 
@@ -893,15 +1002,15 @@ namespace ACL_SIM_2.Services
                         // resistance is always active in both directions
                         _torqueControl.SetTorqueBoth(torqueInt, torqueInt);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Motor write failed, continue
+                        _logger?.Log($"[{_name}] UpdateTorqueAsync (Normal) motor write failed: {ex.Message}");
                     }
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                // Calculation failed, ignore
+                _logger?.Log($"[{_name}] UpdateTorqueAsync (Normal) calculation failed: {ex.Message}");
             }
         }
 
@@ -974,7 +1083,7 @@ namespace ACL_SIM_2.Services
         {
             if (_isDisposed || _torqueControl == null) return;
             try { _torqueControl.SetCenteringSpeed(speed); }
-            catch { /* Motor write failed, continue */ }
+            catch (Exception ex) { _logger?.Log($"[{_name}] SendCenteringSpeed failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -985,7 +1094,7 @@ namespace ACL_SIM_2.Services
         {
             if (_isDisposed || _torqueControl == null) return;
             try { _torqueControl.SetDampening(dampening); }
-            catch { /* Motor write failed, continue */ }
+            catch (Exception ex) { _logger?.Log($"[{_name}] SendDampening failed: {ex.Message}"); }
         }
 
         /// <summary>
