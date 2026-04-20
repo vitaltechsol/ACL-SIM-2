@@ -19,9 +19,11 @@ namespace ACL_SIM_2.Services
         private readonly int _pollIntervalMs;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private int _currentValue;
+        private int _currentCommandValue;
         private readonly object _sync = new object();
         private readonly object _modbusLock; // Shared lock for thread-safe Modbus access
         private Task? _loopTask;
+        private Task? _loopCommandTask;
         private bool _wasConnected;
         private readonly string _name;
         private readonly Func<bool> _isReversedFunc; // Function to check if motor is reversed
@@ -35,6 +37,13 @@ namespace ACL_SIM_2.Services
         /// Raised when a new encoder value is read (may be raised on background thread).
         /// </summary>
         public event Action<int>? ValueUpdated;
+
+
+        /// <summary>
+        /// Raised when a new encoder value is read (may be raised on background thread).
+        /// </summary>
+        public event Action<int>? CommandValueUpdated;
+
 
         /// <summary>
         /// Raised when connection state changes. Argument is true when connected.
@@ -56,6 +65,7 @@ namespace ACL_SIM_2.Services
 
             // start the read loop
             _loopTask = Task.Run(() => ReadLoopAsync(_cts.Token));
+            _loopCommandTask = Task.Run(() => ReadCommandLoopAsync(_cts.Token));
 
             // ensure loop is cancelled on application exit
             try
@@ -180,6 +190,112 @@ namespace ACL_SIM_2.Services
             }
         }
 
+        private async Task ReadCommandLoopAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_mbc != null)
+                    {
+                        lock (_modbusLock)
+                        {
+                            if (!_mbc.Connected)
+                            {
+                                try
+                                {
+                                    _mbc.Connect();
+                                }
+                                catch (Exception ex)
+                                {
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection failed: {ex.Message}"); } catch { }
+                                }
+                            }
+
+                            // connection state changed?
+                            var nowConnected = _mbc.Connected;
+                            if (nowConnected != _wasConnected)
+                            {
+                                _wasConnected = nowConnected;
+                                try { ConnectionChanged?.Invoke(nowConnected); } catch { }
+                                if (!nowConnected)
+                                {
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection lost"); } catch { }
+                                }
+                            }
+
+                            if (nowConnected)
+                            {
+                                try
+                                {
+
+                                        var absolutePosition = ReadCommandPosition();
+
+                                        // Apply reversal if motor is reversed - single point of normalization
+                                        if (_isReversedFunc())
+                                        {
+                                            absolutePosition = -absolutePosition;
+                                        }
+
+                                        lock (_sync)
+                                        {
+                                            _currentCommandValue = absolutePosition;
+                                        }
+
+                                        //  Debug.WriteLine($"[{_name}] Raw: {rawValue}, Loops: {_loopCount}, Absolute: {absolutePosition}");
+                                        try { CommandValueUpdated?.Invoke(absolutePosition); } catch { }
+                                   
+                                }
+                                catch (Exception ex)
+                                {
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message}"); } catch { }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // swallow top-level loop exceptions
+                }
+
+                try
+                {
+                    await Task.Delay(_pollIntervalMs, ct).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+
+        // -----------------------------
+        // Read monitored positions
+        // Dn009/Dn010 = command accumulated value
+        // Dn011/Dn012 = feedback accumulated value
+        // -----------------------------
+        private int ReadInt32FromLowHigh(int lowAddress, int highAddress)
+        {
+            int low = _mbc.ReadHoldingRegisters(lowAddress, 1)[0] & 0xFFFF;
+            int high = _mbc.ReadHoldingRegisters(highAddress, 1)[0] & 0xFFFF;
+
+            uint combined = ((uint)high << 16) | (uint)low;
+            return unchecked((int)combined);
+        }
+
+        public int ReadCommandPosition()
+        {
+            // Dn009 = 377, Dn010 = 378
+            return ReadInt32FromLowHigh(377, 378);
+        }
+
+        public int ReadFeedbackPosition()
+        {
+            // Dn011 = 379, Dn012 = 380
+            return ReadInt32FromLowHigh(379, 380);
+        }
+
         private void OnAppExit(object? sender, ExitEventArgs e)
         {
             Dispose();
@@ -195,6 +311,18 @@ namespace ACL_SIM_2.Services
                 lock (_sync) { return _currentValue; }
             }
         }
+
+        /// <summary>
+        /// Gets the most recently command read encoder value.
+        /// </summary>
+        public int CurrentCommandValue
+        {
+            get
+            {
+                lock (_sync) { return _currentCommandValue; }
+            }
+        }
+
 
         /// <summary>
         /// Async-friendly getter that returns the latest value.
@@ -253,6 +381,7 @@ namespace ACL_SIM_2.Services
             try
             {
                 _loopTask?.Wait(500);
+                _loopCommandTask?.Wait(500);
             }
             catch { }
 

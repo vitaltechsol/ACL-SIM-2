@@ -94,6 +94,7 @@ namespace ACL_SIM_2.Services
             {
                 _encoderManager = encoderManager;
                 _encoderManager.EncoderValueUpdated += OnEncoderValueUpdated;
+                _encoderManager.EncoderCommandValueUpdated += OnEncoderCommandValueUpdated;
             }
 
             // Create torque control if ModbusClient is provided
@@ -168,6 +169,12 @@ namespace ACL_SIM_2.Services
         {
             if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
                 UpdateEncoderPosition(value);
+        }
+
+        private void OnEncoderCommandValueUpdated(string axisName, double value)
+        {
+            if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
+                _axisVm.EncoderCommandValue = value;
         }
 
         /// <summary>
@@ -1358,7 +1365,10 @@ namespace ACL_SIM_2.Services
             try
             {
                 if (_encoderManager != null)
+                {
                     _encoderManager.EncoderValueUpdated -= OnEncoderValueUpdated;
+                    _encoderManager.EncoderCommandValueUpdated -= OnEncoderCommandValueUpdated;
+                }
             }
             catch { }
 

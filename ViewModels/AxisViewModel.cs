@@ -59,6 +59,21 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
+        private double _encoderCommandValue;
+        /// <summary>
+        /// The last command (target) value read from the encoder hardware.
+        /// </summary>
+        public double EncoderCommandValue
+        {
+            get => _encoderCommandValue;
+            set
+            {
+                if (_encoderCommandValue == value) return;
+                _encoderCommandValue = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EncoderCommandValue)));
+            }
+        }
+
         public double EncoderPosition
         {
             get => _axis.EncoderPosition;

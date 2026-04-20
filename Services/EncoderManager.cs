@@ -32,6 +32,12 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public event Action<string, double>? EncoderValueUpdated;
 
+        /// <summary>
+        /// Raised on the UI dispatcher thread whenever a new command (target) encoder value is read.
+        /// Arguments are (axisName, commandValue).
+        /// </summary>
+        public event Action<string, double>? EncoderCommandValueUpdated;
+
         public Action<string>? OnError { get; set; }
 
         public EncoderManager()
@@ -66,6 +72,18 @@ namespace ACL_SIM_2.Services
                         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                         {
                             try { EncoderValueUpdated?.Invoke(name, val); } catch { }
+                        }));
+                    }
+                    catch { }
+                };
+
+                encoder.CommandValueUpdated += (val) =>
+                {
+                    try
+                    {
+                        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try { EncoderCommandValueUpdated?.Invoke(name, val); } catch { }
                         }));
                     }
                     catch { }
