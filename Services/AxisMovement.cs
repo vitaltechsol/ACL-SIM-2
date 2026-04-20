@@ -108,7 +108,7 @@ namespace ACL_SIM_2.Services
         /// </summary>
         /// <param name="targetPercent">Target position as percentage (-100 to +100).</param>
         /// <param name="rpmOverride">Optional RPM override. When null, MotorSpeedRpm is used.</param>
-        public void GoToPosition(double targetPercent, int? rpmOverride = null)
+        public void GoToPosition(double targetPercent, int? rpmOverride = null, double? fromEncoder = null)
         {
             targetPercent = Math.Clamp(targetPercent, -100.0, 100.0);
 
@@ -123,12 +123,14 @@ namespace ACL_SIM_2.Services
 
             // Stop any active movement first
             // actual stopped position rather than a mid-move value.
-            Stop();
+            // Stop();
 
             var targetEncoder = PercentToEncoderPosition(targetPercent);
             targetEncoder = ClampToAxisRange(targetEncoder);
 
-            var currentEncoder = _axis.EncoderPosition;
+            var currentEncoder = fromEncoder ?? _axis.EncoderPosition;
+            _logger?.Log($"[{_axis.Name}] GoToPosition: fromEncoder {fromEncoder} _axis.EncoderPosition {_axis.EncoderPosition}");
+            
             var delta = targetEncoder - currentEncoder;
             if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
                 return;

@@ -62,6 +62,7 @@ namespace ACL_SIM_2.Services
         private volatile bool _isPositionTestActive;
         private long _autopilotEngagedAtTick;
         private const int AUTOPILOT_GRACE_PERIOD_MS = 1000;
+        private readonly EncoderManager? _encoderManager;
 
         /// <summary>
         /// Notifies this axis manager that the simulator has been paused or unpaused.
@@ -80,13 +81,20 @@ namespace ACL_SIM_2.Services
             set => Interlocked.Exchange(ref _latestAutopilotTargetBits, BitConverter.DoubleToInt64Bits(value));
         }
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger, EncoderManager? encoderManager = null)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _proSimManager = proSimManager;
             _logger = logger;
             _trimBaseCenterOffset = _axisVm.Underlying.EncoderCenterOffset;
+
+            // Subscribe to encoder updates from EncoderManager
+            if (encoderManager != null)
+            {
+                _encoderManager = encoderManager;
+                _encoderManager.EncoderValueUpdated += OnEncoderValueUpdated;
+            }
 
             // Create torque control if ModbusClient is provided
             if (modbusClient != null && !string.IsNullOrWhiteSpace(axisVm.Underlying.Settings.RS485Ip))
@@ -150,6 +158,27 @@ namespace ACL_SIM_2.Services
                 // Calculate and update torque asynchronously
                 _ = UpdateTorqueAsync();
             }
+        }
+
+        /// <summary>
+        /// Receives encoder value updates from <see cref="EncoderManager.EncoderValueUpdated"/>.
+        /// Filters to this axis by name and forwards to <see cref="UpdateEncoderPosition"/>.
+        /// </summary>
+        private void OnEncoderValueUpdated(string axisName, double value)
+        {
+            if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
+                UpdateEncoderPosition(value);
+        }
+
+        /// <summary>
+        /// Receives a new encoder value from <see cref="EncoderManager"/> and updates the axis model.
+        /// This is the single entry point for encoder data; the AxisViewModel exposes the value
+        /// as a read-only binding source.
+        /// Must be called on the UI thread (EncoderManager dispatches via BeginInvoke).
+        /// </summary>
+        public void UpdateEncoderPosition(double value)
+        {
+            _axisVm.EncoderPosition = value;
         }
 
         /// <summary>
@@ -231,7 +260,7 @@ namespace ACL_SIM_2.Services
                     _axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                 });
 
-                _ = UpdateTorqueAsync();
+               //  _ = UpdateTorqueAsync();
             }
         }
 
@@ -650,8 +679,9 @@ namespace ACL_SIM_2.Services
         /// <summary>
         /// Stops the autopilot tracking loop and clears the stored target.
         /// </summary>
-        private void StopAutopilotTrackingLoop()
+        private double StopAutopilotTrackingLoop()
         {
+            var lastEncoderPosition = _axisVm.EncoderPosition; 
             if (_autopilotLoopCts != null)
             {
                 _autopilotLoopCts.Cancel();
@@ -666,6 +696,7 @@ namespace ACL_SIM_2.Services
             // without stopping first, the new relative pulses are added on top of the in-flight
             // move, causing a large overshoot.
             _axisMovement.Stop();
+            return lastEncoderPosition;
         }
 
         /// <summary>
@@ -678,9 +709,9 @@ namespace ACL_SIM_2.Services
         {
             _isReturningToCenter = true;
             var loopTask = _autopilotLoopTask;
-            StopAutopilotTrackingLoop();
-            await UpdateTorqueAsync();
+            var capturedEncoder = StopAutopilotTrackingLoop();
 
+            await UpdateTorqueAsync();
 
             //if (loopTask != null)
             //{
@@ -694,19 +725,23 @@ namespace ACL_SIM_2.Services
             // Wait for the servo to physically decelerate and come to rest before reading
             // the encoder position. Without this delay the encoder value is still mid-motion
             // and the calculated delta will be wrong.
-            await Task.Delay(500);
-            _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: decel wait complete, encoder={_axisVm.EncoderPosition}");
+           // await Task.Delay(500);
+
+            // Capture the encoder position NOW, right after the motor has stopped.
+            // This is the true "stopped" position we must move from. Do NOT use
+            // the live encoder later — the user may have moved the axis by then.
+    
+            _logger?.Log($"[{_name}] StopAndReturnToCenterAsync: decel wait complete, encoder={capturedEncoder}");
 
             if (!_isDisposed && _centeringPerformed)
             {
-                var encoderBefore = _axisVm.EncoderPosition;
                 var centerOffset = _axisVm.Underlying.EncoderCenterOffset;
-                _logger?.Log($"[{_name}] Returning to center: encoder={encoderBefore:F0}, centerOffset={centerOffset:F2}, relativePos={encoderBefore - centerOffset:F1}");
+                _logger?.Log($"[{_name}] Returning to center: encoder={capturedEncoder:F0}, centerOffset={centerOffset:F2}, relativePos={capturedEncoder - centerOffset:F1}");
                 _logger.Log($"[{_name}] Forced returning to center");
 
                 try
                 {
-                    _axisMovement.GoToPosition(0, 90);
+                    _axisMovement.GoToPosition(0, 90, fromEncoder: capturedEncoder);
                 }
                 catch
                 {
@@ -1317,6 +1352,13 @@ namespace ACL_SIM_2.Services
             try
             {
                 _axisVm.PropertyChanged -= OnAxisPropertyChanged;
+            }
+            catch { }
+
+            try
+            {
+                if (_encoderManager != null)
+                    _encoderManager.EncoderValueUpdated -= OnEncoderValueUpdated;
             }
             catch { }
 

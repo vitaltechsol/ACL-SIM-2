@@ -334,7 +334,7 @@ namespace ACL_SIM_2.ViewModels
                             var modbusLock = _encoderManager.GetModbusLock(axisName);
                             if (modbusClient != null && modbusLock != null)
                             {
-                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger);
+                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
                             }
                         }
                     }
@@ -489,7 +489,7 @@ namespace ACL_SIM_2.ViewModels
                                 var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
                                 if (modbusClient != null && modbusLock != null)
                                 {
-                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger);
+                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
                                 }
 
                                 LogError($"[{savedAxisName}] Connection settings changed - encoder and torque control reconnected");
@@ -758,7 +758,8 @@ namespace ACL_SIM_2.ViewModels
                         var modbusLock = _encoderManager.GetModbusLock(axisName);
                         if (modbusClient != null && modbusLock != null)
                         {
-                            _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager, _appLogger);
+                            var newManager = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
+                            _axisManagers[axisName] = newManager;
                         }
 
                         LogError($"[{axisName}] Encoder and torque control enabled");

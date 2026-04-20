@@ -25,6 +25,13 @@ namespace ACL_SIM_2.Services
 
         private readonly List<Entry> _entries = new List<Entry>();
 
+        /// <summary>
+        /// Raised on the UI dispatcher thread whenever a new encoder value is read.
+        /// Arguments are (axisName, encoderValue). <see cref="AxisManager"/> subscribes
+        /// to this event to receive encoder data without any coupling to EncoderManager internals.
+        /// </summary>
+        public event Action<string, double>? EncoderValueUpdated;
+
         public Action<string>? OnError { get; set; }
 
         public EncoderManager()
@@ -58,7 +65,7 @@ namespace ACL_SIM_2.Services
                     {
                         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            try { entry.Vm.EncoderPosition = val; } catch { }
+                            try { EncoderValueUpdated?.Invoke(name, val); } catch { }
                         }));
                     }
                     catch { }
@@ -142,6 +149,7 @@ namespace ACL_SIM_2.Services
                 return _entries.FirstOrDefault(x => x.Name == name)?.ModbusLock;
             }
         }
+
         // Per-axis polling is handled by AxisEncoder instances.
 
         private void OnAppExit(object? sender, ExitEventArgs e) => Dispose();
