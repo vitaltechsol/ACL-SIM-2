@@ -22,3 +22,9 @@
 - Keep trim center shifts relative to the stored runtime base center. When trim turns off, update `EncoderCenterOffset` from that base center plus the converted trim offset, while leaving `FullLeftPosition` and `FullRightPosition` as relative distances so the effective torque range becomes centered around the new runtime center.
 - Every trim move must also be calculated from that stored runtime base center, not from the last trimmed `EncoderCenterOffset`. The `Center Controls` result is the true center trim percentages are based on until centering is run again.
 - After `Center Controls` completes for roll or rudder, immediately re-apply the current trim value, if any, using the newly established true center as the trim base.
+
+## Motor Command Position
+- `EncoderCommandValue` (on `AxisViewModel`) represents the position the motor has actually been moved to. It is **completely independent of the external position encoder** — it reflects the motor driver's own internal position counter and has no relationship to `EncoderPosition`, `EncoderCenterOffset`, `FullLeftPosition`, or `FullRightPosition`.
+- The value is in **base 10000** units (the motor driver's native pulse counter scale).
+- It is read via `ReadBase10000Value()` in `AxisEncoder.cs`, flows through `CommandValueUpdated` → `EncoderManager.EncoderCommandValueUpdated` → `AxisManager.OnEncoderCommandValueUpdated` → `AxisViewModel.EncoderCommandValue`.
+- Never normalize or scale this value against encoder calibration values. Do not couple it to `EncoderCenterOffset`, `FullLeftPosition`, or `FullRightPosition`.

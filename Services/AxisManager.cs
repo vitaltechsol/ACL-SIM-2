@@ -173,8 +173,8 @@ namespace ACL_SIM_2.Services
 
         private void OnEncoderCommandValueUpdated(string axisName, double value)
         {
-            if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
-                _axisVm.EncoderCommandValue = value;
+            if (!string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase)) return;
+            _axisVm.EncoderCommandValue = value;
         }
 
         /// <summary>

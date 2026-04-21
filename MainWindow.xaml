@@ -147,7 +147,7 @@
                             <TextBlock Margin="8,0,0,0" VerticalAlignment="Center">
                             <Run Text="{Binding Pitch.CurrentTorque, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="#00D9FF" />
                             <Run Text=" (" />
-                            <Run TCommandValueUpdatedext="{Binding Pitch.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
+                            <Run Text="{Binding Pitch.EncoderPercentage, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="SemiBold" Foreground="LightGreen" />
                             <Run Text="% from center)" />
                                <TextBlock Text="+from Airspeed:" VerticalAlignment="Center" />
    <TextBlock Text="{Binding Pitch.AirspeedAdditionalTorqueAppliedPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#FFC107" />

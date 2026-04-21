@@ -228,23 +228,21 @@ namespace ACL_SIM_2.Services
                             {
                                 try
                                 {
+                                    var absolutePosition = ReadCommandPosition();
 
-                                        var absolutePosition = ReadCommandPosition();
-
-                                        // Apply reversal if motor is reversed - single point of normalization
-                                        if (_isReversedFunc())
+                                    // Apply reversal if motor is reversed - single point of normalization
+                                    if (_isReversedFunc())
                                         {
                                             absolutePosition = -absolutePosition;
                                         }
 
                                         lock (_sync)
                                         {
-                                            _currentCommandValue = absolutePosition;
+                                            _currentCommandValue = (int)absolutePosition;
                                         }
 
-                                        //  Debug.WriteLine($"[{_name}] Raw: {rawValue}, Loops: {_loopCount}, Absolute: {absolutePosition}");
-                                        try { CommandValueUpdated?.Invoke(absolutePosition); } catch { }
-                                   
+                                        try { CommandValueUpdated?.Invoke((int)absolutePosition); } catch { }
+
                                 }
                                 catch (Exception ex)
                                 {
@@ -275,25 +273,27 @@ namespace ACL_SIM_2.Services
         // Dn009/Dn010 = command accumulated value
         // Dn011/Dn012 = feedback accumulated value
         // -----------------------------
-        private int ReadInt32FromLowHigh(int lowAddress, int highAddress)
-        {
-            int low = _mbc.ReadHoldingRegisters(lowAddress, 1)[0] & 0xFFFF;
-            int high = _mbc.ReadHoldingRegisters(highAddress, 1)[0] & 0xFFFF;
 
-            uint combined = ((uint)high << 16) | (uint)low;
-            return unchecked((int)combined);
+        private int ReadBase10000Value(int lowAddress)
+        {
+            int[] regs = _mbc.ReadHoldingRegisters(lowAddress, 2);
+
+            int low = regs[0];
+            int high = regs[1];
+
+            return (high * 10000) + low;
         }
 
         public int ReadCommandPosition()
         {
             // Dn009 = 377, Dn010 = 378
-            return ReadInt32FromLowHigh(377, 378);
+            return ReadBase10000Value(377);
         }
 
         public int ReadFeedbackPosition()
         {
             // Dn011 = 379, Dn012 = 380
-            return ReadInt32FromLowHigh(379, 380);
+            return ReadBase10000Value(379);
         }
 
         private void OnAppExit(object? sender, ExitEventArgs e)
