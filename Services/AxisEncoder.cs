@@ -287,13 +287,20 @@ namespace ACL_SIM_2.Services
         public int ReadCommandPosition()
         {
             // Dn009 = 377, Dn010 = 378
-            return ReadBase10000Value(377);
+            // return ReadBase10000Value(377);
+            return ReadBase10000Value(379);
         }
 
         public int ReadFeedbackPosition()
         {
             // Dn011 = 379, Dn012 = 380
             return ReadBase10000Value(379);
+        }
+        
+        // Dn013 = 371 (single register) = position deviation (command - feedback)
+        public int ReadPositionDeviation()
+        {
+            return unchecked((short)_mbc.ReadHoldingRegisters(371, 1)[0]);
         }
 
         private void OnAppExit(object? sender, ExitEventArgs e)

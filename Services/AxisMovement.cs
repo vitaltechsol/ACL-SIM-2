@@ -25,6 +25,7 @@ namespace ACL_SIM_2.Services
         private readonly Axis _axis;
         private readonly ModbusClient? _modbusClient;
         private readonly AxisTorqueControl? _torqueControl;
+        private readonly AxisEncoder? _axisEncoder;
         private readonly object _servoLock = new object();
         private readonly object? _modbusLock; // Shared lock for thread-safe Modbus access
         private readonly IAppLogger? _logger;
@@ -93,22 +94,25 @@ namespace ACL_SIM_2.Services
         /// <summary>Minimum RPM the software ramp will issue during acceleration and deceleration.</summary>
         private const int MIN_RAMP_RPM = 1;
 
-        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null, IAppLogger? logger = null)
+        public AxisMovement(Axis axis, ModbusClient? modbusClient = null, AxisTorqueControl? torqueControl = null, object? modbusLock = null, IAppLogger? logger = null, AxisEncoder? axisEncoder = null)
         {
             _axis = axis ?? throw new ArgumentNullException(nameof(axis));
             _modbusClient = modbusClient;
             _torqueControl = torqueControl;
             _modbusLock = modbusLock;
             _logger = logger;
+            _axisEncoder = axisEncoder;
         }
 
         /// <summary>
         /// Move the axis to a target position immediately at the specified or configured RPM.
         /// Stops any active movement first. No acceleration ramp is applied.
+        /// Uses the motor's command position counter (base-10000 units) for both current position
+        /// and target, so the delta is purely in motor-native units — independent of the external encoder.
         /// </summary>
         /// <param name="targetPercent">Target position as percentage (-100 to +100).</param>
         /// <param name="rpmOverride">Optional RPM override. When null, MotorSpeedRpm is used.</param>
-        public void GoToPosition(double targetPercent, int? rpmOverride = null, double? fromEncoder = null)
+        public void GoToPosition(double targetPercent, int? rpmOverride = null)
         {
             targetPercent = Math.Clamp(targetPercent, -100.0, 100.0);
 
@@ -121,26 +125,24 @@ namespace ACL_SIM_2.Services
             if (!ValidateMotorSettings()) return;
             EnsureServoInitialized();
 
-            // Stop any active movement first
-            // actual stopped position rather than a mid-move value.
-            // Stop();
+            // Convert to a command-unit target by computing the delta from the stored home position
+            // in encoder units, then offsetting from the command-unit home value.
+            // This avoids mixing the incompatible absolute-value scales of the external encoder
+            // counter and the motor's internal base-10000 command counter.
+            //var encoderDeltaFromHome = encoderTarget - _axis.EncoderCenterOffsetAtHome;
 
-            var targetEncoder = PercentToEncoderPosition(targetPercent);
-            targetEncoder = ClampToAxisRange(targetEncoder);
+            var absoluteTarget = (int)Math.Round(_axis.EncoderCommandHomeValue);
+            var currentPosition = ReadFeedbackPosition() * (_axis.Settings.ReversedMotor ? -1 : 1);
+            var deviation = ReadPositionDeviation() * (_axis.Settings.ReversedMotor ? -1 : 1);
+            var delta = (absoluteTarget - currentPosition) - deviation;
 
-            var currentEncoder = fromEncoder ?? _axis.EncoderPosition;
-            _logger?.Log($"[{_axis.Name}] GoToPosition: fromEncoder {fromEncoder} _axis.EncoderPosition {_axis.EncoderPosition}");
-            
-            var delta = targetEncoder - currentEncoder;
-            if (Math.Abs(delta) < POSITION_TOLERANCE_UNITS)
-                return;
+            _logger?.Log($"[{_axis.Name}] GoToPosition - absTarget={absoluteTarget}, feedbackPos={currentPosition}, deviation={deviation}, delta={delta}");
 
-            var pulses = (int)Math.Round(delta);
+            int pulses = delta;
             if (_axis.Settings.ReversedMotor)
                 pulses = -pulses;
 
-            var rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
-            // _logger.Log($"[{_axis.Name}] GoToPosition {targetPercent:F1}% → {pulses} pulses from {currentEncoder} @ {rpm} RPM (ReversedMotor={_axis.Settings.ReversedMotor})");
+            int rpm = rpmOverride ?? _axis.Settings.MotorSpeedRpm;
             ServoMoveTo(pulses, rpm);
         }
 
@@ -515,6 +517,9 @@ namespace ACL_SIM_2.Services
             if (!_modbusClient.Connected)
                 throw new InvalidOperationException("ModbusClient is not connected");
 
+            _logger?.Log($"[{_axis.Name}] WritePn: {pn} val {val}");
+
+
             if (_modbusLock != null)
             {
                 lock (_modbusLock)
@@ -589,7 +594,7 @@ namespace ACL_SIM_2.Services
             // _logger?.Log($"[{_axis.Name}] ServoMoveTo pulsed: {pulses}: From: {_axis.EncoderPosition})");
             int slot = 0;
             // Set slot speed (clamped to valid range)
-            WritePn(SlotSpeedPn[slot], Clamp(rpm, 0, 3000));
+            WritePn(SlotSpeedPn[slot], Clamp(rpm, 1, 3000));
 
             // Program slot pulses
             WriteSlotPulses(slot, pulses);
@@ -648,6 +653,26 @@ namespace ACL_SIM_2.Services
         }
 
         private static int Clamp(int v, int lo, int hi) => Math.Clamp(v, lo, hi);
+
+        /// <summary>
+        /// Reads the motor feedback (actual) accumulated position in base-10000 units via <see cref="AxisEncoder"/>.
+        /// </summary>
+        private int ReadFeedbackPosition()
+        {
+            if (_axisEncoder == null)
+                throw new InvalidOperationException($"[{_axis.Name}] AxisEncoder not available for ReadFeedbackPosition");
+            return _axisEncoder.ReadFeedbackPosition();
+        }
+
+        /// <summary>
+        /// Reads the position deviation (command − feedback) via <see cref="AxisEncoder"/>.
+        /// </summary>
+        private int ReadPositionDeviation()
+        {
+            if (_axisEncoder == null)
+                throw new InvalidOperationException($"[{_axis.Name}] AxisEncoder not available for ReadPositionDeviation");
+            return _axisEncoder.ReadPositionDeviation();
+        }
 
         #endregion
     }

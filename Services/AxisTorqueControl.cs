@@ -96,6 +96,7 @@ namespace ACL_SIM_2.Services
             {
                 if (!_mbc.Connected) return;
                 _mbc.UnitIdentifier = (byte)_driverId;
+                // _mbc.WriteSingleRegister(51, speed);
                 _mbc.WriteSingleRegister(51, speed);
             }
         }

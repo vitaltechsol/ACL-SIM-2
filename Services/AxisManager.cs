@@ -119,7 +119,7 @@ namespace ACL_SIM_2.Services
             }
 
             // Create axis movement controller with ModbusClient, TorqueControl and shared lock for servo control
-            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock, _logger);
+            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock, _logger, encoderManager?.GetEncoder(name));
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
@@ -175,6 +175,7 @@ namespace ACL_SIM_2.Services
         {
             if (!string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase)) return;
             _axisVm.EncoderCommandValue = value;
+            _axisVm.Underlying.EncoderCommandPosition = value;
         }
 
         /// <summary>
@@ -720,14 +721,7 @@ namespace ACL_SIM_2.Services
 
             await UpdateTorqueAsync();
 
-            //if (loopTask != null)
-            //{
-            //    try
-            //    {
-            //        await loopTask.WaitAsync(TimeSpan.FromMilliseconds(AUTOPILOT_LOOP_INTERVAL_MS * 3 + 100));
-            //    }
-            //    catch { }
-            //}
+        
 
             // Wait for the servo to physically decelerate and come to rest before reading
             // the encoder position. Without this delay the encoder value is still mid-motion
@@ -743,12 +737,15 @@ namespace ACL_SIM_2.Services
             if (!_isDisposed && _centeringPerformed)
             {
                 var centerOffset = _axisVm.Underlying.EncoderCenterOffset;
-                _logger?.Log($"[{_name}] Returning to center: encoder={capturedEncoder:F0}, centerOffset={centerOffset:F2}, relativePos={capturedEncoder - centerOffset:F1}");
-                _logger.Log($"[{_name}] Forced returning to center");
+                _logger.Log($"[{_name}] Stopping and returning to center");
 
                 try
                 {
-                    _axisMovement.GoToPosition(0, 90, fromEncoder: capturedEncoder);
+                    _axisMovement.GoToPosition(0, 1500);
+                    await Task.Delay(500);
+                    _axisMovement.GoToPosition(0, 1500);
+                    await Task.Delay(500);
+                    _axisMovement.GoToPosition(0, 1500);
                 }
                 catch
                 {
@@ -954,23 +951,6 @@ namespace ACL_SIM_2.Services
             }
         }
 
-        /// <summary>
-        /// Move axis to a target position using advanced motion control.
-        /// </summary>
-        /// <param name="targetPercent">
-        /// Target position as percentage:
-        /// -100 = Full left position
-        /// 0 = Center position
-        /// +100 = Full right position
-        /// </param>
-        /// <param name="rpmOverride">
-        /// Optional RPM value that overrides <see cref="AxisSettings.MotorSpeedRpm"/>.
-        /// When null, the configured MotorSpeedRpm is used.
-        /// </param>
-        public void GoToPosition(double targetPercent, int? rpmOverride = null)
-        {
-            _axisMovement.GoToPosition(targetPercent, rpmOverride);
-        }
 
         public void ApplyMotionTuningPreview()
         {
@@ -1174,6 +1154,8 @@ namespace ACL_SIM_2.Services
                             {
                                 _trimBaseCenterOffset = avgEncoder;
                                 _centeringPerformed = true;
+                                _axisVm.Underlying.EncoderCommandHomeValue = _axisVm.EncoderCommandValue;
+                                _axisVm.Underlying.EncoderCenterOffsetAtHome = avgEncoder;
                                 ApplyRuntimeCenterOffset(avgEncoder);
                                 log($"[{_name}] Centered successfully (\u00b1{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
                                 if (_lastRawTrimValue != 0.0)
@@ -1215,6 +1197,8 @@ namespace ACL_SIM_2.Services
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
                         _trimBaseCenterOffset = finalEncoder;
                         _centeringPerformed = true;
+                        _axisVm.Underlying.EncoderCommandHomeValue = _axisVm.EncoderCommandValue;
+                        _axisVm.Underlying.EncoderCenterOffsetAtHome = finalEncoder;
                         ApplyRuntimeCenterOffset(finalEncoder);
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
                         if (_lastRawTrimValue != 0.0)

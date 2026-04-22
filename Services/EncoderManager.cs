@@ -168,6 +168,17 @@ namespace ACL_SIM_2.Services
             }
         }
 
+        /// <summary>
+        /// Gets the <see cref="AxisEncoder"/> for an axis. Returns null if axis is not registered.
+        /// </summary>
+        public AxisEncoder? GetEncoder(string name)
+        {
+            lock (_entries)
+            {
+                return _entries.FirstOrDefault(x => x.Name == name)?.Encoder;
+            }
+        }
+
         // Per-axis polling is handled by AxisEncoder instances.
 
         private void OnAppExit(object? sender, ExitEventArgs e) => Dispose();

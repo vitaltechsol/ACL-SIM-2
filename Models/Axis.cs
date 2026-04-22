@@ -195,6 +195,25 @@ namespace ACL_SIM_2.Models
         /// </summary>
         public double EncoderCenterOffset { get; set; } = 0.0;
 
+        /// <summary>
+        /// Latest motor command position in base-10000 units, read via ReadBase10000Value() in AxisEncoder.
+        /// Updated every command-encoder poll cycle. Independent of EncoderPosition.
+        /// </summary>
+        public double EncoderCommandPosition { get; set; } = 0.0;
+
+        /// <summary>
+        /// Motor command position (base-10000 units) recorded when the axis was last successfully centered.
+        /// Set by CenterToProSimPositionAsync. Used as the home reference for GoToPosition.
+        /// </summary>
+        public double EncoderCommandHomeValue { get; set; } = 0.0;
+
+        /// <summary>
+        /// EncoderCenterOffset value at the time the axis was last successfully centered.
+        /// Used alongside EncoderCommandHomeValue to convert encoder-unit position targets
+        /// into command-unit targets in GoToPosition.
+        /// </summary>
+        public double EncoderCenterOffsetAtHome { get; set; } = 0.0;
+
         public Axis(string name, AxisSettings? settings = null)
         {
             Name = name;
