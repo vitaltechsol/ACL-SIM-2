@@ -131,7 +131,10 @@ namespace ACL_SIM_2.Services
             // counter and the motor's internal base-10000 command counter.
             //var encoderDeltaFromHome = encoderTarget - _axis.EncoderCenterOffsetAtHome;
 
-            var absoluteTarget = (int)Math.Round(_axis.EncoderCommandHomeValue);
+            // var absoluteTarget = (int)Math.Round(_axis.EncoderCommandHomeValue);
+            int absoluteTarget = PercentToEncoderPosition(targetPercent);
+            absoluteTarget = (int)ClampToAxisRange(absoluteTarget);
+
             var currentPosition = ReadFeedbackPosition() * (_axis.Settings.ReversedMotor ? -1 : 1);
             var deviation = ReadPositionDeviation() * (_axis.Settings.ReversedMotor ? -1 : 1);
             var delta = (absoluteTarget - currentPosition) - deviation;
@@ -333,18 +336,18 @@ namespace ACL_SIM_2.Services
             }
         }
 
-        private double ClampToAxisRange(double encoderPosition)
+        private int ClampToAxisRange(int encoderPosition)
         {
             var min = _axis.Settings.FullLeftPosition + _axis.EncoderCenterOffset;
             var max = _axis.Settings.FullRightPosition + _axis.EncoderCenterOffset;
-            return Math.Clamp(encoderPosition, min, max);
+            return (int)Math.Clamp(encoderPosition, min, max);
         }
 
         /// <summary>
         /// Convert a percentage (-100 to +100) to absolute encoder position.
         /// Uses relative FullLeft/FullRight distances from center plus EncoderCenterOffset.
         /// </summary>
-        public double PercentToEncoderPosition(double percent)
+        public int PercentToEncoderPosition(double percent)
         {
             double relativeTarget;
             if (percent >= 0)
@@ -359,7 +362,7 @@ namespace ACL_SIM_2.Services
             }
 
             // Add offset to convert from relative to absolute encoder position
-            return relativeTarget + _axis.EncoderCenterOffset;
+            return (int)(relativeTarget + _axis.EncoderCenterOffset);
         }
 
         /// <summary>

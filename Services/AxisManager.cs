@@ -94,7 +94,6 @@ namespace ACL_SIM_2.Services
             {
                 _encoderManager = encoderManager;
                 _encoderManager.EncoderValueUpdated += OnEncoderValueUpdated;
-                _encoderManager.EncoderCommandValueUpdated += OnEncoderCommandValueUpdated;
             }
 
             // Create torque control if ModbusClient is provided
@@ -169,13 +168,6 @@ namespace ACL_SIM_2.Services
         {
             if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
                 UpdateEncoderPosition(value);
-        }
-
-        private void OnEncoderCommandValueUpdated(string axisName, double value)
-        {
-            if (!string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase)) return;
-            _axisVm.EncoderCommandValue = value;
-            _axisVm.Underlying.EncoderCommandPosition = value;
         }
 
         /// <summary>
@@ -1154,7 +1146,6 @@ namespace ACL_SIM_2.Services
                             {
                                 _trimBaseCenterOffset = avgEncoder;
                                 _centeringPerformed = true;
-                                _axisVm.Underlying.EncoderCommandHomeValue = _axisVm.EncoderCommandValue;
                                 _axisVm.Underlying.EncoderCenterOffsetAtHome = avgEncoder;
                                 ApplyRuntimeCenterOffset(avgEncoder);
                                 log($"[{_name}] Centered successfully (\u00b1{FINE_TOLERANCE}). Avg ProSim={avgProSim:F1}, Encoder center offset set to {avgEncoder:F2}");
@@ -1197,7 +1188,6 @@ namespace ACL_SIM_2.Services
                         var (finalProSim, finalEncoder) = await AverageOverWindowAsync();
                         _trimBaseCenterOffset = finalEncoder;
                         _centeringPerformed = true;
-                        _axisVm.Underlying.EncoderCommandHomeValue = _axisVm.EncoderCommandValue;
                         _axisVm.Underlying.EncoderCenterOffsetAtHome = finalEncoder;
                         ApplyRuntimeCenterOffset(finalEncoder);
                         log($"[{_name}] Centered (best effort). Avg ProSim={finalProSim:F1}, Encoder center offset set to {finalEncoder:F2}");
@@ -1351,7 +1341,6 @@ namespace ACL_SIM_2.Services
                 if (_encoderManager != null)
                 {
                     _encoderManager.EncoderValueUpdated -= OnEncoderValueUpdated;
-                    _encoderManager.EncoderCommandValueUpdated -= OnEncoderCommandValueUpdated;
                 }
             }
             catch { }

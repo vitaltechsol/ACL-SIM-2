@@ -129,7 +129,6 @@
                             <TextBlock Text="Encoder:" />
                             <TextBlock Text="{Binding Pitch.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                             <TextBlock Text="Cmd:" Margin="12,0,0,0" Foreground="#AAAAAA" />
-                            <TextBlock Text="{Binding Pitch.EncoderCommandValue, StringFormat={}{0:F0}, Mode=OneWay}" Margin="4,0,0,0" Foreground="#AAAAAA" />
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Pitch.EncoderNormalized}" IsEnabled="{Binding Pitch.Enabled}" Foreground="#FF00DFB6">
                             <ProgressBar.Style>
@@ -278,7 +277,6 @@
                             <TextBlock Text="Encoder:" />
                             <TextBlock Text="{Binding Roll.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                             <TextBlock Text="Cmd:" Margin="12,0,0,0" Foreground="#AAAAAA" />
-                            <TextBlock Text="{Binding Roll.EncoderCommandValue, StringFormat={}{0:F0}, Mode=OneWay}" Margin="4,0,0,0" Foreground="#AAAAAA" />
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Roll.EncoderNormalized}" IsEnabled="{Binding Roll.Enabled}" Foreground="#FF00DFB6">
                             <ProgressBar.Style>
@@ -423,7 +421,6 @@
                             <TextBlock Text="Encoder:" />
                             <TextBlock Text="{Binding Rudder.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                             <TextBlock Text="Cmd:" Margin="12,0,0,0" Foreground="#AAAAAA" />
-                            <TextBlock Text="{Binding Rudder.EncoderCommandValue, StringFormat={}{0:F0}, Mode=OneWay}" Margin="4,0,0,0" Foreground="#AAAAAA" />
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Rudder.EncoderNormalized}" IsEnabled="{Binding Rudder.Enabled}" Foreground="#FF00DFB6">
                             <ProgressBar.Style>
@@ -549,7 +546,6 @@
                             <TextBlock Text="Encoder:" />
                             <TextBlock Text="{Binding Tiller.EncoderPosition, StringFormat={}{0:F0}}" Margin="8,0,0,0" />
                             <TextBlock Text="Cmd:" Margin="12,0,0,0" Foreground="#AAAAAA" />
-                            <TextBlock Text="{Binding Tiller.EncoderCommandValue, StringFormat={}{0:F0}, Mode=OneWay}" Margin="4,0,0,0" Foreground="#AAAAAA" />
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Height="14" Value="{Binding Tiller.EncoderNormalized}" IsEnabled="{Binding Tiller.Enabled}" Foreground="#FF00DFB6">
                             <ProgressBar.Style>

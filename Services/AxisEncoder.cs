@@ -15,23 +15,15 @@ namespace ACL_SIM_2.Services
     public class AxisEncoder : IDisposable
     {
         private readonly ModbusClient _mbc;
-        private readonly int _encoderAddress = 387;
         private readonly int _pollIntervalMs;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private int _currentValue;
-        private int _currentCommandValue;
         private readonly object _sync = new object();
         private readonly object _modbusLock; // Shared lock for thread-safe Modbus access
         private Task? _loopTask;
-        private Task? _loopCommandTask;
         private bool _wasConnected;
         private readonly string _name;
         private readonly Func<bool> _isReversedFunc; // Function to check if motor is reversed
-
-        // Encoder rollover tracking
-        private const int ENCODER_MAX = 9999; // Maximum encoder value before rollover
-        private int _loopCount = 0; // Number of times encoder has rolled over
-        private int _previousRawValue = 0; // Previous raw encoder reading
 
         /// <summary>
         /// Raised when a new encoder value is read (may be raised on background thread).
@@ -65,7 +57,6 @@ namespace ACL_SIM_2.Services
 
             // start the read loop
             _loopTask = Task.Run(() => ReadLoopAsync(_cts.Token));
-            _loopCommandTask = Task.Run(() => ReadCommandLoopAsync(_cts.Token));
 
             // ensure loop is cancelled on application exit
             try
@@ -119,130 +110,17 @@ namespace ACL_SIM_2.Services
                             {
                                 try
                                 {
-                                    var regs = _mbc.ReadHoldingRegisters(_encoderAddress, 1);
-                                if (regs != null && regs.Length > 0)
-                                {
-                                    var rawValue = regs[0];
+                                    var absolutePosition = ReadFeedbackPosition();
 
-                                    // Detect rollover by looking at the difference between readings
-                                    // If difference is very large (more than half the range), we crossed the boundary
-                                    var delta = rawValue - _previousRawValue;
-                                    const int HALF_RANGE = ENCODER_MAX / 2;
-
-                                    if (delta > HALF_RANGE)
-                                    {
-                                        // Large positive jump: we wrapped backward (0 → 9900)
-                                        // Example: prev=100, curr=9900, delta=9800 (>5000) → going backward, decrement
-                                        _loopCount--;
-                                        //Debug.WriteLine($"[{_name}] Backward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
-                                        //try { ErrorOccurred?.Invoke($"[{_name}] Backward wrap. Loop count: {_loopCount}"); } catch { }
-                                    }
-                                    else if (delta < -HALF_RANGE)
-                                    {
-                                        // Large negative jump: we wrapped forward (9900 → 0)
-                                        // Example: prev=9900, curr=100, delta=-9800 (<-5000) → going forward, increment
-                                        _loopCount++;
-                                        //Debug.WriteLine($"[{_name}] Forward wrap detected (prev:{_previousRawValue} -> curr:{rawValue}, delta:{delta}). Loop count: {_loopCount}");
-                                        //try { ErrorOccurred?.Invoke($"[{_name}] Forward wrap. Loop count: {_loopCount}"); } catch { }
-                                    }
-
-                                    _previousRawValue = rawValue;
-
-                                    // Calculate absolute position including loops (supports negative loop counts)
-                                    var absolutePosition = (_loopCount * ENCODER_MAX) + rawValue;
-
-                                    // Apply reversal if motor is reversed - single point of normalization
                                     if (_isReversedFunc())
-                                    {
                                         absolutePosition = -absolutePosition;
-                                    }
 
                                     lock (_sync)
                                     {
                                         _currentValue = absolutePosition;
                                     }
 
-                                  //  Debug.WriteLine($"[{_name}] Raw: {rawValue}, Loops: {_loopCount}, Absolute: {absolutePosition}");
                                     try { ValueUpdated?.Invoke(absolutePosition); } catch { }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message}"); } catch { }
-                            }
-                        }
-                        }
-                    }
-                }
-                catch
-                {
-                    // swallow top-level loop exceptions
-                }
-
-                try
-                {
-                    await Task.Delay(_pollIntervalMs, ct).ConfigureAwait(false);
-                }
-                catch (TaskCanceledException)
-                {
-                    break;
-                }
-            }
-        }
-
-        private async Task ReadCommandLoopAsync(CancellationToken ct)
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                try
-                {
-                    if (_mbc != null)
-                    {
-                        lock (_modbusLock)
-                        {
-                            if (!_mbc.Connected)
-                            {
-                                try
-                                {
-                                    _mbc.Connect();
-                                }
-                                catch (Exception ex)
-                                {
-                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection failed: {ex.Message}"); } catch { }
-                                }
-                            }
-
-                            // connection state changed?
-                            var nowConnected = _mbc.Connected;
-                            if (nowConnected != _wasConnected)
-                            {
-                                _wasConnected = nowConnected;
-                                try { ConnectionChanged?.Invoke(nowConnected); } catch { }
-                                if (!nowConnected)
-                                {
-                                    try { ErrorOccurred?.Invoke($"[{_name}] Connection lost"); } catch { }
-                                }
-                            }
-
-                            if (nowConnected)
-                            {
-                                try
-                                {
-                                    var absolutePosition = ReadCommandPosition();
-
-                                    // Apply reversal if motor is reversed - single point of normalization
-                                    if (_isReversedFunc())
-                                        {
-                                            absolutePosition = -absolutePosition;
-                                        }
-
-                                        lock (_sync)
-                                        {
-                                            _currentCommandValue = (int)absolutePosition;
-                                        }
-
-                                        try { CommandValueUpdated?.Invoke((int)absolutePosition); } catch { }
-
                                 }
                                 catch (Exception ex)
                                 {
@@ -284,12 +162,12 @@ namespace ACL_SIM_2.Services
             return (high * 10000) + low;
         }
 
-        public int ReadCommandPosition()
-        {
-            // Dn009 = 377, Dn010 = 378
-            // return ReadBase10000Value(377);
-            return ReadBase10000Value(379);
-        }
+        //public int ReadCommandPosition()
+        //{
+        //    // Dn009 = 377, Dn010 = 378
+        //    // return ReadBase10000Value(377);
+        //    return ReadBase10000Value(379);
+        //}
 
         public int ReadFeedbackPosition()
         {
@@ -319,17 +197,6 @@ namespace ACL_SIM_2.Services
             }
         }
 
-        /// <summary>
-        /// Gets the most recently command read encoder value.
-        /// </summary>
-        public int CurrentCommandValue
-        {
-            get
-            {
-                lock (_sync) { return _currentCommandValue; }
-            }
-        }
-
 
         /// <summary>
         /// Async-friendly getter that returns the latest value.
@@ -340,35 +207,6 @@ namespace ACL_SIM_2.Services
         /// Returns whether the underlying Modbus client is currently connected.
         /// </summary>
         public bool IsConnected => _mbc != null && _mbc.Connected;
-
-        /// <summary>
-        /// Gets the current loop/rollover count.
-        /// </summary>
-        public int LoopCount
-        {
-            get { lock (_sync) { return _loopCount; } }
-        }
-
-        /// <summary>
-        /// Gets the last raw encoder value (before loop calculation).
-        /// </summary>
-        public int RawValue
-        {
-            get { lock (_sync) { return _previousRawValue; } }
-        }
-
-        /// <summary>
-        /// Resets the loop count to zero. Use this to re-calibrate when setting center position.
-        /// </summary>
-        public void ResetLoopCount()
-        {
-            lock (_sync)
-            {
-                _loopCount = 0;
-                _currentValue = _previousRawValue; // Update current value to raw value only
-            }
-            try { ErrorOccurred?.Invoke($"[{_name}] Loop count reset to 0"); } catch { }
-        }
 
         public void Dispose()
         {
@@ -388,7 +226,6 @@ namespace ACL_SIM_2.Services
             try
             {
                 _loopTask?.Wait(500);
-                _loopCommandTask?.Wait(500);
             }
             catch { }
 
