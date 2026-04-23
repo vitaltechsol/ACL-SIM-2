@@ -16,7 +16,7 @@
 ## Trim Implementation
 - For roll and rudder trim, keep the initial implementation simple: when trim changes and autopilot is off, pass the trim percentage directly to `GoToPosition(...)`. Avoid adding center-recalculation or recentering logic unless explicitly requested.
 - For trim scaling in this repo: roll ProSim trim range `0..9` maps to `0..75%`, and the other specified trim axis range `0..15` maps to `0..100%`, while keeping the simple `GoToPosition(...)` trim implementation.
-- When an axis is trimming, use an `IsTrimming` flag so torque ignores encoder-position torque and uses `MovingTorquePercentage` instead.
+- When an axis is trimming, use an `IsTrimming` flag so torque ignores encoder-position torque and uses **dynamic position-based torque** instead of `MovingTorquePercentage`. The normal encoder-position torque calculation should run using the updated `EncoderCenterOffset`, which is already shifted to the trim target before `UpdateTorqueAsync` is called.
 - For trim movement, run motor commands off the event thread, use latest-value-wins overriding behavior, and add a 100 ms smoothing/filter delay before sending movement commands.
 - When trim turns off, convert the trim percentage back to encoder units and apply it as a temporary runtime center shift by updating the current center and keeping torque range relative to the new center.
 - Keep trim center shifts relative to the stored runtime base center. When trim turns off, update `EncoderCenterOffset` from that base center plus the converted trim offset, while leaving `FullLeftPosition` and `FullRightPosition` as relative distances so the effective torque range becomes centered around the new runtime center.

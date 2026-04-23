@@ -135,11 +135,23 @@ namespace ACL_SIM_2.Services
             int absoluteTarget = PercentToEncoderPosition(targetPercent);
             absoluteTarget = (int)ClampToAxisRange(absoluteTarget);
 
-            var currentPosition = ReadFeedbackPosition() * (_axis.Settings.ReversedMotor ? -1 : 1);
-            var deviation = ReadPositionDeviation() * (_axis.Settings.ReversedMotor ? -1 : 1);
-            var delta = (absoluteTarget - currentPosition) - deviation;
+            // Use the cached encoder position (already reversal-corrected by the background poll loop)
+            // and the motor's live deviation register (command − feedback) to determine remaining pulses.
+            // This avoids a concurrent raw Modbus read on the encoder connection that would race
+            // with the background poll loop.
+            var feedbackPos = _axis.EncoderPosition;
+            int deviation = 0;
+            try
+            {
+                deviation = ReadPositionDeviation() * (_axis.Settings.ReversedMotor ? -1 : 1);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"[{_axis.Name}] GoToPosition: ReadPositionDeviation failed ({ex.Message}), assuming 0");
+            }
+            var delta = (int)Math.Round((absoluteTarget - feedbackPos) - deviation);
 
-            _logger?.Log($"[{_axis.Name}] GoToPosition - absTarget={absoluteTarget}, feedbackPos={currentPosition}, deviation={deviation}, delta={delta}");
+            _logger?.Log($"[{_axis.Name}] GoToPosition - absTarget={absoluteTarget}, feedbackPos={feedbackPos}, deviation={deviation}, delta={delta}");
 
             int pulses = delta;
             if (_axis.Settings.ReversedMotor)
@@ -669,11 +681,21 @@ namespace ACL_SIM_2.Services
 
         /// <summary>
         /// Reads the position deviation (command − feedback) via <see cref="AxisEncoder"/>.
+        /// Acquires the shared Modbus lock so this read is serialised with the encoder poll loop
+        /// and servo writes that share the same connection.
         /// </summary>
         private int ReadPositionDeviation()
         {
             if (_axisEncoder == null)
                 throw new InvalidOperationException($"[{_axis.Name}] AxisEncoder not available for ReadPositionDeviation");
+
+            if (_modbusLock != null)
+            {
+                lock (_modbusLock)
+                {
+                    return _axisEncoder.ReadPositionDeviation();
+                }
+            }
             return _axisEncoder.ReadPositionDeviation();
         }
 

@@ -360,6 +360,7 @@ namespace ACL_SIM_2.Services
         private async Task RunTrimMoveLoopAsync()
         {
             double lastIssuedTrimPercent = double.NaN;
+            _axisVm.Underlying.IsTrimming = true;
 
             try
             {
@@ -430,16 +431,17 @@ namespace ACL_SIM_2.Services
                     {
                         shouldRestart = true;
                     }
-                    else
-                    {
-                        _trimMoveLoopRunning = false;
-                    }
-                }
+                            else
+                                {
+                                    _trimMoveLoopRunning = false;
+                                    _axisVm.Underlying.IsTrimming = false;
+                                }
+                            }
 
-                if (shouldRestart)
-                    _ = Task.Run(RunTrimMoveLoopAsync);
-            }
-        }
+                            if (shouldRestart)
+                                _ = Task.Run(RunTrimMoveLoopAsync);
+                        }
+                    }
 
 
         private void ApplyRuntimeCenterOffset(double encoderCenterOffset)
@@ -743,6 +745,10 @@ namespace ACL_SIM_2.Services
                 {
                     _logger.Log($"[{_name}] Forced return to center failed");
                 }
+                finally
+                {
+                    _isReturningToCenter = false;
+                }
             }
             else
             {
@@ -752,7 +758,7 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Calculates torque based on encoder position relative to center.
+        /// Calculates dynamic torque based on encoder position relative to center.
         /// Torque increases as distance from center increases.
         /// Min torque at center (0), max torque at either limit.
         /// When MotorIsMoving (centering, position test, or autopilot), uses MovingTorqueDisplay for both directions.
@@ -786,8 +792,10 @@ namespace ACL_SIM_2.Services
                 return;
             }
 
-            // If MotorIsMoving or IsTrimming, use fixed MovingTorque for both directions
-            if (_axisVm.Underlying.MotorIsMoving || _axisVm.Underlying.IsTrimming)
+            // If MotorIsMoving (but NOT trimming), use fixed MovingTorque for both directions.
+            // While trimming, fall through to the dynamic position-based calculation below so
+            // that resistance is always relative to the trim-shifted center.
+            if (_axisVm.Underlying.MotorIsMoving && !_axisVm.Underlying.IsTrimming)
             {
                 await Task.Run(() =>
                 {
