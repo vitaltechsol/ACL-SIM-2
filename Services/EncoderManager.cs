@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -77,7 +77,31 @@ namespace ACL_SIM_2.Services
                     {
                         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            try { entry.Vm.ConnectionState = connected ? AxisViewModel.EncoderConnectionState.Connected : AxisViewModel.EncoderConnectionState.Failed; } catch { }
+                            try
+                            {
+                                entry.Vm.ConnectionState = connected ? AxisViewModel.EncoderConnectionState.Connected : AxisViewModel.EncoderConnectionState.Failed;
+                                if (connected && Application.Current?.MainWindow?.DataContext is ViewModels.MainViewModel mainVm)
+                                    mainVm.LogError($"[{entry.Name}] RS485 TCP link established (waiting for Servo Driver response...)");
+                            }
+                            catch { }
+                        }));
+                    }
+                    catch { }
+                };
+
+                
+                encoder.FirstReadSucceeded += () =>
+                {
+                    try
+                    {
+                        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try
+                            {
+                                if (Application.Current?.MainWindow?.DataContext is ViewModels.MainViewModel mainVm)
+                                    mainVm.LogError($"[{entry.Name}] RS485 Modbus ready - motor driver responding");
+                            }
+                            catch { }
                         }));
                     }
                     catch { }

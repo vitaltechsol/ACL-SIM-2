@@ -47,6 +47,12 @@ namespace ACL_SIM_2.Services
         /// </summary>
         public event Action<string>? ErrorOccurred;
 
+        /// <summary>
+        /// Raised once when the first Modbus register read succeeds, confirming the motor driver
+        /// is responding on the RS485 bus (distinct from TCP connection to the adapter).
+        /// </summary>
+        public event Action? FirstReadSucceeded;
+
         public AxisEncoder(ModbusClient modbusClient, string name, Func<bool> isReversedFunc, object modbusLock, int pollIntervalMs = 200)
         {
             _mbc = modbusClient ?? throw new ArgumentNullException(nameof(modbusClient));
@@ -55,8 +61,9 @@ namespace ACL_SIM_2.Services
             _modbusLock = modbusLock ?? throw new ArgumentNullException(nameof(modbusLock));
             _pollIntervalMs = Math.Max(10, pollIntervalMs);
 
-            // start the read loop
+            // start the read loop and a one-shot initial probe
             _loopTask = Task.Run(() => ReadLoopAsync(_cts.Token));
+            Task.Run(() => InitialProbeAsync(_cts.Token));
 
             // ensure loop is cancelled on application exit
             try
@@ -124,7 +131,7 @@ namespace ACL_SIM_2.Services
                                 }
                                 catch (Exception ex)
                                 {
-                                    try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message}"); } catch { }
+                                    try { ErrorOccurred?.Invoke($"[{_name}] Read error: {ex.Message.Split('.')[0]}"); } catch { }
                                 }
                             }
                         }
@@ -143,6 +150,33 @@ namespace ACL_SIM_2.Services
                 {
                     break;
                 }
+            }
+        }
+
+        /// <summary>
+        /// One-shot task: polls until the first successful Modbus read, fires
+        /// <see cref="FirstReadSucceeded"/> once, then exits.
+        /// </summary>
+        private async Task InitialProbeAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                bool success = false;
+                lock (_modbusLock)
+                {
+                    if (_mbc.Connected)
+                    {
+                        try { ReadFeedbackPosition(); success = true; } catch { }
+                    }
+                }
+
+                if (success)
+                {
+                    try { FirstReadSucceeded?.Invoke(); } catch { }
+                    return;
+                }
+
+                try { await Task.Delay(100, ct).ConfigureAwait(false); } catch { return; }
             }
         }
 

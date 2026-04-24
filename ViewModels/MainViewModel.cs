@@ -13,7 +13,7 @@ namespace ACL_SIM_2.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private readonly Services.EncoderManager? _encoderManager;
+        private Services.EncoderManager? _encoderManager;
         private readonly Services.ProSimManager? _proSimManager;
         private readonly Services.IAppLogger _appLogger;
         private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
@@ -304,6 +304,30 @@ namespace ACL_SIM_2.ViewModels
                 axisVm.PropertyChanged += (s, e) => HandleAxisEnabledChanged(axisName, axisVm, settings.RS485Ip, e);
             }
 
+            // Populate with some initial value
+            Pitch.EncoderPosition = 0;
+            Roll.EncoderPosition = 0;
+            Rudder.EncoderPosition = 0;
+            Tiller.EncoderPosition = 0;
+
+            SetupCommand = new RelayCommand(OnSetup);
+            GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
+            ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
+            ConnectProSimCommand = new RelayCommand(_ => ToggleProSimConnection());
+            CenterControlsCommand = new RelayCommand(_ => CenterAllControls(), _ => CanCenterControls());
+            CancelCenteringCommand = new RelayCommand(CancelCentering);
+
+            // Subscribe to ErrorLog collection changes to update ErrorLogText
+            ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
+
+            // Defer all Modbus connections until after the UI has rendered
+            Application.Current?.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                new Action(InitializeModbus));
+        }
+
+        private void InitializeModbus()
+        {
             // Register encoders with centralized manager
             try
             {
@@ -357,22 +381,6 @@ namespace ACL_SIM_2.ViewModels
                     mgr.SendDampening(AxisSettings.ConvertDampeningToActual(s.Dampening));
                 }
             }
-
-            // Populate with some initial value
-            Pitch.EncoderPosition = 0;
-            Roll.EncoderPosition = 0;
-            Rudder.EncoderPosition = 0;
-            Tiller.EncoderPosition = 0;
-
-            SetupCommand = new RelayCommand(OnSetup);
-            GlobalSettingsCommand = new RelayCommand(_ => OnGlobalSettings());
-            ClearErrorLogCommand = new RelayCommand(_ => ClearErrorLog());
-            ConnectProSimCommand = new RelayCommand(_ => ToggleProSimConnection());
-            CenterControlsCommand = new RelayCommand(_ => CenterAllControls(), _ => CanCenterControls());
-            CancelCenteringCommand = new RelayCommand(CancelCentering);
-
-            // Subscribe to ErrorLog collection changes to update ErrorLogText
-            ErrorLog.CollectionChanged += (s, e) => UpdateErrorLogText();
         }
 
         private void ProSimManager_OnConnectionStateChanged(object? sender, Services.ConnectionStateEventArgs e)
