@@ -47,10 +47,10 @@
 
 
 ## Improvemens from v1.0:
-- All motors are now fully controlled via RS485 (instead of using arduion controller in v1).
+- All motors are now fully controlled via RS485 (instead of using Arduino controller like v1).
 - Simpler wiring for less error prone connections.
 - Advanced motion settings for smoother motor movements.
-- Encoder position based calculations and calibration for more accurate values (instead of manual factor values in v1)
-- Auto pilot disengage override by detecting load changes in the control (instead of position difference changes in v1)
+- Encoder position based calculations and calibration for more accurate values (instead of manual factor values like v1)
+- Auto pilot disengage override by detecting load changes in the control (instead of position difference changes like v1)
 - Better and more accurate self-centering logic and auto reverser detection.
 - Improved UI for easier configuration and monitoring.
