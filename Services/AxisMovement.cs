@@ -532,7 +532,7 @@ namespace ACL_SIM_2.Services
             if (!_modbusClient.Connected)
                 throw new InvalidOperationException("ModbusClient is not connected");
 
-            _logger?.Log($"[{_axis.Name}] WritePn: {pn} val {val}");
+            //_logger?.Log($"[{_axis.Name}] WritePn: {pn} val {val}");
 
 
             if (_modbusLock != null)

@@ -233,6 +233,8 @@ namespace ACL_SIM_2.ViewModels
 
         private readonly Dictionary<string, CancellationTokenSource> _centeringCtsByAxis = new Dictionary<string, CancellationTokenSource>();
 
+        private bool _simIsPaused = false;
+
         private bool _isCentering;
         public bool IsCentering
         {
@@ -275,6 +277,7 @@ namespace ACL_SIM_2.ViewModels
                 _proSimManager.OnTrimElevatorChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => PitchTrim = e.Value);
                 _proSimManager.OnTrimAileronChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RollTrim = e.Value);
                 _proSimManager.OnTrimRudderChanged += (s, e) => Application.Current?.Dispatcher.Invoke(() => RudderTrim = e.Value);
+                _proSimManager.OnPauseChanged += (s, e) => _simIsPaused = e.Value != 0;
 
                 // Auto-connect if enabled in settings
                 if (globalSettings?.AutoConnectProsim == true)
@@ -608,6 +611,7 @@ namespace ACL_SIM_2.ViewModels
 
             LogError("[Center] Starting concurrent centering for all axes...");
             var simPaused = false;
+            var wasAlreadyPaused = _simIsPaused;
 
             try
             {
@@ -650,7 +654,11 @@ namespace ACL_SIM_2.ViewModels
                     axisVm.NotifyPropertyChanged(nameof(AxisViewModel.MotorIsMoving));
                     //LogError($"[Center] {axisName} - MotorIsMoving enabled (using Movement Torque)");
 
-                    if (!simPaused)
+                    // Pre-activate centering state so the hydraulics-off handler cannot set
+                    // centering speed to 0 between now and when the async task begins executing.
+                    axisManager.PrepareCentering();
+
+                    if (!simPaused && !wasAlreadyPaused)
                     {
                         try
                         {
@@ -688,7 +696,7 @@ namespace ACL_SIM_2.ViewModels
                 _centeringCtsByAxis.Clear();
                 UpdateCenteringState();
 
-                if (simPaused)
+                if (simPaused && !wasAlreadyPaused)
                 {
                     try
                     {

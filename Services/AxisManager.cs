@@ -75,6 +75,24 @@ namespace ACL_SIM_2.Services
                 _axisMovement.Stop();
         }
 
+        /// <summary>
+        /// Pre-activates the centering state before the async centering task begins executing.
+        /// Sets <c>_isCenteringActive</c> to <c>true</c> and, for the Pitch axis, immediately
+        /// sends the configured centering speed so that a hydraulics-off event arriving in the
+        /// small window between <see cref="CenterAllControls"/> setup and the task start cannot
+        /// override the centering speed to 0.
+        /// </summary>
+        public void PrepareCentering()
+        {
+            _isCenteringActive = true;
+
+            if (string.Equals(_name, "Pitch", StringComparison.OrdinalIgnoreCase))
+            {
+                var configuredCenteringSpeed = AxisSettings.ConvertCenteringSpeedToActual(_axisVm.Underlying.Settings.SelfCenteringSpeed);
+                SendCenteringSpeed(configuredCenteringSpeed);
+            }
+        }
+
         private double LatestAutopilotTarget
         {
             get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _latestAutopilotTargetBits));
@@ -906,6 +924,12 @@ namespace ACL_SIM_2.Services
                     // Get torque range from settings (display scale 0-100)
                     var minTorqueDisplay = settings.MinTorquePercent;
                     var maxTorqueDisplay = settings.MaxTorquePercent;
+
+                    // While trimming and deviation < 5% (axis is near the trim target, not being held),
+                    // double the minimum torque so the motor has enough force to complete the trim move.
+                    // If deviation >= 5% the pilot is holding the axis and normal torque should resist.
+                    if (_axisVm.Underlying.IsTrimming && normalizedDistance < 0.05)
+                        minTorqueDisplay = Math.Min(maxTorqueDisplay, minTorqueDisplay * 4.0);
 
                     // Calculate display torque: min at center, max at limits (0-100 scale)
                     var baseTorqueDisplay = minTorqueDisplay + (normalizedDistance * (maxTorqueDisplay - minTorqueDisplay));
