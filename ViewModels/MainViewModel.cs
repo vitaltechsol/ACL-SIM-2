@@ -13,7 +13,8 @@ namespace ACL_SIM_2.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private Services.EncoderManager? _encoderManager;
+        private Services.AxisModbusRegistry? _modbusRegistry;
+        private readonly Dictionary<string, Services.AxisEncoder> _axisEncoders = new Dictionary<string, Services.AxisEncoder>();
         private readonly Services.ProSimManager? _proSimManager;
         private readonly Services.IAppLogger _appLogger;
         private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
@@ -326,50 +327,95 @@ namespace ACL_SIM_2.ViewModels
                 new Action(InitializeModbus));
         }
 
+        // -----------------------------------------------------------------
+        // Per-axis encoder helpers
+        // -----------------------------------------------------------------
+
+        private Services.AxisEncoder CreateEncoder(string axisName, AxisViewModel axisVm, EasyModbus.ModbusClient modbusClient, object modbusLock)
+        {
+            var encoder = new Services.AxisEncoder(modbusClient, axisName, () => axisVm.IsReversed, modbusLock, pollIntervalMs: 10);
+            WireEncoderEvents(axisName, axisVm, encoder);
+            _axisEncoders[axisName] = encoder;
+            return encoder;
+        }
+
+        private void DisposeEncoder(string axisName)
+        {
+            if (_axisEncoders.TryGetValue(axisName, out var encoder))
+            {
+                try { encoder.Dispose(); } catch { }
+                _axisEncoders.Remove(axisName);
+            }
+        }
+
+        private void WireEncoderEvents(string axisName, AxisViewModel axisVm, Services.AxisEncoder encoder)
+        {
+            encoder.ConnectionChanged += (connected) =>
+            {
+                try
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        axisVm.ConnectionState = connected
+                            ? AxisViewModel.EncoderConnectionState.Connected
+                            : AxisViewModel.EncoderConnectionState.Failed;
+                        if (connected)
+                            LogError($"[{axisName}] RS485 TCP link established (waiting for Servo Driver response...)");
+                    }));
+                }
+                catch { }
+            };
+
+            encoder.FirstReadSucceeded += () =>
+            {
+                try
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        LogError($"[{axisName}] RS485 Modbus ready - motor driver responding")));
+                }
+                catch { }
+            };
+
+            encoder.ErrorOccurred += (errorMsg) =>
+            {
+                try
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        LogError(errorMsg)));
+                }
+                catch { }
+            };
+        }
+
         private void InitializeModbus()
         {
-            // Register encoders with centralized manager
+            // Create the shared Modbus connection registry first
+            _modbusRegistry = new Services.AxisModbusRegistry();
+            foreach (var axisName in AxisNames)
+            {
+                var axisVm = _axes[axisName];
+                var settings = _axisSettings[axisName];
+                if (axisVm.Enabled && !string.IsNullOrWhiteSpace(settings.RS485Ip))
+                    _modbusRegistry.Register(axisName, settings.RS485Ip, (byte)settings.DriverId);
+            }
+
+            // Create one AxisEncoder per axis, then one AxisManager wired to it
             try
             {
-                _encoderManager = new Services.EncoderManager();
                 foreach (var axisName in AxisNames)
                 {
                     var axisVm = _axes[axisName];
-                    var settings = _axisSettings[axisName];
-                    if (axisVm.Enabled && !string.IsNullOrWhiteSpace(settings.RS485Ip))
-                    {
-                        _encoderManager.RegisterAxis(axisName, axisVm, settings.RS485Ip);
-                    }
-                }
-            }
-            catch
-            {
-                // ignore if Modbus client cannot be created at startup
-            }
+                    var modbusClient = _modbusRegistry.GetModbusClient(axisName);
+                    var modbusLock = _modbusRegistry.GetModbusLock(axisName);
+                    if (!axisVm.Enabled || modbusClient == null || modbusLock == null) continue;
 
-            // Initialize AxisManagers for torque control
-            try
-            {
-                if (_encoderManager != null)
-                {
-                    foreach (var axisName in AxisNames)
-                    {
-                        var axisVm = _axes[axisName];
-                        if (axisVm.Enabled)
-                        {
-                            var modbusClient = _encoderManager.GetModbusClient(axisName);
-                            var modbusLock = _encoderManager.GetModbusLock(axisName);
-                            if (modbusClient != null && modbusLock != null)
-                            {
-                                _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
-                            }
-                        }
-                    }
+                    var encoder = CreateEncoder(axisName, axisVm, modbusClient, modbusLock);
+                    _axisManagers[axisName] = new Services.AxisManager(axisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, encoder);
                 }
             }
             catch
             {
-                // ignore if AxisManager creation fails
+                // ignore if axis setup fails at startup
             }
 
             // Send initial centering speed and dampening values to all enabled axes
@@ -459,48 +505,40 @@ namespace ACL_SIM_2.ViewModels
             // Subscribe to settings saved event to update encoder registration
             vm.OnSettingsSaved += (savedAxisName, rs485Ip, connectionSettingsChanged) =>
             {
-                if (_encoderManager != null && axisVm.Enabled)
+                if (_modbusRegistry != null && axisVm.Enabled)
                 {
                     try
                     {
                         if (axisVm.AutopilotOn)
                         {
-                            if (connectionSettingsChanged)
-                            {
-                                LogError($"[{savedAxisName}] Settings saved while autopilot is active. Connection changes will apply after autopilot is off.");
-                            }
-                            else
-                            {
-                                LogError($"[{savedAxisName}] Settings saved while autopilot is active. Skipped axis reset/re-center.");
-                            }
-
+                            LogError(connectionSettingsChanged
+                                ? $"[{savedAxisName}] Settings saved while autopilot is active. Connection changes will apply after autopilot is off."
+                                : $"[{savedAxisName}] Settings saved while autopilot is active. Skipped axis reset/re-center.");
                             return;
                         }
 
-                        // Only do full reconnection if connection settings (RS485 IP or Driver ID) changed
                         if (connectionSettingsChanged)
                         {
-                            // Unregister old encoder
-                            _encoderManager.UnregisterAxis(savedAxisName);
+                            DisposeEncoder(savedAxisName);
+                            _modbusRegistry.Unregister(savedAxisName);
 
-                            // Dispose old AxisManager
                             if (_axisManagers.TryGetValue(savedAxisName, out var oldManager))
                             {
                                 oldManager?.Dispose();
                                 _axisManagers[savedAxisName] = null;
                             }
 
-                            // Re-register with new settings if IP is configured
                             if (!string.IsNullOrWhiteSpace(rs485Ip))
                             {
-                                _encoderManager.RegisterAxis(savedAxisName, axisVm, rs485Ip);
+                                var settings = _axisSettings[savedAxisName];
+                                _modbusRegistry.Register(savedAxisName, rs485Ip, (byte)settings.DriverId);
 
-                                // Recreate AxisManager with new ModbusClient and shared lock
-                                var modbusClient = _encoderManager.GetModbusClient(savedAxisName);
-                                var modbusLock = _encoderManager.GetModbusLock(savedAxisName);
+                                var modbusClient = _modbusRegistry.GetModbusClient(savedAxisName);
+                                var modbusLock = _modbusRegistry.GetModbusLock(savedAxisName);
                                 if (modbusClient != null && modbusLock != null)
                                 {
-                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
+                                    var encoder = CreateEncoder(savedAxisName, axisVm, modbusClient, modbusLock);
+                                    _axisManagers[savedAxisName] = new Services.AxisManager(savedAxisName, axisVm, modbusClient, modbusLock, _proSimManager, _appLogger, encoder);
                                 }
 
                                 LogError($"[{savedAxisName}] Connection settings changed - encoder and torque control reconnected");
@@ -753,58 +791,54 @@ namespace ACL_SIM_2.ViewModels
 
         private void HandleAxisEnabledChanged(string axisName, AxisViewModel vm, string rs485Ip, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(AxisViewModel.Enabled) && _encoderManager != null)
+            if (e.PropertyName != nameof(AxisViewModel.Enabled) || _modbusRegistry == null) return;
+
+            if (vm.Enabled)
             {
-
-                if (vm.Enabled)
+                if (string.IsNullOrWhiteSpace(rs485Ip))
                 {
-                    if (string.IsNullOrWhiteSpace(rs485Ip))
-                    {
-                        LogError($"[{axisName}] enabled");
-                        LogError($"[{axisName}] RS485 IP is missing");
-                        return;
-                    }
-                    // Re-register encoder when enabled
-                    try
-                    {
-                        _encoderManager.RegisterAxis(axisName, vm, rs485Ip);
-
-                        // Create AxisManager for torque control
-                        var modbusClient = _encoderManager.GetModbusClient(axisName);
-                        var modbusLock = _encoderManager.GetModbusLock(axisName);
-                        if (modbusClient != null && modbusLock != null)
-                        {
-                            var newManager = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager, _appLogger, _encoderManager);
-                            _axisManagers[axisName] = newManager;
-                        }
-
-                        LogError($"[{axisName}] Encoder and torque control enabled");
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError($"[{axisName}] Failed to enable encoder: {ex.Message}");
-                    }
+                    LogError($"[{axisName}] enabled");
+                    LogError($"[{axisName}] RS485 IP is missing");
+                    return;
                 }
-                else
+                try
                 {
-                    // Unregister encoder and dispose AxisManager when disabled
-                    try
-                    {
-                        _encoderManager.UnregisterAxis(axisName);
+                    var settings = _axisSettings[axisName];
+                    _modbusRegistry.Register(axisName, rs485Ip, (byte)settings.DriverId);
 
-                        // Dispose AxisManager
-                        if (_axisManagers.TryGetValue(axisName, out var manager))
-                        {
-                            manager?.Dispose();
-                            _axisManagers[axisName] = null;
-                        }
-
-                        LogError($"[{axisName}] Encoder and torque control disabled");
-                    }
-                    catch (Exception ex)
+                    var modbusClient = _modbusRegistry.GetModbusClient(axisName);
+                    var modbusLock = _modbusRegistry.GetModbusLock(axisName);
+                    if (modbusClient != null && modbusLock != null)
                     {
-                        LogError($"[{axisName}] Failed to disable encoder: {ex.Message}");
+                        var encoder = CreateEncoder(axisName, vm, modbusClient, modbusLock);
+                        _axisManagers[axisName] = new Services.AxisManager(axisName, vm, modbusClient, modbusLock, _proSimManager, _appLogger, encoder);
                     }
+
+                    LogError($"[{axisName}] Encoder and torque control enabled");
+                }
+                catch (Exception ex)
+                {
+                    LogError($"[{axisName}] Failed to enable encoder: {ex.Message}");
+                }
+            }
+            else
+            {
+                try
+                {
+                    DisposeEncoder(axisName);
+                    _modbusRegistry.Unregister(axisName);
+
+                    if (_axisManagers.TryGetValue(axisName, out var manager))
+                    {
+                        manager?.Dispose();
+                        _axisManagers[axisName] = null;
+                    }
+
+                    LogError($"[{axisName}] Encoder and torque control disabled");
+                }
+                catch (Exception ex)
+                {
+                    LogError($"[{axisName}] Failed to disable encoder: {ex.Message}");
                 }
             }
         }

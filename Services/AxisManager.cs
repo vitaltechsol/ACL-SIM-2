@@ -62,7 +62,7 @@ namespace ACL_SIM_2.Services
         private volatile bool _isPositionTestActive;
         private long _autopilotEngagedAtTick;
         private const int AUTOPILOT_GRACE_PERIOD_MS = 1000;
-        private readonly EncoderManager? _encoderManager;
+        private readonly AxisEncoder? _axisEncoder;
 
         /// <summary>
         /// Notifies this axis manager that the simulator has been paused or unpaused.
@@ -99,7 +99,7 @@ namespace ACL_SIM_2.Services
             set => Interlocked.Exchange(ref _latestAutopilotTargetBits, BitConverter.DoubleToInt64Bits(value));
         }
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger, EncoderManager? encoderManager = null)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger, AxisEncoder? axisEncoder = null)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
@@ -107,11 +107,11 @@ namespace ACL_SIM_2.Services
             _logger = logger;
             _trimBaseCenterOffset = _axisVm.Underlying.EncoderCenterOffset;
 
-            // Subscribe to encoder updates from EncoderManager
-            if (encoderManager != null)
+            // Subscribe directly to encoder value updates
+            if (axisEncoder != null)
             {
-                _encoderManager = encoderManager;
-                _encoderManager.EncoderValueUpdated += OnEncoderValueUpdated;
+                _axisEncoder = axisEncoder;
+                _axisEncoder.ValueUpdated += OnEncoderValueUpdated;
             }
 
             // Create torque control if ModbusClient is provided
@@ -136,7 +136,7 @@ namespace ACL_SIM_2.Services
             }
 
             // Create axis movement controller with ModbusClient, TorqueControl and shared lock for servo control
-            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock, _logger, encoderManager?.GetEncoder(name));
+            _axisMovement = new AxisMovement(axisVm.Underlying, modbusClient, _torqueControl, modbusLock, _logger, axisEncoder);
 
             // Subscribe to encoder position changes
             _axisVm.PropertyChanged += OnAxisPropertyChanged;
@@ -179,13 +179,19 @@ namespace ACL_SIM_2.Services
         }
 
         /// <summary>
-        /// Receives encoder value updates from <see cref="EncoderManager.EncoderValueUpdated"/>.
-        /// Filters to this axis by name and forwards to <see cref="UpdateEncoderPosition"/>.
+        /// Receives encoder value updates directly from <see cref="AxisEncoder.ValueUpdated"/>
+        /// and forwards to <see cref="UpdateEncoderPosition"/> on the UI thread.
         /// </summary>
-        private void OnEncoderValueUpdated(string axisName, double value)
+        private void OnEncoderValueUpdated(int value)
         {
-            if (string.Equals(axisName, _name, StringComparison.OrdinalIgnoreCase))
-                UpdateEncoderPosition(value);
+            try
+            {
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try { UpdateEncoderPosition(value); } catch { }
+                }));
+            }
+            catch { }
         }
 
         /// <summary>
@@ -1370,10 +1376,8 @@ namespace ACL_SIM_2.Services
 
             try
             {
-                if (_encoderManager != null)
-                {
-                    _encoderManager.EncoderValueUpdated -= OnEncoderValueUpdated;
-                }
+                if (_axisEncoder != null)
+                    _axisEncoder.ValueUpdated -= OnEncoderValueUpdated;
             }
             catch { }
 
