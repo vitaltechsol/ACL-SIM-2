@@ -16,6 +16,15 @@
 
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />
+    <None Include="ACL-SIM-2.Tests\ACL-SIM-2.Tests.csproj" />
+  </ItemGroup>
+
+  <!-- Exclude the nested test project from main project compilation -->
+  <ItemGroup>
+    <Compile Remove="ACL-SIM-2.Tests\**" />
+    <EmbeddedResource Remove="ACL-SIM-2.Tests\**" />
+    <None Remove="ACL-SIM-2.Tests\**" />
+    <Page Remove="ACL-SIM-2.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
