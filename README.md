@@ -1,5 +1,7 @@
 # ACL-SIM 2.0
  Active Control Loading for Flight Simulator.
+<img width="885" height="685" alt="image" src="https://github.com/user-attachments/assets/421af51c-709c-437e-a99a-700bd7571fd2" />
+
 
 ## Software Required:
 - Prosim-AR 737
@@ -9,6 +11,8 @@
 - AC Servo Motors with RS485 option.
 - RS485 Controller.
 
+## Software Manual
+- https://github.com/vitaltechsol/ACL-SIM-2/blob/master/MANUAL.md
 
 ## Features 
  
