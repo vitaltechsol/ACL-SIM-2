@@ -4,12 +4,13 @@
 
 
 ## Software Required:
-- Prosim-AR 737
+- [ProSim 737](https://homesim.aero/products/prosim737/)
 - Microsfot Flight Simulator 2020, 2024 or P3D v4+
 
-## Hardware Required:
-- AC Servo Motors with RS485 option.
-- RS485 Controller.
+## Hardware Required (1 per axis):
+- AC Servo Motor (Nema 34, 750 watts AC motors) 90ST-M02430 Motor. Also 80ST-M02430 or 60ST-M01330 could work
+- AASD-15A Servo Driver with RS482/RS485 support (By default not included) 
+- [Ethernet RS485 Controller](https://www.amazon.com/dp/B09MBW9WFL?ref_=ppx_hzsearch_conn_dt_b_fed_asin_title_1) 
 
 ## Software Manual
 - https://github.com/vitaltechsol/ACL-SIM-2/blob/master/MANUAL.md
