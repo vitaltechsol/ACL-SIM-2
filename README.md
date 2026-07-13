@@ -1,6 +1,9 @@
 # ACL-SIM 2.0
  Active Control Loading for Flight Simulator.
 
+In a flight simulator, the Active Control Loading system (ACL) provides forces on the control column (an other axis), equivalent to those that would occur in a real aircraft and thus simulates the necessary haptic feedback for the pilot.
+
+This sofware enables you to build your own ACL system using affordable hardware and free software.
  
 <img width="885" height="685" alt="image" src="https://github.com/user-attachments/assets/421af51c-709c-437e-a99a-700bd7571fd2" />
 
@@ -14,8 +17,11 @@
 - AASD-15A Servo Driver with RS482/RS485 support (By default not included) 
 - [Ethernet RS485 Controller](https://www.amazon.com/dp/B09MBW9WFL?ref_=ppx_hzsearch_conn_dt_b_fed_asin_title_1) 
 
+## Hardware Manual
+- [View Manual](https://docs.google.com/document/d/1BwuNVnbSR_nCwNKXKo0L1YqKoHi7jEu5gOJ-OT1txDU/edit?tab=t.0#heading=h.tanfhgkclckl)
+
 ## Software Manual
-- https://github.com/vitaltechsol/ACL-SIM-2/blob/master/MANUAL.md
+- [View Manual](https://github.com/vitaltechsol/ACL-SIM-2/blob/master/MANUAL.md)
 
 ## Features 
  
