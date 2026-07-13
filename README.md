@@ -18,7 +18,7 @@ This sofware enables you to build your own ACL system using affordable hardware 
 - [Ethernet RS485 Controller](https://www.amazon.com/dp/B09MBW9WFL?ref_=ppx_hzsearch_conn_dt_b_fed_asin_title_1) 
 
 ## Hardware Manual
-- [View Manual](https://docs.google.com/document/d/1BwuNVnbSR_nCwNKXKo0L1YqKoHi7jEu5gOJ-OT1txDU/edit?tab=t.0#heading=h.tanfhgkclckl)
+- [View Manual](https://docs.google.com/document/d/1OZCoD0gJwy6FVb6QmBKL6L0vCG27Hsr1-_H7w8xsUco/edit?usp=sharing)
 
 ## Software Manual
 - [View Manual](https://github.com/vitaltechsol/ACL-SIM-2/blob/master/MANUAL.md)
