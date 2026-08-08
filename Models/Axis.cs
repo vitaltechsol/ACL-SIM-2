@@ -90,7 +90,7 @@ namespace ACL_SIM_2.Models
 
         // Conversion constants (example). These map display [0..100] to actual values used by motors.
         public const double TorqueActualMax = 300.0;
-        public const double CenteringSpeedActualMax = 250;
+        public const double CenteringSpeedActualMax = 1000;
         public const double DampeningActualMin = 5.0;
         public const double DampeningActualMax = 1000.0;
 

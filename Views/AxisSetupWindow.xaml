@@ -243,20 +243,28 @@
                         <TextBlock Text="Min Torque"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding MinTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMinTorqueCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding MinTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding MinTorquePercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMinTorqueCommand}"/>
                         </Grid>
                         <TextBlock Text="Max Torque" Margin="0,8,0,0"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding MaxTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMaxTorqueCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding MaxTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding MaxTorquePercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMaxTorqueCommand}"/>
                         </Grid>
                     </StackPanel>
                 </GroupBox>
@@ -266,20 +274,28 @@
                         <TextBlock Text="Self centering speed"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding SelfCenteringSpeed, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="70" Value="{Binding SelfCenteringSpeed}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementSelfCenteringSpeedCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelfCenteringSpeed, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="1" Maximum="100" Value="{Binding SelfCenteringSpeed}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementSelfCenteringSpeedCommand}"/>
                         </Grid>
                         <TextBlock Text="Dampening" Margin="0,8,0,0"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding Dampening, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementDampeningCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Dampening, StringFormat={}{0:F0}}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding Dampening}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementDampeningCommand}"/>
                         </Grid>
                     </StackPanel>
                 </GroupBox>
@@ -310,18 +326,22 @@
                             <TextBlock Text="Autopilot override (%)" FontWeight="SemiBold"/>
                             <Grid Margin="0,4,0,0">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="55"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
+                                <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementAutopilotOverrideCommand}"/>
+                                <TextBlock Grid.Column="1"
                                        Margin="0,0,8,0"
                                        VerticalAlignment="Center"
                                        TextAlignment="Right"
                                        Text="{Binding AutopilotOverridePercent, StringFormat={}{0:F0}%}"/>
-                                <Slider Grid.Column="1"
+                                <Slider Grid.Column="2"
                                     Minimum="1"
                                     Maximum="100"
                                     Value="{Binding AutopilotOverridePercent}"/>
+                                <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementAutopilotOverrideCommand}"/>
                             </Grid>
                         </StackPanel>
 
@@ -329,21 +349,25 @@
                         <TextBlock Text="Motor max speed" FontWeight="SemiBold"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMotorSpeedCommand}"/>
+                            <TextBlock Grid.Column="1"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center"
                                    TextAlignment="Right"
                                    Text="{Binding MotorSpeedRpm, StringFormat={}{0} RPM}"/>
-                            <Slider Grid.Column="1"
+                            <Slider Grid.Column="2"
                                 Minimum="1"
                                 Maximum="50"
                                 TickFrequency="5"
                                 IsSnapToTickEnabled="True"
                                 AutoToolTipPlacement="BottomRight"
                                 Value="{Binding MotorSpeedRpm}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMotorSpeedCommand}"/>
                         </Grid>
                         <TextBlock Text="Best smooth range is usually between 2 and 5 RPM."
                                Margin="0,2,0,0"
@@ -353,37 +377,45 @@
                         <TextBlock Text="Moving torque" Margin="0,10,0,0" FontWeight="SemiBold"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMovingTorqueCommand}"/>
+                            <TextBlock Grid.Column="1"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center"
                                    TextAlignment="Right"
                                    Text="{Binding MovingTorquePercentage, StringFormat={}{0:F0}%}"/>
-                            <Slider Grid.Column="1"
+                            <Slider Grid.Column="2"
                                 Minimum="0"
                                 Maximum="100"
                                 TickFrequency="5"
                                 Value="{Binding MovingTorquePercentage}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMovingTorqueCommand}"/>
                         </Grid>
 
                         <TextBlock Text="How much smoothing do you want?" Margin="0,10,0,0" FontWeight="SemiBold"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMotionSmoothingCommand}"/>
+                            <TextBlock Grid.Column="1"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center"
                                    TextAlignment="Right"
                                    Text="{Binding MotionSmoothingPercent, StringFormat={}{0:F0}%}"/>
-                            <Slider Grid.Column="1"
+                            <Slider Grid.Column="2"
                                 Minimum="0"
                                 Maximum="100"
                                 TickFrequency="5"
                                 Value="{Binding MotionSmoothingPercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMotionSmoothingCommand}"/>
                         </Grid>
                         <TextBlock Text="Higher smoothing softens quick corrections. Lower smoothing makes the motor follow targets more directly."
                                Margin="0,2,0,0"
@@ -393,20 +425,24 @@
                         <TextBlock Text="How often can new corrections be sent?" Margin="0,10,0,0" FontWeight="SemiBold"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementMinMotorCommandIntervalCommand}"/>
+                            <TextBlock Grid.Column="1"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center"
                                    TextAlignment="Right"
                                    Text="{Binding MinMotorCommandIntervalMs, StringFormat={}{0} ms}"/>
-                            <Slider Grid.Column="1"
+                            <Slider Grid.Column="2"
                                 Minimum="0"
                                 Maximum="500"
                                 TickFrequency="10"
                                 IsSnapToTickEnabled="True"
                                 Value="{Binding MinMotorCommandIntervalMs}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementMinMotorCommandIntervalCommand}"/>
                         </Grid>
                         <TextBlock Text="Higher values reduce command chatter. Lower values react faster."
                                Margin="0,2,0,0"
@@ -482,11 +518,15 @@
                         <TextBlock Text="Hydraulic off torque"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding HydraulicOffTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementHydraulicOffTorqueCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding HydraulicOffTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding HydraulicOffTorquePercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementHydraulicOffTorqueCommand}"/>
                         </Grid>
                     </StackPanel>
                 </GroupBox>
@@ -506,20 +546,28 @@
                         <TextBlock Text="Airspeed additional torque (%)"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding AirspeedAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="50" Value="{Binding AirspeedAdditionalTorquePercent}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementAirspeedTorqueCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding AirspeedAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="1" Maximum="50" Value="{Binding AirspeedAdditionalTorquePercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementAirspeedTorqueCommand}"/>
                         </Grid>
                         <TextBlock Text="Stall additional torque (%)" Margin="0,8,0,0"/>
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="55"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding Settings.StallAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
-                            <Slider Grid.Column="1" Minimum="30" Maximum="120" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
+                            <Button Grid.Column="0" Content="−" Width="25" Height="25" Margin="0,0,4,0" Command="{Binding DecrementStallTorqueCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Settings.StallAdditionalTorquePercent, StringFormat={}{0:F0}%}" VerticalAlignment="Center" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="2" Minimum="30" Maximum="120" Value="{Binding Settings.StallAdditionalTorquePercent}"/>
+                            <Button Grid.Column="3" Content="+" Width="25" Height="25" Margin="4,0,0,0" Command="{Binding IncrementStallTorqueCommand}"/>
                         </Grid>
                     </StackPanel>
                 </GroupBox>

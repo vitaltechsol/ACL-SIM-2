@@ -96,6 +96,32 @@ namespace ACL_SIM_2.ViewModels
             ToggleHydraulicTestCommand = new RelayCommand(_ => ToggleHydraulicTest());
             ToggleCalibrateCommand = new RelayCommand(_ => ToggleCalibrate());
             CloseCommand = new RelayCommand(o => CloseAction?.Invoke());
+
+            // Increment/Decrement commands for sliders
+            IncrementMinTorqueCommand = new RelayCommand(_ => MinTorquePercent = Math.Min(100, MinTorquePercent + 1));
+            DecrementMinTorqueCommand = new RelayCommand(_ => MinTorquePercent = Math.Max(0, MinTorquePercent - 1));
+            IncrementMaxTorqueCommand = new RelayCommand(_ => MaxTorquePercent = Math.Min(100, MaxTorquePercent + 1));
+            DecrementMaxTorqueCommand = new RelayCommand(_ => MaxTorquePercent = Math.Max(0, MaxTorquePercent - 1));
+            IncrementSelfCenteringSpeedCommand = new RelayCommand(_ => SelfCenteringSpeed = Math.Min(100, SelfCenteringSpeed + 1));
+            DecrementSelfCenteringSpeedCommand = new RelayCommand(_ => SelfCenteringSpeed = Math.Max(1, SelfCenteringSpeed - 1));
+            IncrementDampeningCommand = new RelayCommand(_ => Dampening = Math.Min(100, Dampening + 1));
+            DecrementDampeningCommand = new RelayCommand(_ => Dampening = Math.Max(0, Dampening - 1));
+            IncrementAutopilotOverrideCommand = new RelayCommand(_ => AutopilotOverridePercent = Math.Min(100, AutopilotOverridePercent + 1));
+            DecrementAutopilotOverrideCommand = new RelayCommand(_ => AutopilotOverridePercent = Math.Max(1, AutopilotOverridePercent - 1));
+            IncrementMotorSpeedCommand = new RelayCommand(_ => MotorSpeedRpm = Math.Min(50, MotorSpeedRpm + 1));
+            DecrementMotorSpeedCommand = new RelayCommand(_ => MotorSpeedRpm = Math.Max(1, MotorSpeedRpm - 1));
+            IncrementMovingTorqueCommand = new RelayCommand(_ => MovingTorquePercentage = Math.Min(100, MovingTorquePercentage + 1));
+            DecrementMovingTorqueCommand = new RelayCommand(_ => MovingTorquePercentage = Math.Max(0, MovingTorquePercentage - 1));
+            IncrementMotionSmoothingCommand = new RelayCommand(_ => MotionSmoothingPercent = Math.Min(100, MotionSmoothingPercent + 1));
+            DecrementMotionSmoothingCommand = new RelayCommand(_ => MotionSmoothingPercent = Math.Max(0, MotionSmoothingPercent - 1));
+            IncrementMinMotorCommandIntervalCommand = new RelayCommand(_ => MinMotorCommandIntervalMs = Math.Min(500, MinMotorCommandIntervalMs + 1));
+            DecrementMinMotorCommandIntervalCommand = new RelayCommand(_ => MinMotorCommandIntervalMs = Math.Max(0, MinMotorCommandIntervalMs - 1));
+            IncrementHydraulicOffTorqueCommand = new RelayCommand(_ => HydraulicOffTorquePercent = Math.Min(100, HydraulicOffTorquePercent + 1));
+            DecrementHydraulicOffTorqueCommand = new RelayCommand(_ => HydraulicOffTorquePercent = Math.Max(0, HydraulicOffTorquePercent - 1));
+            IncrementAirspeedTorqueCommand = new RelayCommand(_ => AirspeedAdditionalTorquePercent = Math.Min(50, AirspeedAdditionalTorquePercent + 1));
+            DecrementAirspeedTorqueCommand = new RelayCommand(_ => AirspeedAdditionalTorquePercent = Math.Max(1, AirspeedAdditionalTorquePercent - 1));
+            IncrementStallTorqueCommand = new RelayCommand(_ => Settings.StallAdditionalTorquePercent = Math.Min(120, Settings.StallAdditionalTorquePercent + 1));
+            DecrementStallTorqueCommand = new RelayCommand(_ => Settings.StallAdditionalTorquePercent = Math.Max(30, Settings.StallAdditionalTorquePercent - 1));
         }
 
         public string AxisName { get; }
@@ -553,6 +579,32 @@ namespace ACL_SIM_2.ViewModels
         public ICommand ToggleHydraulicTestCommand { get; }
         public ICommand ToggleCalibrateCommand { get; }
         public ICommand CloseCommand { get; }
+
+        // Increment/Decrement commands for sliders
+        public ICommand IncrementMinTorqueCommand { get; }
+        public ICommand DecrementMinTorqueCommand { get; }
+        public ICommand IncrementMaxTorqueCommand { get; }
+        public ICommand DecrementMaxTorqueCommand { get; }
+        public ICommand IncrementSelfCenteringSpeedCommand { get; }
+        public ICommand DecrementSelfCenteringSpeedCommand { get; }
+        public ICommand IncrementDampeningCommand { get; }
+        public ICommand DecrementDampeningCommand { get; }
+        public ICommand IncrementAutopilotOverrideCommand { get; }
+        public ICommand DecrementAutopilotOverrideCommand { get; }
+        public ICommand IncrementMotorSpeedCommand { get; }
+        public ICommand DecrementMotorSpeedCommand { get; }
+        public ICommand IncrementMovingTorqueCommand { get; }
+        public ICommand DecrementMovingTorqueCommand { get; }
+        public ICommand IncrementMotionSmoothingCommand { get; }
+        public ICommand DecrementMotionSmoothingCommand { get; }
+        public ICommand IncrementMinMotorCommandIntervalCommand { get; }
+        public ICommand DecrementMinMotorCommandIntervalCommand { get; }
+        public ICommand IncrementHydraulicOffTorqueCommand { get; }
+        public ICommand DecrementHydraulicOffTorqueCommand { get; }
+        public ICommand IncrementAirspeedTorqueCommand { get; }
+        public ICommand DecrementAirspeedTorqueCommand { get; }
+        public ICommand IncrementStallTorqueCommand { get; }
+        public ICommand DecrementStallTorqueCommand { get; }
 
         // An action the Window can set to close itself when VM requests
         public Action? CloseAction { get; set; }
