@@ -18,7 +18,7 @@ namespace ACL_SIM_2.Services
         private readonly AxisViewModel _axisVm;
         private readonly AxisTorqueControl? _torqueControl;
         private readonly AxisMovement _axisMovement;
-        private readonly ProSimManager? _proSimManager;
+        private readonly IAircraftManager? _proSimManager;
         private readonly IAppLogger? _logger;
         private readonly string _name;
         private bool _isDisposed;
@@ -99,7 +99,7 @@ namespace ACL_SIM_2.Services
             set => Interlocked.Exchange(ref _latestAutopilotTargetBits, BitConverter.DoubleToInt64Bits(value));
         }
 
-        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, ProSimManager proSimManager, IAppLogger logger, AxisEncoder? axisEncoder = null)
+        public AxisManager(string name, AxisViewModel axisVm, ModbusClient modbusClient, object? modbusLock, IAircraftManager proSimManager, IAppLogger logger, AxisEncoder? axisEncoder = null)
         {
             _name = name ?? throw new ArgumentNullException(nameof(name));
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));

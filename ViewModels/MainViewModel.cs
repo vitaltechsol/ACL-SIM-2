@@ -8,6 +8,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using ACL_SIM_2.Models;
+using ACL_SIM_2.Services;
 
 namespace ACL_SIM_2.ViewModels
 {
@@ -15,8 +16,8 @@ namespace ACL_SIM_2.ViewModels
     {
         private Services.AxisModbusRegistry? _modbusRegistry;
         private readonly Dictionary<string, Services.AxisEncoder> _axisEncoders = new Dictionary<string, Services.AxisEncoder>();
-        private readonly Services.ProSimManager? _proSimManager;
-        private readonly Services.IAppLogger _appLogger;
+        private readonly IAircraftManager? _proSimManager;
+        private readonly IAppLogger _appLogger;
         private readonly Dictionary<string, Services.AxisManager?> _axisManagers = new Dictionary<string, Services.AxisManager?>();
         private readonly Dictionary<string, AxisViewModel> _axes = new Dictionary<string, AxisViewModel>();
         private readonly Dictionary<string, AxisSettings> _axisSettings = new Dictionary<string, AxisSettings>();
@@ -111,8 +112,8 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
-        private Services.ProSimManager.ConnectionState _proSimConnectionState = Services.ProSimManager.ConnectionState.Disconnected;
-        public Services.ProSimManager.ConnectionState ProSimConnectionState
+        private ConnectionState _proSimConnectionState = ConnectionState.Disconnected;
+        public ConnectionState ProSimConnectionState
         {
             get => _proSimConnectionState;
             set
@@ -250,9 +251,16 @@ namespace ACL_SIM_2.ViewModels
             }
         }
 
-        public MainViewModel()
+        public MainViewModel(IAircraftManager aircraftManager, IAppLogger appLogger)
         {
-            _appLogger = new Services.AppLogger(LogError);
+            _proSimManager = aircraftManager ?? throw new ArgumentNullException(nameof(aircraftManager));
+            _appLogger = appLogger ?? throw new ArgumentNullException(nameof(appLogger));
+
+            // Configure logger to write to the error log
+            if (_appLogger is AppLogger logger)
+            {
+                logger.SetLogAction(LogError);
+            }
 
             // Load global settings for ProSim IP
             var globalSettings = Services.SettingsService.LoadGlobalSettings();
@@ -265,7 +273,6 @@ namespace ACL_SIM_2.ViewModels
             // Initialize ProSim Manager
             try
             {
-                _proSimManager = new Services.ProSimManager();
                 _proSimManager.OnConnectionStateChanged += ProSimManager_OnConnectionStateChanged;
 
                 // Subscribe to ProSim DataRef changes
@@ -437,7 +444,7 @@ namespace ACL_SIM_2.ViewModels
                 ProSimConnectionState = e.State;
                 ProSimStatusMessage = e.Message;
                 LogError($"[ProSim] {e.Message}");
-                if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected
+                if (ProSimConnectionState == ConnectionState.Connected
                     && _autoCenterOnStartup
                     && !_hasCenteredControls
                     && CanCenterControls())
@@ -451,7 +458,7 @@ namespace ACL_SIM_2.ViewModels
         {
             if (_proSimManager == null) return;
 
-            if (ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected)
+            if (ProSimConnectionState == ConnectionState.Connected)
             {
                 _proSimManager.Disconnect();
             }
@@ -610,7 +617,7 @@ namespace ACL_SIM_2.ViewModels
         private bool CanCenterControls()
         {
             return _proSimManager != null &&
-                   ProSimConnectionState == Services.ProSimManager.ConnectionState.Connected &&
+                   ProSimConnectionState == ConnectionState.Connected &&
                    !IsCentering;
         }
 

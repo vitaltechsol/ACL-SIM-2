@@ -11,8 +11,7 @@ namespace ACL_SIM_2
         public MainWindow()
         {
             InitializeComponent();
-            // Set the DataContext to the main view model.
-            DataContext = new MainViewModel();
+            // DataContext is set by App.xaml.cs during startup
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

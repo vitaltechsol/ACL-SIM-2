@@ -9,7 +9,7 @@ namespace ACL_SIM_2.Services
     /// <summary>
     /// Manages connection to ProSim and provides access to simulator data.
     /// </summary>
-    public class ProSimManager : IDisposable
+    public class ProSimManager : IAircraftManager
     {
         // DataRef Constants
         // These values are used to calculate the Auto-Pilot position (Also difference in target for auto-pilot disconnect from control movement):
@@ -41,14 +41,6 @@ namespace ACL_SIM_2.Services
         public const string PAUSE = "simulator.pause";
         // Not used (Todo: remove)
         public const string SPEED_GROUND = "aircraft.speed.ground";
-
-        public enum ConnectionState
-        {
-            Disconnected,
-            Connecting,
-            Connected,
-            Failed
-        }
 
         private readonly object _connectionLock = new object();
         private CancellationTokenSource? _prosimConnectCts;
@@ -523,36 +515,6 @@ namespace ACL_SIM_2.Services
                 }
             }
             catch { }
-        }
-    }
-
-    /// <summary>
-    /// Event args for ProSim connection state changes.
-    /// </summary>
-    public class ConnectionStateEventArgs : EventArgs
-    {
-        public ProSimManager.ConnectionState State { get; }
-        public string Message { get; }
-
-        public ConnectionStateEventArgs(ProSimManager.ConnectionState state, string message)
-        {
-            State = state;
-            Message = message;
-        }
-    }
-
-    /// <summary>
-    /// Event args for DataRef value changes.
-    /// </summary>
-    public class DataRefValueChangedEventArgs : EventArgs
-    {
-        public string DataRefName { get; }
-        public double Value { get; }
-
-        public DataRefValueChangedEventArgs(string dataRefName, double value)
-        {
-            DataRefName = dataRefName;
-            Value = value;
         }
     }
 }

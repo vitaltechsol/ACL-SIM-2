@@ -14,7 +14,7 @@ namespace ACL_SIM_2.ViewModels
     {
         private readonly AxisViewModel _axisVm;
         private readonly AxisManager? _axisManager;
-        private readonly ProSimManager? _proSimManager;
+        private readonly IAircraftManager? _proSimManager;
         private readonly Func<double> _getProSimValue;
         private double _calibrationDisplayOffset;
         private double _testStartEncoder;
@@ -39,7 +39,7 @@ namespace ACL_SIM_2.ViewModels
         private double _lastProSimRaw = double.NaN;
         private PropertyChangedEventHandler? _axisVmPropertyChangedHandler;
 
-        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null, ProSimManager? proSimManager = null)
+        public AxisSetupViewModel(AxisViewModel axisVm, AxisManager? axisManager = null, Func<double>? getProSimValue = null, IAircraftManager? proSimManager = null)
         {
             _axisVm = axisVm ?? throw new ArgumentNullException(nameof(axisVm));
             _axisManager = axisManager;
