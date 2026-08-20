@@ -49,8 +49,8 @@ Follow these steps to get up and running for the first time:
 8. Repeat steps 3–6 for each additional axis.
 9. Click **Center All** on the main window to home all enabled axes.
 10. The system is ready to use.
-
-> **Tip:** Enable **Auto Connect** and **Auto Center on Startup** in Settings for a fully automated startup routine on subsequent sessions.
+	1. 
+> **Tip:** Enable **Auto Connect** and **Auto Center on Startup** in Settings for a fully automated startup routine on subsequent sessions. **All Axis must be auto-centered after every restart**
 
 ---
 
